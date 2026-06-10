@@ -1,524 +1,798 @@
+<style>
+  /* Hide sidebar and Divi/WP remnants */
+  #sidebar,
+  #secondary,
+  aside#secondary,
+  .et_pb_widget_area,
+  .widget-area,
+  .sidebar,
+  .search-form,
+  .et_pb_search,
+  .widget_search,
+  .wp-block-search {
+    display: none !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide the existing WordPress/Divi header so only this page's custom header shows */
+  #top-header,
+  #main-header,
+  #et-top-navigation,
+  #et_mobile_nav_menu,
+  .et-l--header,
+  header.et-l--header,
+  .et_pb_menu,
+  .et_pb_fullwidth_menu,
+  .et_pb_section_0_tb_header,
+  .et_pb_section_1_tb_header {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #page-container,
+  .et_fixed_nav #page-container,
+  .et_non_fixed_nav.et_transparent_nav #page-container {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+  
+  /* Force Divi's content area to full width */
+  #content-area,
+  #left-area,
+  #main-content .container,
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  #left-area {
+    padding-right: 0 !important;
+    float: none !important;
+    border: none !important;
+  }
+  
+  #main-content,
+  .entry-content,
+  article,
+  .post,
+  .page,
+  .et_pb_post {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  #content-area::before,
+  #content-area::after,
+  #left-area::before,
+  #left-area::after,
+  #main-content::before,
+  #main-content::after,
+  .container::before,
+  .container::after,
+  .entry-content::before,
+  .entry-content::after {
+    display: none !important;
+    content: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  body.page { 
+    overflow-x: clip;
+  }
+
+  /* Single H1: hide Divi/WordPress auto page title; hero title is the page H1 */
+  h1.entry-title,
+  .et_pb_title_container,
+  .et_pb_title_container h1,
+  .et_main_title h1 {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  /* Footer nav: strip Divi white link/button boxes */
+  footer .footer-links,
+  footer .footer-links a,
+  footer .footer-links a:visited,
+  footer .footer-links a:hover,
+  footer .footer-links a:focus,
+  .entry-content footer .footer-links a {
+    background: none !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+</style>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ro-Berg Estimator</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #F7F6F3;
-    --surface: #FFFFFF;
-    --surface2: #F0EEE9;
-    --border: #E2DED6;
-    --border-strong: #C8C3B8;
-    --text: #1A1916;
-    --text-muted: #7A776E;
-    --text-hint: #ABA89F;
-    --accent: #C4520A;
-    --accent-light: #FDF0E8;
-    --accent-border: #E8A87A;
-    --green: #2D6A4F;
-    --green-bg: #EAF4EE;
-    --amber: #92600A;
-    --amber-bg: #FEF3DC;
-    --radius: 8px;
-    --radius-lg: 12px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  }
-
-  body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  header {
-    background: var(--text);
-    color: #fff;
-    padding: 0 32px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .logo { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-  .logo span { color: var(--accent); font-weight: 700; }
-  .header-sub { font-size: 12px; color: rgba(255,255,255,0.45); letter-spacing: 0.03em; }
-
-  .app {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 28px 24px;
-    align-items: start;
-  }
-
-  @media (max-width: 700px) {
-    .app { grid-template-columns: 1fr; padding: 16px; }
-    .sidebar { position: static; }
-  }
-
-  .section-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-hint); margin-bottom: 12px;
-  }
-
-  .panel-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    margin-bottom: 12px;
-    box-shadow: var(--shadow);
-    transition: border-color 0.15s;
-  }
-  .panel-card:focus-within { border-color: var(--accent-border); }
-
-  .panel-top {
-    display: flex; align-items: center;
-    justify-content: space-between; margin-bottom: 16px;
-  }
-  .panel-name { font-size: 15px; font-weight: 600; color: var(--text); }
-  .panel-controls { display: flex; align-items: center; gap: 8px; }
-
-  .cat-select {
-    font-size: 12px; height: 28px; padding: 0 8px;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--surface2); color: var(--text-muted); cursor: pointer; outline: none;
-  }
-  .cat-select:focus { border-color: var(--accent-border); }
-
-  .btn-remove {
-    background: none; border: 1px solid var(--border); border-radius: var(--radius);
-    width: 36px; height: 36px; cursor: pointer; color: var(--text-hint);
-    font-size: 16px; display: flex; align-items: center; justify-content: center;
-    transition: all 0.1s; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-  }
-  .btn-remove:hover, .btn-remove:active { border-color: #E8A8A8; color: #C05050; background: #FEF0F0; }
-
-  .fields-grid {
-    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 10px; margin-bottom: 10px;
-  }
-  @media (max-width: 500px) { .fields-grid { grid-template-columns: 1fr 1fr; } }
-
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field label { font-size: 11px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.03em; }
-  .field input, .field select {
-    height: 44px; padding: 0 10px;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 16px; /* 16px prevents iOS zoom */
-    color: var(--text); background: var(--surface);
-    outline: none; transition: border-color 0.15s; width: 100%;
-    -webkit-appearance: none; appearance: none;
-  }
-  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A776E' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
-  .field input:focus, .field select:focus { border-color: var(--accent-border); box-shadow: 0 0 0 3px rgba(196,82,10,0.08); }
-  .field input::placeholder { color: var(--text-hint); }
-  .notes-row { margin-bottom: 0; }
-  .notes-row input { width: 100%; }
-
-  .results-bar {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
-  }
-  .metric { background: var(--surface2); border-radius: var(--radius); padding: 10px 12px; }
-  .metric-label {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--text-hint); margin-bottom: 3px;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .metric-value { font-size: 18px; font-weight: 600; color: var(--text); }
-  .metric-value.is-price { color: var(--green); }
-  .min-badge {
-    font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    background: var(--amber-bg); color: var(--amber); border-radius: 4px; padding: 1px 5px;
-  }
-
-  .panel-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .btn-copy-panel {
-    width: 100%; height: 44px;
-    background: none; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-size: 13px; font-weight: 500;
-    color: var(--text-muted); cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
-  }
-  .btn-copy-panel:hover, .btn-copy-panel:active { border-color: var(--accent-border); color: var(--accent); background: var(--accent-light); }
-  .btn-copy-panel.copied { border-color: var(--green); color: var(--green); background: var(--green-bg); }
-  .btn-copy-panel:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .btn-add {
-    width: 100%; height: 52px;
-    border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg);
-    background: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
-  }
-  .btn-add:hover, .btn-add:active { background: var(--surface); border-color: var(--accent-border); color: var(--accent); }
-
-  .sidebar { position: sticky; top: 80px; }
-
-  .summary-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 20px;
-    box-shadow: var(--shadow); margin-bottom: 12px;
-  }
-  .summary-card h2 {
-    font-size: 13px; font-weight: 600; color: var(--text-muted);
-    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 16px;
-  }
-  .summary-line {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 6px 0; border-bottom: 1px solid var(--border); gap: 8px;
-  }
-  .summary-line:last-child { border-bottom: none; }
-  .summary-line .sname {
-    font-size: 13px; color: var(--text-muted); flex: 1; min-width: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .summary-line .sval { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; }
-  .summary-total {
-    margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--border);
-    display: flex; justify-content: space-between; align-items: baseline;
-  }
-  .summary-total .tlabel { font-size: 14px; font-weight: 600; color: var(--text); }
-  .summary-total .tval { font-size: 24px; font-weight: 700; color: var(--green); }
-  .empty-state { font-size: 13px; color: var(--text-hint); text-align: center; padding: 16px 0; }
-
-  .btn-copy-all {
-    width: 100%; height: 52px; background: var(--accent); color: #fff;
-    border: none; border-radius: var(--radius-lg); font-size: 14px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    gap: 8px; transition: all 0.15s; margin-bottom: 8px; letter-spacing: 0.01em;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn-copy-all:hover, .btn-copy-all:active { background: #A8440A; }
-  .btn-copy-all.copied { background: var(--green); }
-
-  .btn-reset {
-    width: 100%; height: 40px; background: none; color: var(--text-hint);
-    border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 12px; cursor: pointer; transition: all 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn-reset:hover, .btn-reset:active { color: #C05050; border-color: #E8A8A8; background: #FEF0F0; }
-
-  .toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--text); color: #fff; padding: 10px 20px;
-    border-radius: var(--radius-lg); font-size: 13px; font-weight: 500;
-    opacity: 0; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: none; white-space: nowrap; z-index: 999;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .ico { display: inline-flex; align-items: center; flex-shrink: 0; }
-</style>
 </head>
 <body>
+<!-- ============================================================
+     RO-BERG ESTIMATOR — standalone file version
+     All styles/fonts self-contained for use outside WordPress
+     ============================================================ -->
+<div id="rb-estimator">
 
-<header>
-  <div class="logo">Ro<span>-Berg</span> Estimator</div>
-  <div class="header-sub">Concrete Lifting · South Houston</div>
-</header>
-
-<div class="app">
-  <div class="main-col">
-    <div class="section-label">Panels</div>
-    <div id="panels-container"></div>
-    <button class="btn-add" id="btn-add">
-      <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add panel
-    </button>
-  </div>
-
-  <div class="sidebar">
-    <div class="summary-card">
-      <h2>Estimate total</h2>
-      <div id="summary-rows"><div class="empty-state">No panels yet</div></div>
-      <div class="summary-total" id="summary-total" style="display:none">
-        <span class="tlabel">Total</span>
-        <span class="tval" id="total-val">$0</span>
-      </div>
+  <div class="rb-header">
+    <div class="rb-logo">
+      Ro<span>-Berg</span>
+      <div class="rb-logo-divider"></div>
+      <span class="rb-logo-sub">Estimator</span>
     </div>
-    <button class="btn-copy-all" id="copy-all-btn">
-      <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy all panels for HCP
-    </button>
-    <button class="btn-reset" id="btn-reset">Clear all panels</button>
   </div>
+
+  <div class="rb-total-bar" id="rb-total-bar">
+    <span class="rb-total-bar-label">Job Total</span>
+    <span class="rb-total-bar-value" id="rb-total-bar-value">—</span>
+  </div>
+
+  <div class="rb-app">
+    <div class="rb-main">
+      <div class="rb-section-label">Job Panels</div>
+      <div id="rb-panels"></div>
+      <button class="rb-btn-add" id="rb-btn-add">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Panel
+      </button>
+    </div>
+
+    <div class="rb-sidebar">
+      <div class="rb-summary-card">
+        <div class="rb-summary-title">Estimate Summary</div>
+        <div id="rb-summary-rows"><div class="rb-empty">Add panels above</div></div>
+        <div class="rb-summary-total" id="rb-summary-total" style="display:none">
+          <span class="rb-total-label">Total</span>
+          <span class="rb-total-val" id="rb-total-val">$0</span>
+        </div>
+      </div>
+      <button class="rb-btn-copy-all" id="rb-copy-all-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy All Panels for HCP
+      </button>
+      <button class="rb-btn-reset" id="rb-btn-reset">Clear All Panels</button>
+    </div>
+  </div>
+
+  <div class="rb-toast" id="rb-toast"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<style>
+/* Google Fonts loaded here so it works in both standalone and WP block */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;500;600&display=swap');
+
+/* ALL selectors scoped to #rb-estimator — zero bleed into WP theme */
+#rb-estimator {
+  --rb-blue:       #72a5b7;
+  --rb-blue-dark:  #5a8fa0;
+  --rb-blue-light: #eaf3f7;
+  --rb-navy:       #27235d;
+  --rb-navy2:      #322d6e;
+  --rb-navy3:      #3d377f;
+  --rb-gray:       #808281;
+  --rb-bg:         #f0f1f1;
+  --rb-surface:    #ffffff;
+  --rb-surface2:   #f4f4f4;
+  --rb-border:     #d8d9d9;
+  --rb-text:       #1a1a1a;
+  --rb-text-muted: #808281;
+  --rb-text-hint:  #a8a9a8;
+  --rb-success:    #27235d;
+  --rb-success-bg: #eae9f5;
+  --rb-radius:     8px;
+  --rb-radius-lg:  12px;
+  --rb-shadow:     0 1px 4px rgba(0,0,0,0.09);
+  --rb-shadow-lg:  0 4px 20px rgba(0,0,0,0.13);
+
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--rb-text);
+  background: var(--rb-bg);
+  border-radius: var(--rb-radius-lg);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+}
+
+#rb-estimator *, #rb-estimator *::before, #rb-estimator *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── HEADER ── */
+#rb-estimator .rb-header {
+  background: var(--rb-navy);
+  color: #fff;
+  padding: 0 16px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  border-bottom: 3px solid var(--rb-blue);
+  box-shadow: var(--rb-shadow-lg);
+  position: relative;
+  z-index: 10;
+}
+#rb-estimator .rb-logo {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#rb-estimator .rb-logo span { color: var(--rb-blue); }
+#rb-estimator .rb-logo-divider {
+  width: 2px; height: 18px;
+  background: var(--rb-blue);
+  border-radius: 2px; opacity: 0.5;
+}
+#rb-estimator .rb-logo-sub {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 10px; font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ── STICKY TOTAL BAR (mobile only) ── */
+#rb-estimator .rb-total-bar {
+  display: none;
+  background: var(--rb-navy2);
+  border-bottom: 1px solid var(--rb-navy3);
+  padding: 0 16px;
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
+}
+#rb-estimator .rb-total-bar-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+#rb-estimator .rb-total-bar-value {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px; font-weight: 800;
+  color: var(--rb-blue);
+}
+
+/* ── LAYOUT ── */
+#rb-estimator .rb-app {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  padding: 20px;
+  align-items: start;
+}
+#rb-estimator .rb-section-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--rb-text-hint); margin-bottom: 10px;
+}
+
+/* ── PANEL CARD ── */
+#rb-estimator .rb-panel-card {
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: var(--rb-radius-lg);
+  padding: 16px; margin-bottom: 10px;
+  box-shadow: var(--rb-shadow);
+  border-top: 3px solid transparent;
+  transition: border-top-color 0.15s;
+}
+#rb-estimator .rb-panel-card:focus-within { border-top-color: var(--rb-blue); }
+
+#rb-estimator .rb-panel-top {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 14px;
+}
+#rb-estimator .rb-panel-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px; font-weight: 800;
+  color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+}
+#rb-estimator .rb-panel-controls { display: flex; align-items: center; gap: 6px; }
+
+#rb-estimator .rb-cat-select {
+  font-size: 12px; height: 32px; padding: 0 8px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  background: var(--rb-surface2); color: var(--rb-text-muted);
+  cursor: pointer; outline: none; font-family: 'Open Sans', sans-serif;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808281' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center;
+  padding-right: 24px; max-width: 110px;
+}
+#rb-estimator .rb-cat-select:focus { border-color: var(--rb-blue); outline: none; }
+
+#rb-estimator .rb-btn-remove {
+  background: none; border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  min-width: 36px; height: 36px; cursor: pointer; color: var(--rb-text-hint);
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s; flex-shrink: 0; -webkit-tap-highlight-color: transparent; padding: 0;
+  font-family: inherit;
+}
+#rb-estimator .rb-btn-remove:active { border-color: #e0a0a0; color: #b03030; background: #fef0f0; }
+
+/* ── FIELDS ── */
+#rb-estimator .rb-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 8px;
+}
+#rb-estimator .rb-field { display: flex; flex-direction: column; gap: 4px; }
+#rb-estimator .rb-field label {
+  font-size: 10px; font-weight: 700; color: var(--rb-text-hint);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: 'Montserrat', sans-serif;
+  display: block;
+}
+#rb-estimator .rb-field input,
+#rb-estimator .rb-field select {
+  height: 48px; padding: 0 12px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-size: 16px; font-family: 'Open Sans', sans-serif;
+  color: var(--rb-text); background: var(--rb-surface);
+  outline: none; width: 100%;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s;
+  /* override any WP theme input styles */
+  box-shadow: none !important;
+  border-radius: var(--rb-radius) !important;
+}
+#rb-estimator .rb-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808281' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+#rb-estimator .rb-field input:focus,
+#rb-estimator .rb-field select:focus {
+  border-color: var(--rb-blue) !important;
+  box-shadow: 0 0 0 3px rgba(114,165,183,0.18) !important;
+  outline: none !important;
+}
+#rb-estimator .rb-field input::placeholder { color: var(--rb-text-hint); }
+
+/* ── RESULTS BAR ── */
+#rb-estimator .rb-results-bar {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--rb-border);
+}
+#rb-estimator .rb-metric {
+  background: var(--rb-navy);
+  border-radius: var(--rb-radius); padding: 10px 10px 8px;
+}
+#rb-estimator .rb-metric-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(255,255,255,0.4);
+  margin-bottom: 3px; display: block;
+}
+#rb-estimator .rb-metric-value {
+  font-size: 15px; font-weight: 700; color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+}
+#rb-estimator .rb-metric-value.rb-price { color: var(--rb-blue); }
+#rb-estimator .rb-min-badge {
+  display: inline-block;
+  font-size: 7px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6);
+  border-radius: 3px; padding: 1px 4px; margin-left: 3px; vertical-align: middle;
+}
+
+/* ── PER-PANEL COPY ── */
+#rb-estimator .rb-panel-footer {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rb-border);
+}
+#rb-estimator .rb-btn-copy-panel {
+  width: 100%; height: 44px;
+  background: none; border: 1.5px solid var(--rb-gray);
+  border-radius: var(--rb-radius);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--rb-text-muted); cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-copy-panel:active { border-color: var(--rb-blue); color: var(--rb-navy); background: var(--rb-blue-light); }
+#rb-estimator .rb-btn-copy-panel.rb-copied { border-color: var(--rb-success); color: var(--rb-success); background: var(--rb-success-bg); }
+#rb-estimator .rb-btn-copy-panel:disabled { opacity: 0.28; cursor: not-allowed; }
+
+/* ── ADD PANEL ── */
+#rb-estimator .rb-btn-add {
+  width: 100%; height: 52px;
+  border: 2px dashed var(--rb-gray); border-radius: var(--rb-radius-lg);
+  background: none; color: var(--rb-text-muted);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent; margin-bottom: 0;
+}
+#rb-estimator .rb-btn-add:active { background: var(--rb-blue-light); border-color: var(--rb-blue); color: var(--rb-navy); }
+
+/* ── SIDEBAR ── */
+#rb-estimator .rb-summary-card {
+  background: var(--rb-navy);
+  border-radius: var(--rb-radius-lg);
+  padding: 18px; box-shadow: var(--rb-shadow-lg); margin-bottom: 10px;
+}
+#rb-estimator .rb-summary-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.35); margin-bottom: 14px;
+}
+#rb-estimator .rb-summary-line {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 8px;
+}
+#rb-estimator .rb-summary-line:last-child { border-bottom: none; }
+#rb-estimator .rb-summary-line .rb-sname {
+  font-size: 12px; color: rgba(255,255,255,0.45); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#rb-estimator .rb-summary-line .rb-sval { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; }
+#rb-estimator .rb-summary-total {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+#rb-estimator .rb-total-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+}
+#rb-estimator .rb-total-val {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 26px; font-weight: 800; color: var(--rb-blue);
+}
+#rb-estimator .rb-empty { font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; padding: 14px 0; }
+
+/* ── COPY ALL ── */
+#rb-estimator .rb-btn-copy-all {
+  width: 100%; height: 52px; background: var(--rb-blue); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 8px; transition: all 0.15s; margin-bottom: 8px;
+  box-shadow: 0 2px 10px rgba(114,165,183,0.4);
+  -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-copy-all:active { background: var(--rb-blue-dark); }
+#rb-estimator .rb-btn-copy-all.rb-copied { background: var(--rb-success); box-shadow: none; }
+
+#rb-estimator .rb-btn-reset {
+  width: 100%; height: 40px; background: none; color: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-reset:active { color: #e08080; border-color: rgba(200,80,80,0.35); background: rgba(200,80,80,0.07); }
+
+/* ── TOAST ── */
+#rb-estimator .rb-toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%) translateY(70px);
+  background: var(--rb-navy); color: var(--rb-blue);
+  border: 1px solid var(--rb-navy3);
+  padding: 9px 18px; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  opacity: 0; transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none; white-space: nowrap; z-index: 99999;
+  box-shadow: var(--rb-shadow-lg);
+}
+#rb-estimator .rb-toast.rb-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 720px) {
+  #rb-estimator .rb-total-bar { display: flex; }
+  #rb-estimator .rb-app {
+    grid-template-columns: 1fr;
+    padding: 12px; gap: 12px;
+  }
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 480px) {
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+}
+@media (max-width: 479px) {
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
 
 <script>
-var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120, MINIMUM = 163;
-var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
-var COPY_SVG = '<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-var CHECK_SVG = '<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
-var panels = [], nextId = 1;
+(function() {
+  // Wrapped in IIFE — no global variable pollution in WordPress
+  var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120, MINIMUM = 163;
+  var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
+  var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
+  var panels = [], nextId = 1;
 
-function disclaimers(lbs) {
-  return '*Lifting within 1/4" - 3/8" accuracy.\n' +
-    '*Unforeseen conditions could prevent lift to 100% accuracy.\n' +
-    '*High areas in the concrete are not guaranteed to lower during lift.\n' +
-    '*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n' +
-    '*Concrete at corners may not match with 100% accuracy.\n' +
-    '*Concrete may crack during lifting process.\n' +
-    '*Ro-Berg is not responsible for damages to landscaping\n' +
-    '*Please remove all vehicles from driveway.\n' +
-    '*Parking of lift trailer will need to be at curb in front of driveway.';
-}
-
-function calcPanel(l, w, sides, depth) {
-  var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
-  var lbsRaw = vol * CONVERSION;
-  var saleRaw = lbsRaw * RATE_SALE;
-  var costRaw = lbsRaw * RATE_COST;
-  var isMin = saleRaw < MINIMUM;
-  var lbs  = Math.ceil(lbsRaw);
-  var sale = isMin ? MINIMUM : Math.ceil(saleRaw);
-  var cost = isMin ? Math.ceil(MINIMUM * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw);
-  return { lbs: lbs, sale: sale, cost: cost, isMin: isMin };
-}
-
-function depthLabel(d) {
-  d = parseFloat(d);
-  if (!d) return '?';
-  var whole = Math.floor(d);
-  var frac = Math.round((d % 1) * 100) / 100;
-  var fracMap = { 0.25: '1/4', 0.5: '1/2', 0.75: '3/4' };
-  if (!frac) return whole + '"';
-  var fracStr = fracMap[frac] || frac;
-  return (whole ? whole + ' ' : '') + fracStr + '"';
-}
-
-function fmt(n) { return '$' + n.toLocaleString('en-US'); }
-
-function buildDesc(p, calc) {
-  var cat = (p.category || 'panel').toLowerCase();
-  var sidesStr = p.sides + (p.sides > 1 ? ' sides' : ' side');
-  return 'Drill into ' + cat + ' panel, Install Ports (as needed), Install ' + calc.lbs + ' +/- lbs of foam, Patch Holes.\nLift ' + depthLabel(p.depth) + ' to ' + sidesStr + '.\n' + disclaimers(calc.lbs);
-}
-
-function buildHCPLine(p, calc) {
-  return p.name + ' \u2014 Unit Price: ' + fmt(calc.sale) + ' | Unit Cost: ' + fmt(calc.cost) + '\n' + buildDesc(p, calc);
-}
-
-function isReady(p) { return p.length && p.width && p.sides && p.depth; }
-
-function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 2500);
-}
-
-function addPanel() {
-  var id = nextId++;
-  panels.push({ id: id, name: 'Panel ' + (panels.length + 1), length: 0, width: 0, sides: 1, depth: 1, category: 'Driveway', notes: '' });
-  renderAll();
-  setTimeout(function() {
-    var cards = document.querySelectorAll('.panel-card');
-    var last = cards[cards.length - 1];
-    if (last) {
-      var inp = last.querySelector('input[type="number"]');
-      if (inp) inp.focus();
-    }
-  }, 50);
-}
-
-function removePanel(id) {
-  panels = panels.filter(function(p) { return p.id !== id; });
-  panels.forEach(function(p, i) { p.name = 'Panel ' + (i + 1); });
-  renderAll();
-}
-
-function updateField(id, field, value) {
-  var p = panels.find(function(p) { return p.id === id; });
-  if (!p) return;
-  if (['sides','depth','length','width'].indexOf(field) >= 0) {
-    p[field] = parseFloat(value) || 0;
-  } else {
-    p[field] = value;
+  function disclaimers(lbs) {
+    return '*Lifting within 1/4" - 3/8" accuracy.\n' +
+      '*Unforeseen conditions could prevent lift to 100% accuracy.\n' +
+      '*High areas in the concrete are not guaranteed to lower during lift.\n' +
+      '*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n' +
+      '*Concrete at corners may not match with 100% accuracy.\n' +
+      '*Concrete may crack during lifting process.\n' +
+      '*Ro-Berg is not responsible for damages to landscaping\n' +
+      '*Please remove all vehicles from driveway.\n' +
+      '*Parking of lift trailer will need to be at curb in front of driveway.';
   }
-  updateCardResults(id);
-  renderSummary();
-}
 
-function updateCardResults(id) {
-  var p = panels.find(function(p) { return p.id === id; });
-  if (!p) return;
-  var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth) : null;
-  var lbsEl  = document.getElementById('r-lbs-'     + id);
-  var costEl = document.getElementById('r-cost-'    + id);
-  var saleEl = document.getElementById('r-sale-'    + id);
-  var lbl    = document.getElementById('r-salelbl-' + id);
-  var btn    = document.getElementById('r-copybtn-' + id);
-  if (!lbsEl) return;
-  if (calc) {
-    lbsEl.textContent  = calc.lbs + ' lbs';
-    costEl.textContent = fmt(calc.cost);
-    saleEl.textContent = fmt(calc.sale);
-    lbl.innerHTML = 'Sale price' + (calc.isMin ? ' <span class="min-badge">min</span>' : '');
-    btn.disabled = false;
-  } else {
-    lbsEl.textContent = costEl.textContent = saleEl.textContent = '\u2014';
-    lbl.innerHTML = 'Sale price';
-    btn.disabled = true;
+  function calcPanel(l, w, sides, depth) {
+    var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
+    var lbsRaw = vol * CONVERSION;
+    var saleRaw = lbsRaw * RATE_SALE;
+    var costRaw = lbsRaw * RATE_COST;
+    var isMin = saleRaw < MINIMUM;
+    return {
+      lbs:   Math.ceil(lbsRaw),
+      sale:  isMin ? MINIMUM : Math.ceil(saleRaw),
+      cost:  isMin ? Math.ceil(MINIMUM * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
+      isMin: isMin
+    };
   }
-}
 
-function copyPanel(id) {
-  var p = panels.find(function(p) { return p.id === id; });
-  if (!p || !isReady(p)) return;
-  var calc = calcPanel(p.length, p.width, p.sides, p.depth);
-  var text = buildHCPLine(p, calc);
-  navigator.clipboard.writeText(text).then(function() {
-    var btn = document.getElementById('r-copybtn-' + id);
-    btn.classList.add('copied');
-    btn.innerHTML = CHECK_SVG + ' Copied!';
-    showToast(p.name + ' copied');
+  function depthLabel(d) {
+    d = parseFloat(d);
+    if (!d) return '?';
+    var whole = Math.floor(d), frac = Math.round((d % 1) * 100) / 100;
+    var m = { 0.25: '1/4', 0.5: '1/2', 0.75: '3/4' };
+    if (!frac) return whole + '"';
+    return (whole ? whole + ' ' : '') + (m[frac] || frac) + '"';
+  }
+
+  function fmt(n) { return '$' + n.toLocaleString('en-US'); }
+  // NOTE: WordPress content filters encode `&` to `&#038;` inside <script> blocks,
+  // which corrupts `&&` into a JS syntax error. We avoid the `&` character entirely
+  // in this script by replacing logical-AND with ternary / if-cascade forms.
+  function isReady(p) {
+    if (!p.length) return false;
+    if (!p.width)  return false;
+    if (!p.sides)  return false;
+    if (!p.depth)  return false;
+    return true;
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('rb-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('rb-show');
+    setTimeout(function() { t.classList.remove('rb-show'); }, 2200);
+  }
+
+  function buildDesc(p, calc) {
+    var cat = (p.category || 'panel').toLowerCase();
+    var sidesStr = p.sides + (p.sides > 1 ? ' sides' : ' side');
+    return 'Drill into ' + cat + ' panel, Install Ports (as needed), Install ' + calc.lbs + ' +/- lbs of foam, Patch Holes.\nLift ' + depthLabel(p.depth) + ' to ' + sidesStr + '.\n' + disclaimers(calc.lbs);
+  }
+
+  function buildHCPLine(p, calc) {
+    return p.name + ' \u2014 Unit Price: ' + fmt(calc.sale) + ' | Unit Cost: ' + fmt(calc.cost) + '\n' + buildDesc(p, calc);
+  }
+
+  function addPanel() {
+    var id = nextId++;
+    panels.push({ id: id, name: 'Panel ' + (panels.length + 1), length: 0, width: 0, sides: 1, depth: 1, category: 'Driveway', notes: '' });
+    renderAll();
     setTimeout(function() {
-      btn.classList.remove('copied');
-      btn.innerHTML = COPY_SVG + ' Copy this panel';
-    }, 2000);
-  });
-}
+      var cards = document.querySelectorAll('#rb-estimator .rb-panel-card');
+      var last = cards[cards.length - 1];
+      if (last) { var inp = last.querySelector('input[type="number"]'); if (inp) inp.focus(); }
+    }, 60);
+  }
 
-function copyAll() {
-  var lines = [];
-  panels.forEach(function(p) {
-    if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth)));
-  });
-  if (!lines.length) { showToast('No panels to copy yet'); return; }
-  navigator.clipboard.writeText(lines.join('\n\n---\n\n')).then(function() {
-    var btn = document.getElementById('copy-all-btn');
-    btn.classList.add('copied');
-    btn.innerHTML = CHECK_SVG + ' All ' + lines.length + ' panels copied!';
-    showToast('All ' + lines.length + ' panels copied \u2014 paste into HCP');
-    setTimeout(function() {
-      btn.classList.remove('copied');
-      btn.innerHTML = '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy all panels for HCP';
-    }, 2500);
-  });
-}
+  function removePanel(id) {
+    panels = panels.filter(function(p) { return p.id !== id; });
+    panels.forEach(function(p, i) { p.name = 'Panel ' + (i + 1); });
+    renderAll();
+  }
 
-function resetAll() {
-  if (panels.length && !confirm('Clear all panels and start over?')) return;
-  panels = []; nextId = 1;
-  renderAll();
-}
+  function updateField(id, field, value) {
+    var p = panels.find(function(p) { return p.id === id; });
+    if (!p) return;
+    p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value) || 0) : value;
+    updateCardResults(id);
+    renderSummary();
+  }
 
-function renderAll() {
-  var container = document.getElementById('panels-container');
-  container.innerHTML = '';
-  panels.forEach(function(p) {
+  function updateCardResults(id) {
+    var p = panels.find(function(p) { return p.id === id; });
+    if (!p) return;
     var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth) : null;
-    var div = document.createElement('div');
-    div.className = 'panel-card';
-    div.id = 'card-' + p.id;
-
-    var catOptions = CATEGORIES.map(function(c) {
-      return '<option' + (c === p.category ? ' selected' : '') + '>' + c + '</option>';
-    }).join('');
-
-    var sidesOptions = [1,2,3,4].map(function(n) {
-      return '<option value="' + n + '"' + (n === p.sides ? ' selected' : '') + '>' + n + '</option>';
-    }).join('');
-
-    div.innerHTML =
-      '<div class="panel-top">' +
-        '<div class="panel-name">' + p.name + '</div>' +
-        '<div class="panel-controls">' +
-          '<select class="cat-select" data-id="' + p.id + '" data-field="category">' + catOptions + '</select>' +
-          '<button class="btn-remove" data-id="' + p.id + '" title="Remove panel">\u2715</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="fields-grid">' +
-        '<div class="field"><label>Length (ft)</label><input type="number" min="0" step="0.5" value="' + (p.length||'') + '" placeholder="0" data-id="' + p.id + '" data-field="length" inputmode="decimal"></div>' +
-        '<div class="field"><label>Width (ft)</label><input type="number" min="0" step="0.5" value="' + (p.width||'') + '" placeholder="0" data-id="' + p.id + '" data-field="width" inputmode="decimal"></div>' +
-        '<div class="field"><label>Sides</label><select data-id="' + p.id + '" data-field="sides">' + sidesOptions + '</select></div>' +
-        '<div class="field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="' + (p.depth||'') + '" placeholder="0" data-id="' + p.id + '" data-field="depth" inputmode="decimal"></div>' +
-      '</div>' +
-      '<div class="field notes-row"><label>Notes (optional)</label><input type="text" value="' + (p.notes||'') + '" placeholder="e.g. corner near garage door" data-id="' + p.id + '" data-field="notes"></div>' +
-      '<div class="results-bar">' +
-        '<div class="metric"><div class="metric-label">Foam</div><div class="metric-value" id="r-lbs-' + p.id + '">' + (calc ? calc.lbs + ' lbs' : '\u2014') + '</div></div>' +
-        '<div class="metric"><div class="metric-label">Cost</div><div class="metric-value" id="r-cost-' + p.id + '">' + (calc ? fmt(calc.cost) : '\u2014') + '</div></div>' +
-        '<div class="metric"><div class="metric-label" id="r-salelbl-' + p.id + '">Sale price' + (calc && calc.isMin ? ' <span class="min-badge">min</span>' : '') + '</div><div class="metric-value is-price" id="r-sale-' + p.id + '">' + (calc ? fmt(calc.sale) : '\u2014') + '</div></div>' +
-      '</div>' +
-      '<div class="panel-footer">' +
-        '<button class="btn-copy-panel" id="r-copybtn-' + p.id + '" data-id="' + p.id + '"' + (calc ? '' : ' disabled') + '>' +
-          COPY_SVG + ' Copy this panel' +
-        '</button>' +
-      '</div>';
-
-    container.appendChild(div);
-  });
-
-  // Wire up events via delegation on container
-  renderSummary();
-}
-
-function renderSummary() {
-  var rows    = document.getElementById('summary-rows');
-  var totalEl = document.getElementById('summary-total');
-  var totalV  = document.getElementById('total-val');
-  var html = '', total = 0;
-  panels.forEach(function(p) {
-    if (isReady(p)) {
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth);
-      total += calc.sale;
-      html += '<div class="summary-line"><span class="sname">' + p.name + ' \u2014 ' + p.length + '\xd7' + p.width + ' ft, ' + p.sides + 's, ' + p.depth + '"</span><span class="sval">' + fmt(calc.sale) + '</span></div>';
+    var lbsEl = document.getElementById('rb-lbs-' + id);
+    var costEl = document.getElementById('rb-cost-' + id);
+    var saleEl = document.getElementById('rb-sale-' + id);
+    var lbl    = document.getElementById('rb-salelbl-' + id);
+    var btn    = document.getElementById('rb-copybtn-' + id);
+    if (!lbsEl) return;
+    if (calc) {
+      lbsEl.textContent  = calc.lbs + ' lbs';
+      costEl.textContent = fmt(calc.cost);
+      saleEl.textContent = fmt(calc.sale);
+      lbl.innerHTML = 'Sale' + (calc.isMin ? ' <span class="rb-min-badge">min</span>' : '');
+      btn.disabled = false;
+    } else {
+      lbsEl.textContent = costEl.textContent = saleEl.textContent = '\u2014';
+      lbl.innerHTML = 'Sale';
+      btn.disabled = true;
     }
-  });
-  if (!html) {
-    rows.innerHTML = '<div class="empty-state">Add panels to see totals</div>';
-    totalEl.style.display = 'none';
-  } else {
-    rows.innerHTML = html;
-    totalEl.style.display = 'flex';
-    totalV.textContent = fmt(total);
   }
-}
 
-// Single event delegation for the whole document — works on all mobile browsers
-document.addEventListener('click', function(e) {
-  var t = e.target.closest('button');
-  if (!t) return;
-  if (t.id === 'btn-add')       { addPanel(); return; }
-  if (t.id === 'copy-all-btn')  { copyAll();  return; }
-  if (t.id === 'btn-reset')     { resetAll(); return; }
-  if (t.classList.contains('btn-remove')) { removePanel(parseInt(t.getAttribute('data-id'), 10)); return; }
-  if (t.classList.contains('btn-copy-panel')) { copyPanel(parseInt(t.getAttribute('data-id'), 10)); return; }
-});
+  function copyPanel(id) {
+    var p = panels.find(function(p) { return p.id === id; });
+    if (!p || !isReady(p)) return;
+    var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+    navigator.clipboard.writeText(buildHCPLine(p, calc)).then(function() {
+      var btn = document.getElementById('rb-copybtn-' + id);
+      btn.classList.add('rb-copied');
+      btn.innerHTML = CHECK_SVG + ' Copied!';
+      showToast(p.name + ' copied');
+      setTimeout(function() { btn.classList.remove('rb-copied'); btn.innerHTML = COPY_SVG + ' Copy This Panel'; }, 2000);
+    });
+  }
 
-document.addEventListener('input', function(e) {
-  var t = e.target;
-  var id = t.getAttribute('data-id');
-  var field = t.getAttribute('data-field');
-  if (id && field) updateField(parseInt(id, 10), field, t.value);
-});
+  function copyAll() {
+    var lines = [];
+    panels.forEach(function(p) {
+      if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth)));
+    });
+    if (!lines.length) { showToast('No panels ready yet'); return; }
+    navigator.clipboard.writeText(lines.join('\n\n---\n\n')).then(function() {
+      var btn = document.getElementById('rb-copy-all-btn');
+      btn.classList.add('rb-copied');
+      btn.innerHTML = CHECK_SVG + ' All ' + lines.length + ' Panels Copied!';
+      showToast('All ' + lines.length + ' panels copied');
+      setTimeout(function() { btn.classList.remove('rb-copied'); btn.innerHTML = COPY_SVG + ' Copy All Panels for HCP'; }, 2500);
+    });
+  }
 
-document.addEventListener('change', function(e) {
-  var t = e.target;
-  var id = t.getAttribute('data-id');
-  var field = t.getAttribute('data-field');
-  if (id && field) updateField(parseInt(id, 10), field, t.value);
-});
+  function resetAll() {
+    if (panels.length ? !confirm('Clear all panels and start over?') : false) return;
+    panels = []; nextId = 1;
+    renderAll();
+  }
 
-addPanel();
+  function renderAll() {
+    var container = document.getElementById('rb-panels');
+    if (!container) return;
+    container.innerHTML = '';
+    panels.forEach(function(p) {
+      var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth) : null;
+      var div = document.createElement('div');
+      div.className = 'rb-panel-card';
+      div.id = 'rb-card-' + p.id;
+
+      var catOpts = CATEGORIES.map(function(c) {
+        return '<option' + (c === p.category ? ' selected' : '') + '>' + c + '</option>';
+      }).join('');
+
+      var sideOpts = [1,2,3,4].map(function(n) {
+        return '<option value="' + n + '"' + (n === p.sides ? ' selected' : '') + '>' + n + '</option>';
+      }).join('');
+
+      div.innerHTML =
+        '<div class="rb-panel-top">' +
+          '<div class="rb-panel-name">' + p.name + '</div>' +
+          '<div class="rb-panel-controls">' +
+            '<select class="rb-cat-select" data-id="' + p.id + '" data-field="category">' + catOpts + '</select>' +
+            '<button class="rb-btn-remove" data-id="' + p.id + '" title="Remove">\u2715</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rb-fields-grid">' +
+          '<div class="rb-field"><label>Length (ft)</label><input type="number" min="0" step="0.5" value="' + (p.length||'') + '" placeholder="0" data-id="' + p.id + '" data-field="length" inputmode="decimal"></div>' +
+          '<div class="rb-field"><label>Width (ft)</label><input type="number" min="0" step="0.5" value="' + (p.width||'') + '" placeholder="0" data-id="' + p.id + '" data-field="width" inputmode="decimal"></div>' +
+          '<div class="rb-field"><label>Sides</label><select data-id="' + p.id + '" data-field="sides">' + sideOpts + '</select></div>' +
+          '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="' + (p.depth||'') + '" placeholder="0" data-id="' + p.id + '" data-field="depth" inputmode="decimal"></div>' +
+        '</div>' +
+        '<div class="rb-field" style="margin-bottom:0"><label>Notes</label><input type="text" value="' + (p.notes||'') + '" placeholder="optional" data-id="' + p.id + '" data-field="notes" style="width:100%"></div>' +
+        '<div class="rb-results-bar">' +
+          '<div class="rb-metric"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-' + p.id + '">' + (calc ? calc.lbs + ' lbs' : '\u2014') + '</span></div>' +
+          '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-' + p.id + '">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
+          '<div class="rb-metric"><span class="rb-metric-label" id="rb-salelbl-' + p.id + '">Sale' + ((calc ? calc.isMin : false) ? ' <span class="rb-min-badge">min</span>' : '') + '</span><span class="rb-metric-value rb-price" id="rb-sale-' + p.id + '">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
+        '</div>' +
+        '<div class="rb-panel-footer">' +
+          '<button class="rb-btn-copy-panel" id="rb-copybtn-' + p.id + '" data-id="' + p.id + '"' + (calc ? '' : ' disabled') + '>' + COPY_SVG + ' Copy This Panel</button>' +
+        '</div>';
+
+      container.appendChild(div);
+    });
+    renderSummary();
+  }
+
+  function renderSummary() {
+    var rows    = document.getElementById('rb-summary-rows');
+    var totalEl = document.getElementById('rb-summary-total');
+    var totalV  = document.getElementById('rb-total-val');
+    var barV    = document.getElementById('rb-total-bar-value');
+    if (!rows) return;
+    var html = '', total = 0;
+    panels.forEach(function(p) {
+      if (isReady(p)) {
+        var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+        total += calc.sale;
+        html += '<div class="rb-summary-line"><span class="rb-sname">' + p.name + ' \u2014 ' + p.length + '\xd7' + p.width + ', ' + p.sides + 's ' + p.depth + '"</span><span class="rb-sval">' + fmt(calc.sale) + '</span></div>';
+      }
+    });
+    if (!html) {
+      rows.innerHTML = '<div class="rb-empty">Add panels above</div>';
+      totalEl.style.display = 'none';
+      if (barV) barV.textContent = '\u2014';
+    } else {
+      rows.innerHTML = html;
+      totalEl.style.display = 'flex';
+      totalV.textContent = fmt(total);
+      if (barV) barV.textContent = fmt(total);
+    }
+  }
+
+  // Event delegation scoped to the widget container only
+  var root = document.getElementById('rb-estimator');
+  if (root) {
+    root.addEventListener('click', function(e) {
+      var t = e.target.closest('button');
+      if (!t) return;
+      if (t.id === 'rb-btn-add')      { addPanel(); return; }
+      if (t.id === 'rb-copy-all-btn') { copyAll();  return; }
+      if (t.id === 'rb-btn-reset')    { resetAll(); return; }
+      if (t.classList.contains('rb-btn-remove'))     { removePanel(parseInt(t.getAttribute('data-id'), 10)); return; }
+      if (t.classList.contains('rb-btn-copy-panel')) { copyPanel(parseInt(t.getAttribute('data-id'), 10)); return; }
+    });
+    root.addEventListener('input', function(e) {
+      var t = e.target, id = t.getAttribute('data-id'), field = t.getAttribute('data-field');
+      if (id ? field : false) updateField(parseInt(id, 10), field, t.value);
+    });
+    root.addEventListener('change', function(e) {
+      var t = e.target, id = t.getAttribute('data-id'), field = t.getAttribute('data-field');
+      if (id ? field : false) updateField(parseInt(id, 10), field, t.value);
+    });
+  }
+
+  addPanel();
+})();
 </script>
+
 </body>
 </html>
