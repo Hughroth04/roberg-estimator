@@ -1,0 +1,1159 @@
+<style>
+  /* Hide sidebar and Divi/WP remnants */
+  #sidebar,
+  #secondary,
+  aside#secondary,
+  .et_pb_widget_area,
+  .widget-area,
+  .sidebar,
+  .search-form,
+  .et_pb_search,
+  .widget_search,
+  .wp-block-search {
+    display: none !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #top-header,
+  #main-header,
+  #et-top-navigation,
+  #et_mobile_nav_menu,
+  .et-l--header,
+  header.et-l--header,
+  .et_pb_menu,
+  .et_pb_fullwidth_menu,
+  .et_pb_section_0_tb_header,
+  .et_pb_section_1_tb_header {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #page-container,
+  .et_fixed_nav #page-container,
+  .et_non_fixed_nav.et_transparent_nav #page-container {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  #content-area,
+  #left-area,
+  #main-content .container,
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #left-area {
+    padding-right: 0 !important;
+    float: none !important;
+    border: none !important;
+  }
+
+  #main-content,
+  .entry-content,
+  article,
+  .post,
+  .page,
+  .et_pb_post {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #content-area::before, #content-area::after,
+  #left-area::before, #left-area::after,
+  #main-content::before, #main-content::after,
+  .container::before, .container::after,
+  .entry-content::before, .entry-content::after {
+    display: none !important;
+    content: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.page { overflow-x: clip; }
+
+  h1.entry-title,
+  .et_pb_title_container,
+  .et_pb_title_container h1,
+  .et_main_title h1 {
+    position: absolute !important;
+    width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  footer .footer-links,
+  footer .footer-links a,
+  footer .footer-links a:visited,
+  footer .footer-links a:hover,
+  footer .footer-links a:focus,
+  .entry-content footer .footer-links a {
+    background: none !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+</style>
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;500;600&display=swap');
+
+<div id="rb-estimator">
+
+  <div class="rb-header">
+    <div class="rb-logo">
+      Ro<span>-Berg</span>
+      <div class="rb-logo-divider"></div>
+      <span class="rb-logo-sub">Field Estimator</span>
+    </div>
+  </div>
+
+  <div class="rb-total-bar" id="rb-total-bar">
+    <span class="rb-total-bar-label">Job Total</span>
+    <span class="rb-total-bar-value" id="rb-total-bar-value">—</span>
+  </div>
+
+  <div class="rb-app">
+    <div class="rb-main">
+      <div class="rb-section-label">Job Panels</div>
+      <div id="rb-panels"></div>
+      <button class="rb-btn-add" id="rb-btn-add">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Panel
+      </button>
+    </div>
+
+    <div class="rb-sidebar">
+      <div class="rb-summary-card">
+        <div class="rb-summary-title">Estimate Summary</div>
+        <div id="rb-summary-rows"><div class="rb-empty">Add panels above</div></div>
+        <div class="rb-summary-total" id="rb-summary-total" style="display:none">
+          <span class="rb-total-label">Total</span>
+          <span class="rb-total-val" id="rb-total-val">$0</span>
+        </div>
+      </div>
+
+      <!-- Send to HCP -->
+      <button class="rb-btn-hcp" id="rb-btn-hcp">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        Send to HouseCall Pro
+      </button>
+
+      <button class="rb-btn-copy-all" id="rb-copy-all-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy All for HCP (manual)
+      </button>
+      <button class="rb-btn-reset" id="rb-btn-reset">Clear All Panels</button>
+    </div>
+  </div>
+
+  <!-- HCP Modal -->
+  <div class="rb-modal-overlay" id="rb-modal" style="display:none">
+    <div class="rb-modal">
+      <div class="rb-modal-header">
+        <div class="rb-modal-title">Send to HouseCall Pro</div>
+        <button class="rb-modal-close" id="rb-modal-close">✕</button>
+      </div>
+
+      <div class="rb-modal-body" id="rb-modal-body">
+
+        <!-- Step 1: Customer -->
+        <div id="rb-step-customer">
+          <div class="rb-step-label">Step 1 of 2 — Customer</div>
+          <p class="rb-step-desc">Search for an existing customer or add a new one.</p>
+
+          <div class="rb-search-row">
+            <input type="text" id="rb-cust-search" class="rb-modal-input" placeholder="Search name, phone, or email…">
+            <button class="rb-btn-search" id="rb-btn-search-cust">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
+          </div>
+          <div id="rb-search-results" class="rb-search-results" style="display:none"></div>
+
+          <div class="rb-divider-or"><span>or add new customer</span></div>
+
+          <div class="rb-new-cust-form" id="rb-new-cust-form">
+            <div class="rb-field-row-2">
+              <div class="rb-mfield">
+                <label>First Name *</label>
+                <input type="text" id="rb-first-name" class="rb-modal-input" placeholder="John">
+              </div>
+              <div class="rb-mfield">
+                <label>Last Name *</label>
+                <input type="text" id="rb-last-name" class="rb-modal-input" placeholder="Smith">
+              </div>
+            </div>
+            <div class="rb-mfield">
+              <label>Phone</label>
+              <input type="tel" id="rb-phone" class="rb-modal-input" placeholder="(281) 555-1234">
+            </div>
+            <div class="rb-mfield">
+              <label>Email</label>
+              <input type="email" id="rb-email" class="rb-modal-input" placeholder="john@email.com">
+            </div>
+            <div class="rb-mfield">
+              <label>Service Address *</label>
+              <input type="text" id="rb-address" class="rb-modal-input" placeholder="123 Main St, Pearland TX 77581">
+            </div>
+          </div>
+
+          <div id="rb-selected-customer" class="rb-selected-customer" style="display:none">
+            <div class="rb-selected-label">Selected customer:</div>
+            <div class="rb-selected-name" id="rb-selected-name"></div>
+            <button class="rb-btn-change-cust" id="rb-btn-change-cust">Change</button>
+          </div>
+
+          <button class="rb-btn-next" id="rb-btn-next-step">Next: Review Panels →</button>
+        </div>
+
+        <!-- Step 2: Review & Send -->
+        <div id="rb-step-review" style="display:none">
+          <div class="rb-step-label">Step 2 of 2 — Review & Send</div>
+          <div id="rb-review-list" class="rb-review-list"></div>
+          <div class="rb-review-total">
+            <span>Estimate Total</span>
+            <span id="rb-review-total-val" class="rb-review-total-val"></span>
+          </div>
+          <button class="rb-btn-send" id="rb-btn-send">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+            Create Estimate in HCP
+          </button>
+          <button class="rb-btn-back" id="rb-btn-back-step">← Back</button>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="rb-step-success" style="display:none">
+          <div class="rb-success-icon">✓</div>
+          <div class="rb-success-title">Estimate Created!</div>
+          <div class="rb-success-msg" id="rb-success-msg"></div>
+          <a class="rb-btn-open-hcp" id="rb-btn-open-hcp" href="#" target="_blank" rel="noopener">Open in HouseCall Pro →</a>
+          <button class="rb-btn-done" id="rb-btn-done">Done</button>
+        </div>
+
+        <!-- Loading state -->
+        <div id="rb-step-loading" style="display:none">
+          <div class="rb-spinner"></div>
+          <div class="rb-loading-msg" id="rb-loading-msg">Creating estimate…</div>
+        </div>
+
+        <!-- Error state -->
+        <div id="rb-step-error" style="display:none">
+          <div class="rb-error-icon">!</div>
+          <div class="rb-error-title">Something went wrong</div>
+          <div class="rb-error-msg" id="rb-error-msg"></div>
+          <button class="rb-btn-retry" id="rb-btn-retry">Try Again</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="rb-toast" id="rb-toast"></div>
+</div>
+
+<style>
+#rb-estimator {
+  --rb-blue:       #72a5b7;
+  --rb-blue-dark:  #5a8fa0;
+  --rb-blue-light: #eaf3f7;
+  --rb-navy:       #27235d;
+  --rb-navy2:      #322d6e;
+  --rb-navy3:      #3d377f;
+  --rb-gray:       #808281;
+  --rb-bg:         #f0f1f1;
+  --rb-surface:    #ffffff;
+  --rb-surface2:   #f4f4f4;
+  --rb-border:     #d8d9d9;
+  --rb-text:       #1a1a1a;
+  --rb-text-muted: #808281;
+  --rb-text-hint:  #a8a9a8;
+  --rb-success:    #27235d;
+  --rb-success-bg: #eae9f5;
+  --rb-green:      #2a7a4a;
+  --rb-green-bg:   #e8f5ee;
+  --rb-radius:     8px;
+  --rb-radius-lg:  12px;
+  --rb-shadow:     0 1px 4px rgba(0,0,0,0.09);
+  --rb-shadow-lg:  0 4px 20px rgba(0,0,0,0.13);
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--rb-text);
+  background: var(--rb-bg);
+  border-radius: var(--rb-radius-lg);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+}
+#rb-estimator *, #rb-estimator *::before, #rb-estimator *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+
+/* Header */
+#rb-estimator .rb-header {
+  background: var(--rb-navy); color: #fff;
+  padding: 0 16px; height: 56px;
+  display: flex; align-items: center;
+  border-bottom: 3px solid var(--rb-blue);
+  box-shadow: var(--rb-shadow-lg); position: relative; z-index: 10;
+}
+#rb-estimator .rb-logo {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: #fff; display: flex; align-items: center; gap: 8px;
+}
+#rb-estimator .rb-logo span { color: var(--rb-blue); }
+#rb-estimator .rb-logo-divider { width: 2px; height: 18px; background: var(--rb-blue); border-radius: 2px; opacity: 0.5; }
+#rb-estimator .rb-logo-sub {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 10px; font-weight: 500;
+  color: rgba(255,255,255,0.45); letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* Total bar */
+#rb-estimator .rb-total-bar {
+  display: none; background: var(--rb-navy2);
+  border-bottom: 1px solid var(--rb-navy3);
+  padding: 0 16px; height: 48px;
+  align-items: center; justify-content: space-between;
+}
+#rb-estimator .rb-total-bar-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+#rb-estimator .rb-total-bar-value {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px; font-weight: 800; color: var(--rb-blue);
+}
+
+/* Layout */
+#rb-estimator .rb-app {
+  display: grid; grid-template-columns: 1fr 320px;
+  gap: 20px; padding: 20px; align-items: start;
+}
+#rb-estimator .rb-section-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--rb-text-hint); margin-bottom: 10px;
+}
+
+/* Panel card */
+#rb-estimator .rb-panel-card {
+  background: var(--rb-surface); border: 1px solid var(--rb-border);
+  border-radius: var(--rb-radius-lg); padding: 16px; margin-bottom: 10px;
+  box-shadow: var(--rb-shadow); border-top: 3px solid transparent;
+  transition: border-top-color 0.15s;
+}
+#rb-estimator .rb-panel-card:focus-within { border-top-color: var(--rb-blue); }
+#rb-estimator .rb-panel-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+#rb-estimator .rb-panel-name {
+  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
+  color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+}
+#rb-estimator .rb-panel-controls { display: flex; align-items: center; gap: 6px; }
+#rb-estimator .rb-cat-select {
+  font-size: 12px; height: 32px; padding: 0 8px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  background: var(--rb-surface2); color: var(--rb-text-muted);
+  cursor: pointer; outline: none; font-family: 'Open Sans', sans-serif;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808281' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center; padding-right: 24px; max-width: 110px;
+}
+#rb-estimator .rb-cat-select:focus { border-color: var(--rb-blue); outline: none; }
+#rb-estimator .rb-btn-remove {
+  background: none; border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  min-width: 36px; height: 36px; cursor: pointer; color: var(--rb-text-hint);
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s; flex-shrink: 0; -webkit-tap-highlight-color: transparent; padding: 0;
+  font-family: inherit;
+}
+#rb-estimator .rb-btn-remove:active { border-color: #e0a0a0; color: #b03030; background: #fef0f0; }
+
+/* Fields */
+#rb-estimator .rb-fields-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 8px;
+}
+#rb-estimator .rb-field { display: flex; flex-direction: column; gap: 4px; }
+#rb-estimator .rb-field label {
+  font-size: 10px; font-weight: 700; color: var(--rb-text-hint);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: 'Montserrat', sans-serif; display: block;
+}
+#rb-estimator .rb-field input, #rb-estimator .rb-field select {
+  height: 48px; padding: 0 12px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-size: 16px; font-family: 'Open Sans', sans-serif;
+  color: var(--rb-text); background: var(--rb-surface);
+  outline: none; width: 100%;
+  -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
+  box-shadow: none !important; border-radius: var(--rb-radius) !important;
+}
+#rb-estimator .rb-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808281' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+#rb-estimator .rb-field input:focus, #rb-estimator .rb-field select:focus {
+  border-color: var(--rb-blue) !important; box-shadow: 0 0 0 3px rgba(114,165,183,0.18) !important; outline: none !important;
+}
+#rb-estimator .rb-field input::placeholder { color: var(--rb-text-hint); }
+
+/* Results bar */
+#rb-estimator .rb-results-bar {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rb-border);
+}
+#rb-estimator .rb-metric { background: var(--rb-navy); border-radius: var(--rb-radius); padding: 10px 10px 8px; }
+#rb-estimator .rb-metric-label {
+  font-family: 'Montserrat', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 3px; display: block;
+}
+#rb-estimator .rb-metric-value {
+  font-size: 15px; font-weight: 700; color: #fff;
+  font-family: 'Montserrat', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+}
+#rb-estimator .rb-metric-value.rb-price { color: var(--rb-blue); }
+#rb-estimator .rb-min-badge {
+  display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6);
+  border-radius: 3px; padding: 1px 4px; margin-left: 3px; vertical-align: middle;
+}
+
+/* Panel footer */
+#rb-estimator .rb-panel-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rb-border); }
+#rb-estimator .rb-btn-copy-panel {
+  width: 100%; height: 40px; background: none; border: 1.5px solid var(--rb-gray);
+  border-radius: var(--rb-radius); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--rb-text-muted);
+  cursor: pointer; font-family: 'Montserrat', sans-serif;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-copy-panel:active { border-color: var(--rb-blue); color: var(--rb-navy); background: var(--rb-blue-light); }
+#rb-estimator .rb-btn-copy-panel.rb-copied { border-color: var(--rb-success); color: var(--rb-success); background: var(--rb-success-bg); }
+#rb-estimator .rb-btn-copy-panel:disabled { opacity: 0.28; cursor: not-allowed; }
+
+/* Add panel */
+#rb-estimator .rb-btn-add {
+  width: 100%; height: 52px;
+  border: 2px dashed var(--rb-gray); border-radius: var(--rb-radius-lg);
+  background: none; color: var(--rb-text-muted);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent; margin-bottom: 0;
+}
+#rb-estimator .rb-btn-add:active { background: var(--rb-blue-light); border-color: var(--rb-blue); color: var(--rb-navy); }
+
+/* Sidebar */
+#rb-estimator .rb-sidebar { position: sticky; top: 80px; }
+#rb-estimator .rb-summary-card {
+  background: var(--rb-navy); border-radius: var(--rb-radius-lg);
+  padding: 18px; box-shadow: var(--rb-shadow-lg); margin-bottom: 10px;
+}
+#rb-estimator .rb-summary-title {
+  font-family: 'Montserrat', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 14px;
+}
+#rb-estimator .rb-summary-line {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 8px;
+}
+#rb-estimator .rb-summary-line:last-child { border-bottom: none; }
+#rb-estimator .rb-summary-line .rb-sname {
+  font-size: 12px; color: rgba(255,255,255,0.45); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#rb-estimator .rb-summary-line .rb-sval { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; }
+#rb-estimator .rb-summary-total {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+#rb-estimator .rb-total-label {
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4);
+}
+#rb-estimator .rb-total-val {
+  font-family: 'Montserrat', sans-serif; font-size: 26px; font-weight: 800; color: var(--rb-blue);
+}
+#rb-estimator .rb-empty { font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; padding: 14px 0; }
+
+/* HCP button - primary action */
+#rb-estimator .rb-btn-hcp {
+  width: 100%; height: 52px; background: var(--rb-green); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 8px; transition: all 0.15s; margin-bottom: 8px;
+  box-shadow: 0 2px 10px rgba(42,122,74,0.35); -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-hcp:active { background: #1f5e38; }
+
+/* Copy all - secondary */
+#rb-estimator .rb-btn-copy-all {
+  width: 100%; height: 44px; background: var(--rb-blue); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 8px; transition: all 0.15s; margin-bottom: 8px;
+  box-shadow: 0 2px 10px rgba(114,165,183,0.4); -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-copy-all:active { background: var(--rb-blue-dark); }
+#rb-estimator .rb-btn-copy-all.rb-copied { background: var(--rb-success); box-shadow: none; }
+
+#rb-estimator .rb-btn-reset {
+  width: 100%; height: 40px; background: none; color: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-reset:active { color: #e08080; border-color: rgba(200,80,80,0.35); background: rgba(200,80,80,0.07); }
+
+/* ── MODAL ── */
+#rb-estimator .rb-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 99990;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+#rb-estimator .rb-modal {
+  background: var(--rb-surface); border-radius: var(--rb-radius-lg);
+  width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+#rb-estimator .rb-modal-header {
+  background: var(--rb-navy); padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid var(--rb-blue); border-radius: var(--rb-radius-lg) var(--rb-radius-lg) 0 0;
+}
+#rb-estimator .rb-modal-title {
+  font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 800;
+  color: #fff; letter-spacing: 0.03em; text-transform: uppercase;
+}
+#rb-estimator .rb-modal-close {
+  background: none; border: none; color: rgba(255,255,255,0.5);
+  font-size: 18px; cursor: pointer; padding: 0; font-family: inherit;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+}
+#rb-estimator .rb-modal-close:hover { color: #fff; }
+#rb-estimator .rb-modal-body { padding: 20px; }
+
+#rb-estimator .rb-step-label {
+  font-family: 'Montserrat', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--rb-blue); margin-bottom: 6px;
+}
+#rb-estimator .rb-step-desc { font-size: 13px; color: var(--rb-text-muted); margin-bottom: 14px; }
+
+#rb-estimator .rb-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+#rb-estimator .rb-modal-input {
+  flex: 1; height: 44px; padding: 0 12px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-size: 15px; font-family: 'Open Sans', sans-serif; color: var(--rb-text);
+  outline: none; background: var(--rb-surface);
+  -webkit-appearance: none; appearance: none; box-shadow: none !important;
+  width: 100%;
+}
+#rb-estimator .rb-modal-input:focus { border-color: var(--rb-blue) !important; box-shadow: 0 0 0 3px rgba(114,165,183,0.18) !important; }
+#rb-estimator .rb-btn-search {
+  height: 44px; padding: 0 14px; background: var(--rb-navy); color: #fff;
+  border: none; border-radius: var(--rb-radius); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+#rb-estimator .rb-btn-search:active { background: var(--rb-navy2); }
+
+#rb-estimator .rb-search-results {
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  margin-bottom: 12px; overflow: hidden;
+}
+#rb-estimator .rb-search-result-item {
+  padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--rb-border);
+  font-size: 13px; transition: background 0.1s;
+}
+#rb-estimator .rb-search-result-item:last-child { border-bottom: none; }
+#rb-estimator .rb-search-result-item:hover, #rb-estimator .rb-search-result-item:active { background: var(--rb-blue-light); }
+#rb-estimator .rb-result-name { font-weight: 600; color: var(--rb-navy); }
+#rb-estimator .rb-result-detail { font-size: 11px; color: var(--rb-text-muted); margin-top: 2px; }
+#rb-estimator .rb-no-results { padding: 12px; font-size: 13px; color: var(--rb-text-muted); text-align: center; }
+
+#rb-estimator .rb-divider-or {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--rb-text-hint); margin: 14px 0;
+}
+#rb-estimator .rb-divider-or::before, #rb-estimator .rb-divider-or::after {
+  content: ''; flex: 1; height: 1px; background: var(--rb-border);
+}
+
+#rb-estimator .rb-field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+#rb-estimator .rb-mfield { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+#rb-estimator .rb-mfield label {
+  font-size: 10px; font-weight: 700; color: var(--rb-text-hint);
+  letter-spacing: 0.07em; text-transform: uppercase; font-family: 'Montserrat', sans-serif;
+}
+
+#rb-estimator .rb-selected-customer {
+  background: var(--rb-green-bg); border: 1px solid rgba(42,122,74,0.3);
+  border-radius: var(--rb-radius); padding: 12px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+#rb-estimator .rb-selected-label { font-size: 11px; color: var(--rb-green); font-weight: 600; }
+#rb-estimator .rb-selected-name { font-size: 14px; font-weight: 600; color: var(--rb-navy); flex: 1; }
+#rb-estimator .rb-btn-change-cust {
+  background: none; border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-size: 11px; color: var(--rb-text-muted); cursor: pointer; padding: 4px 10px;
+  font-family: 'Montserrat', sans-serif; font-weight: 700;
+}
+
+#rb-estimator .rb-btn-next {
+  width: 100%; height: 48px; background: var(--rb-navy); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase; margin-top: 6px;
+}
+#rb-estimator .rb-btn-next:active { background: var(--rb-navy2); }
+
+/* Review step */
+#rb-estimator .rb-review-list { margin-bottom: 14px; }
+#rb-estimator .rb-review-item {
+  background: var(--rb-surface2); border-radius: var(--rb-radius);
+  padding: 10px 12px; margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+#rb-estimator .rb-review-item-name { font-weight: 600; font-size: 13px; color: var(--rb-navy); }
+#rb-estimator .rb-review-item-detail { font-size: 11px; color: var(--rb-text-muted); margin-top: 2px; }
+#rb-estimator .rb-review-item-price { font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 800; color: var(--rb-blue); }
+#rb-estimator .rb-review-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 12px 0; border-top: 2px solid var(--rb-border); margin-bottom: 14px;
+  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; color: var(--rb-text-muted);
+}
+#rb-estimator .rb-review-total-val { font-size: 22px; font-weight: 800; color: var(--rb-navy); }
+
+#rb-estimator .rb-btn-send {
+  width: 100%; height: 52px; background: var(--rb-green); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 2px 10px rgba(42,122,74,0.35);
+}
+#rb-estimator .rb-btn-send:active { background: #1f5e38; }
+#rb-estimator .rb-btn-back {
+  width: 100%; height: 40px; background: none; color: var(--rb-text-muted);
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.05em; cursor: pointer;
+}
+
+/* Success / error / loading */
+#rb-estimator .rb-success-icon {
+  width: 60px; height: 60px; background: var(--rb-green-bg); color: var(--rb-green);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 700; margin: 0 auto 16px;
+}
+#rb-estimator .rb-success-title {
+  font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 800;
+  color: var(--rb-navy); text-align: center; margin-bottom: 8px;
+}
+#rb-estimator .rb-success-msg { font-size: 13px; color: var(--rb-text-muted); text-align: center; margin-bottom: 20px; }
+#rb-estimator .rb-btn-open-hcp {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 48px; background: var(--rb-green); color: #fff;
+  border-radius: var(--rb-radius-lg); text-decoration: none;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px;
+}
+#rb-estimator .rb-btn-done {
+  width: 100%; height: 40px; background: none; color: var(--rb-text-muted);
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+
+#rb-estimator .rb-error-icon {
+  width: 60px; height: 60px; background: #fef0f0; color: #b03030;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 700; margin: 0 auto 16px;
+}
+#rb-estimator .rb-error-title {
+  font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 800;
+  color: var(--rb-navy); text-align: center; margin-bottom: 8px;
+}
+#rb-estimator .rb-error-msg { font-size: 13px; color: var(--rb-text-muted); text-align: center; margin-bottom: 20px; }
+#rb-estimator .rb-btn-retry {
+  width: 100%; height: 48px; background: var(--rb-navy); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.05em;
+}
+
+#rb-estimator .rb-spinner {
+  width: 44px; height: 44px; border: 4px solid var(--rb-border);
+  border-top-color: var(--rb-blue); border-radius: 50%;
+  animation: rb-spin 0.8s linear infinite; margin: 20px auto 16px;
+}
+@keyframes rb-spin { to { transform: rotate(360deg); } }
+#rb-estimator .rb-loading-msg {
+  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--rb-text-muted); text-align: center; padding-bottom: 20px;
+}
+
+/* Toast */
+#rb-estimator .rb-toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%) translateY(70px);
+  background: var(--rb-navy); color: var(--rb-blue);
+  border: 1px solid var(--rb-navy3);
+  padding: 9px 18px; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  opacity: 0; transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none; white-space: nowrap; z-index: 99999; box-shadow: var(--rb-shadow-lg);
+}
+#rb-estimator .rb-toast.rb-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Responsive */
+@media (max-width: 720px) {
+  #rb-estimator .rb-total-bar { display: flex; }
+  #rb-estimator .rb-app { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
+  #rb-estimator .rb-sidebar { position: static; }
+}
+@media (min-width: 480px) {
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+}
+@media (max-width: 479px) {
+  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
+<script>
+(function() {
+
+  // ── CONFIG — update this URL after you deploy to Render ──
+  var BACKEND_URL = 'https://YOUR-APP-NAME.onrender.com';
+
+  var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120, MINIMUM = 163;
+  var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
+  var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
+  var panels = [], nextId = 1;
+  var selectedCustomerId = null, selectedCustomerName = null;
+
+  function disclaimers(lbs) {
+    return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
+  }
+
+  function calcPanel(l, w, sides, depth) {
+    var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
+    var lbsRaw = vol * CONVERSION, saleRaw = lbsRaw * RATE_SALE, costRaw = lbsRaw * RATE_COST;
+    var isMin = saleRaw < MINIMUM;
+    return {
+      lbs: Math.ceil(lbsRaw),
+      sale: isMin ? MINIMUM : Math.ceil(saleRaw),
+      cost: isMin ? Math.ceil(MINIMUM * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
+      isMin: isMin
+    };
+  }
+
+  function depthLabel(d) {
+    d = parseFloat(d); if (!d) return '?';
+    var whole = Math.floor(d), frac = Math.round((d % 1) * 100) / 100;
+    var m = {0.25:'1/4',0.5:'1/2',0.75:'3/4'};
+    if (!frac) return whole + '"';
+    return (whole ? whole + ' ' : '') + (m[frac] || frac) + '"';
+  }
+
+  function fmt(n) { return '$' + n.toLocaleString('en-US'); }
+  function isReady(p) { return p.length && p.width && p.sides && p.depth; }
+
+  function buildDesc(p, calc) {
+    var cat = (p.category || 'panel').toLowerCase();
+    var sidesStr = p.sides + (p.sides > 1 ? ' sides' : ' side');
+    return 'Drill into ' + cat + ' panel, Install Ports (as needed), Install ' + calc.lbs + ' +/- lbs of foam, Patch Holes.\nLift ' + depthLabel(p.depth) + ' to ' + sidesStr + '.\n' + disclaimers(calc.lbs);
+  }
+
+  function buildHCPLine(p, calc) {
+    return p.name + ' \u2014 Unit Price: ' + fmt(calc.sale) + ' | Unit Cost: ' + fmt(calc.cost) + '\n' + buildDesc(p, calc);
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('rb-toast');
+    if (!t) return;
+    t.textContent = msg; t.classList.add('rb-show');
+    setTimeout(function() { t.classList.remove('rb-show'); }, 2200);
+  }
+
+  // ── Panel rendering ──
+  function addPanel() {
+    var id = nextId++;
+    panels.push({ id:id, name:'Panel '+(panels.length+1), length:0, width:0, sides:1, depth:1, category:'Driveway', notes:'' });
+    renderAll();
+    setTimeout(function() {
+      var cards = document.querySelectorAll('#rb-estimator .rb-panel-card');
+      var last = cards[cards.length-1];
+      if (last) { var inp = last.querySelector('input[type="number"]'); if (inp) inp.focus(); }
+    }, 60);
+  }
+
+  function removePanel(id) {
+    panels = panels.filter(function(p) { return p.id !== id; });
+    panels.forEach(function(p,i) { p.name = 'Panel '+(i+1); });
+    renderAll();
+  }
+
+  function updateField(id, field, value) {
+    var p = panels.find(function(p) { return p.id === id; });
+    if (!p) return;
+    p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value)||0) : value;
+    updateCardResults(id); renderSummary();
+  }
+
+  function updateCardResults(id) {
+    var p = panels.find(function(p) { return p.id === id; });
+    if (!p) return;
+    var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth) : null;
+    var lbsEl=document.getElementById('rb-lbs-'+id), costEl=document.getElementById('rb-cost-'+id);
+    var saleEl=document.getElementById('rb-sale-'+id), lbl=document.getElementById('rb-salelbl-'+id);
+    var btn=document.getElementById('rb-copybtn-'+id);
+    if (!lbsEl) return;
+    if (calc) {
+      lbsEl.textContent = calc.lbs+' lbs'; costEl.textContent = fmt(calc.cost); saleEl.textContent = fmt(calc.sale);
+      lbl.innerHTML = 'Sale'+(calc.isMin?' <span class="rb-min-badge">min</span>':'');
+      btn.disabled = false;
+    } else {
+      lbsEl.textContent = costEl.textContent = saleEl.textContent = '\u2014';
+      lbl.innerHTML = 'Sale'; btn.disabled = true;
+    }
+  }
+
+  function copyPanel(id) {
+    var p = panels.find(function(p) { return p.id===id; });
+    if (!p || !isReady(p)) return;
+    var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+    navigator.clipboard.writeText(buildHCPLine(p, calc)).then(function() {
+      var btn = document.getElementById('rb-copybtn-'+id);
+      btn.classList.add('rb-copied'); btn.innerHTML = CHECK_SVG+' Copied!';
+      showToast(p.name+' copied');
+      setTimeout(function() { btn.classList.remove('rb-copied'); btn.innerHTML = COPY_SVG+' Copy This Panel'; }, 2000);
+    });
+  }
+
+  function copyAll() {
+    var lines = [];
+    panels.forEach(function(p) { if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length,p.width,p.sides,p.depth))); });
+    if (!lines.length) { showToast('No panels ready yet'); return; }
+    navigator.clipboard.writeText(lines.join('\n\n---\n\n')).then(function() {
+      var btn = document.getElementById('rb-copy-all-btn');
+      btn.classList.add('rb-copied'); btn.innerHTML = CHECK_SVG+' Copied!';
+      showToast('All '+lines.length+' panels copied');
+      setTimeout(function() { btn.classList.remove('rb-copied'); btn.innerHTML = COPY_SVG+' Copy All for HCP (manual)'; }, 2500);
+    });
+  }
+
+  function resetAll() {
+    if (panels.length && !confirm('Clear all panels and start over?')) return;
+    panels = []; nextId = 1; renderAll();
+  }
+
+  function renderAll() {
+    var container = document.getElementById('rb-panels');
+    if (!container) return;
+    container.innerHTML = '';
+    panels.forEach(function(p) {
+      var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth) : null;
+      var div = document.createElement('div');
+      div.className = 'rb-panel-card'; div.id = 'rb-card-'+p.id;
+      var catOpts = CATEGORIES.map(function(c) { return '<option'+(c===p.category?' selected':'')+'>'+c+'</option>'; }).join('');
+      var sideOpts = [1,2,3,4].map(function(n) { return '<option value="'+n+'"'+(n===p.sides?' selected':'')+'>'+n+'</option>'; }).join('');
+      div.innerHTML =
+        '<div class="rb-panel-top"><div class="rb-panel-name">'+p.name+'</div><div class="rb-panel-controls">'+
+        '<select class="rb-cat-select" data-id="'+p.id+'" data-field="category">'+catOpts+'</select>'+
+        '<button class="rb-btn-remove" data-id="'+p.id+'" title="Remove">\u2715</button></div></div>'+
+        '<div class="rb-fields-grid">'+
+        '<div class="rb-field"><label>Length (ft)</label><input type="number" min="0" step="0.5" value="'+(p.length||'')+'" placeholder="0" data-id="'+p.id+'" data-field="length" inputmode="decimal"></div>'+
+        '<div class="rb-field"><label>Width (ft)</label><input type="number" min="0" step="0.5" value="'+(p.width||'')+'" placeholder="0" data-id="'+p.id+'" data-field="width" inputmode="decimal"></div>'+
+        '<div class="rb-field"><label>Sides</label><select data-id="'+p.id+'" data-field="sides">'+sideOpts+'</select></div>'+
+        '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="'+(p.depth||'')+'" placeholder="0" data-id="'+p.id+'" data-field="depth" inputmode="decimal"></div>'+
+        '</div>'+
+        '<div class="rb-field" style="margin-bottom:0"><label>Notes</label><input type="text" value="'+(p.notes||'')+'" placeholder="optional" data-id="'+p.id+'" data-field="notes" style="width:100%"></div>'+
+        '<div class="rb-results-bar">'+
+        '<div class="rb-metric"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
+        '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
+        '<div class="rb-metric"><span class="rb-metric-label" id="rb-salelbl-'+p.id+'">Sale'+(calc&&calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-value rb-price" id="rb-sale-'+p.id+'">'+(calc?fmt(calc.sale):'\u2014')+'</span></div>'+
+        '</div>'+
+        '<div class="rb-panel-footer"><button class="rb-btn-copy-panel" id="rb-copybtn-'+p.id+'" data-id="'+p.id+'"'+(calc?'':' disabled')+'>'+COPY_SVG+' Copy This Panel</button></div>';
+      container.appendChild(div);
+    });
+    renderSummary();
+  }
+
+  function renderSummary() {
+    var rows=document.getElementById('rb-summary-rows'), totalEl=document.getElementById('rb-summary-total');
+    var totalV=document.getElementById('rb-total-val'), barV=document.getElementById('rb-total-bar-value');
+    if (!rows) return;
+    var html='', total=0;
+    panels.forEach(function(p) {
+      if (isReady(p)) {
+        var calc=calcPanel(p.length,p.width,p.sides,p.depth); total+=calc.sale;
+        html+='<div class="rb-summary-line"><span class="rb-sname">'+p.name+' \u2014 '+p.length+'\xd7'+p.width+', '+p.sides+'s '+p.depth+'"</span><span class="rb-sval">'+fmt(calc.sale)+'</span></div>';
+      }
+    });
+    if (!html) {
+      rows.innerHTML='<div class="rb-empty">Add panels above</div>';
+      totalEl.style.display='none'; if (barV) barV.textContent='\u2014';
+    } else {
+      rows.innerHTML=html; totalEl.style.display='flex';
+      totalV.textContent=fmt(total); if (barV) barV.textContent=fmt(total);
+    }
+  }
+
+  // ── HCP Modal ──
+  function openModal() {
+    var ready = panels.filter(function(p) { return isReady(p); });
+    if (!ready.length) { showToast('Add at least one panel first'); return; }
+    showStep('customer');
+    selectedCustomerId = null; selectedCustomerName = null;
+    document.getElementById('rb-selected-customer').style.display = 'none';
+    document.getElementById('rb-new-cust-form').style.display = 'block';
+    document.getElementById('rb-cust-search').value = '';
+    document.getElementById('rb-search-results').style.display = 'none';
+    document.getElementById('rb-modal').style.display = 'flex';
+    // Ping the server to wake it up
+    fetch(BACKEND_URL + '/health').catch(function(){});
+  }
+
+  function closeModal() { document.getElementById('rb-modal').style.display = 'none'; }
+
+  function showStep(step) {
+    ['customer','review','success','loading','error'].forEach(function(s) {
+      var el = document.getElementById('rb-step-'+s);
+      if (el) el.style.display = (s === step) ? 'block' : 'none';
+    });
+  }
+
+  function searchCustomers() {
+    var q = document.getElementById('rb-cust-search').value.trim();
+    if (!q) { showToast('Enter a name, phone, or email to search'); return; }
+    var resultsEl = document.getElementById('rb-search-results');
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div class="rb-no-results">Searching…</div>';
+    fetch(BACKEND_URL + '/api/customers/search?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var customers = data.customers || data.data || [];
+        if (!customers.length) {
+          resultsEl.innerHTML = '<div class="rb-no-results">No customers found — add as new below</div>';
+          return;
+        }
+        resultsEl.innerHTML = customers.map(function(c) {
+          var name = (c.first_name||'') + ' ' + (c.last_name||'');
+          var detail = [c.email, c.mobile_number||c.home_number].filter(Boolean).join(' · ');
+          return '<div class="rb-search-result-item" data-id="'+c.id+'" data-name="'+name.trim()+'">'+
+            '<div class="rb-result-name">'+name.trim()+'</div>'+
+            (detail ? '<div class="rb-result-detail">'+detail+'</div>' : '')+
+            '</div>';
+        }).join('');
+      })
+      .catch(function(e) {
+        resultsEl.innerHTML = '<div class="rb-no-results">Search failed — check your connection</div>';
+      });
+  }
+
+  function selectCustomer(id, name) {
+    selectedCustomerId = id; selectedCustomerName = name;
+    document.getElementById('rb-selected-name').textContent = name;
+    document.getElementById('rb-selected-customer').style.display = 'flex';
+    document.getElementById('rb-new-cust-form').style.display = 'none';
+    document.getElementById('rb-search-results').style.display = 'none';
+    showToast(name + ' selected');
+  }
+
+  function goToReview() {
+    var ready = panels.filter(function(p) { return isReady(p); });
+    var reviewList = document.getElementById('rb-review-list');
+    var total = 0;
+    reviewList.innerHTML = ready.map(function(p) {
+      var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+      total += calc.sale;
+      return '<div class="rb-review-item">'+
+        '<div><div class="rb-review-item-name">'+p.name+' — '+p.category+'</div>'+
+        '<div class="rb-review-item-detail">'+p.length+'×'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam</div></div>'+
+        '<div class="rb-review-item-price">'+fmt(calc.sale)+'</div>'+
+        '</div>';
+    }).join('');
+    document.getElementById('rb-review-total-val').textContent = fmt(total);
+    showStep('review');
+  }
+
+  function sendToHCP() {
+    var ready = panels.filter(function(p) { return isReady(p); });
+    document.getElementById('rb-loading-msg').textContent = 'Creating estimate in HouseCall Pro…';
+    showStep('loading');
+
+    var payload;
+
+    if (selectedCustomerId) {
+      // Existing customer
+      payload = {
+        customer_id: selectedCustomerId,
+        panels: ready.map(function(p) {
+          var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+          return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
+        })
+      };
+      createEstimate(payload);
+    } else {
+      // Create new customer first
+      var first = document.getElementById('rb-first-name').value.trim();
+      var last  = document.getElementById('rb-last-name').value.trim();
+      var phone = document.getElementById('rb-phone').value.trim();
+      var email = document.getElementById('rb-email').value.trim();
+      var addr  = document.getElementById('rb-address').value.trim();
+
+      if (!first || !last) {
+        showStep('review');
+        showToast('First and last name are required');
+        return;
+      }
+
+      document.getElementById('rb-loading-msg').textContent = 'Creating customer…';
+
+      var custBody = { first_name: first, last_name: last };
+      if (phone) custBody.mobile_number = phone;
+      if (email) custBody.email = email;
+      if (addr)  custBody.address = { street: addr };
+
+      fetch(BACKEND_URL + '/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(custBody)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(cust) {
+        if (!cust.id) throw new Error(cust.message || 'Customer creation failed');
+        document.getElementById('rb-loading-msg').textContent = 'Creating estimate…';
+        payload = {
+          customer_id: cust.id,
+          panels: ready.map(function(p) {
+            var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+            return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
+          })
+        };
+        createEstimate(payload);
+      })
+      .catch(function(e) {
+        document.getElementById('rb-error-msg').textContent = e.message;
+        showStep('error');
+      });
+    }
+  }
+
+  function createEstimate(payload) {
+    fetch(BACKEND_URL + '/api/create-estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) throw new Error(data.error || 'Estimate creation failed');
+      document.getElementById('rb-success-msg').textContent =
+        'Estimate created with ' + data.line_items.length + ' panel' + (data.line_items.length>1?'s':'') + '. Open it in HCP to review and send to the customer.';
+      document.getElementById('rb-btn-open-hcp').href = data.hcp_url;
+      showStep('success');
+    })
+    .catch(function(e) {
+      document.getElementById('rb-error-msg').textContent = e.message;
+      showStep('error');
+    });
+  }
+
+  // ── Event delegation ──
+  var root = document.getElementById('rb-estimator');
+  if (root) {
+    root.addEventListener('click', function(e) {
+      // Search result selection
+      var resultItem = e.target.closest('.rb-search-result-item');
+      if (resultItem) { selectCustomer(resultItem.getAttribute('data-id'), resultItem.getAttribute('data-name')); return; }
+
+      var t = e.target.closest('button, a');
+      if (!t) return;
+      var tid = t.id;
+      if (tid === 'rb-btn-add')          { addPanel(); return; }
+      if (tid === 'rb-copy-all-btn')     { copyAll();  return; }
+      if (tid === 'rb-btn-reset')        { resetAll(); return; }
+      if (tid === 'rb-btn-hcp')          { openModal(); return; }
+      if (tid === 'rb-modal-close')      { closeModal(); return; }
+      if (tid === 'rb-btn-search-cust')  { searchCustomers(); return; }
+      if (tid === 'rb-btn-next-step')    { goToReview(); return; }
+      if (tid === 'rb-btn-back-step')    { showStep('customer'); return; }
+      if (tid === 'rb-btn-send')         { sendToHCP(); return; }
+      if (tid === 'rb-btn-done')         { closeModal(); return; }
+      if (tid === 'rb-btn-retry')        { showStep('review'); return; }
+      if (tid === 'rb-btn-change-cust')  {
+        selectedCustomerId = null; selectedCustomerName = null;
+        document.getElementById('rb-selected-customer').style.display = 'none';
+        document.getElementById('rb-new-cust-form').style.display = 'block';
+        return;
+      }
+      if (t.classList.contains('rb-btn-remove'))     { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-btn-copy-panel')) { copyPanel(parseInt(t.getAttribute('data-id'),10)); return; }
+    });
+
+    // Search on Enter key
+    var searchInput = document.getElementById('rb-cust-search');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') searchCustomers(); });
+    }
+
+    // Close modal on overlay click
+    var overlay = document.getElementById('rb-modal');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    }
+
+    root.addEventListener('input', function(e) {
+      var t=e.target, id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
+      if (id && field) updateField(parseInt(id,10), field, t.value);
+    });
+    root.addEventListener('change', function(e) {
+      var t=e.target, id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
+      if (id && field) updateField(parseInt(id,10), field, t.value);
+    });
+
+    // Keep Render server warm — ping every 10 minutes
+    setInterval(function() { fetch(BACKEND_URL+'/health').catch(function(){}); }, 600000);
+  }
+
+  addPanel();
+})();
+</script>
