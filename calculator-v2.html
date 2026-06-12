@@ -1,3 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#27235d">
+  <title>Ro-Berg Field Estimator</title>
+</head>
+<body>
 <style>
   /* Hide sidebar and Divi/WP remnants */
   #sidebar,
@@ -754,18 +763,114 @@
 }
 #rb-estimator .rb-toast.rb-show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Responsive */
-@media (max-width: 720px) {
-  #rb-estimator .rb-total-bar { display: flex; }
-  #rb-estimator .rb-app { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-  #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
-  #rb-estimator .rb-sidebar { position: static; }
-}
+/* Responsive — desktop kept as-is, mobile gets proper layout */
 @media (min-width: 480px) {
   #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
 }
 @media (max-width: 479px) {
   #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── MOBILE LAYOUT (<= 720px) ── */
+@media (max-width: 720px) {
+  #rb-estimator {
+    border-radius: 0;
+    font-size: 15px;
+  }
+
+  /* Header: tighter, hide "Field Estimator" sub-label to save room */
+  #rb-estimator .rb-header { padding: 0 12px; height: 52px; }
+  #rb-estimator .rb-logo { font-size: 15px; gap: 6px; }
+  #rb-estimator .rb-logo-divider { height: 16px; }
+  #rb-estimator .rb-logo-sub { display: none; }
+
+  /* Sticky total bar so it stays visible while scrolling panels */
+  #rb-estimator .rb-total-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: 46px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  #rb-estimator .rb-total-bar-value { font-size: 19px; }
+
+  /* Single-column app layout */
+  #rb-estimator .rb-app {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 14px;
+  }
+  #rb-estimator .rb-section-label { font-size: 11px; margin-bottom: 8px; }
+
+  /* Panel cards: a touch more breathing room, force 2-col fields */
+  #rb-estimator .rb-panel-card { padding: 14px; }
+  #rb-estimator .rb-panel-name { font-size: 14px; }
+  #rb-estimator .rb-fields-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* 16px inputs prevent iOS Safari from zooming when an input is focused */
+  #rb-estimator .rb-field input,
+  #rb-estimator .rb-field select {
+    height: 50px;
+    font-size: 16px;
+    padding: 0 12px;
+  }
+  #rb-estimator .rb-field label { font-size: 11px; }
+
+  /* Results metrics bar (Foam / Cost / Sale) */
+  #rb-estimator .rb-results-bar { gap: 5px; }
+  #rb-estimator .rb-metric { padding: 9px 8px 7px; }
+  #rb-estimator .rb-metric-label { font-size: 9px; }
+  #rb-estimator .rb-metric-value { font-size: 14px; }
+
+  #rb-estimator .rb-btn-copy-panel { height: 44px; font-size: 11px; }
+
+  /* Sidebar collapses below panels */
+  #rb-estimator .rb-sidebar { position: static; }
+  #rb-estimator .rb-summary-card { padding: 16px; }
+  #rb-estimator .rb-total-val { font-size: 24px; }
+
+  /* Larger touch-friendly buttons */
+  #rb-estimator .rb-btn-add { height: 56px; font-size: 12px; }
+  #rb-estimator .rb-btn-hcp { height: 56px; font-size: 12px; }
+  #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
+  #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
+
+  /* Modal becomes a near-fullscreen bottom sheet on mobile */
+  #rb-estimator .rb-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  #rb-estimator .rb-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 94vh;
+    border-radius: var(--rb-radius-lg) var(--rb-radius-lg) 0 0;
+  }
+  #rb-estimator .rb-modal-header {
+    padding: 14px 18px;
+    border-radius: var(--rb-radius-lg) var(--rb-radius-lg) 0 0;
+  }
+  #rb-estimator .rb-modal-title { font-size: 13px; }
+  #rb-estimator .rb-modal-body { padding: 18px 16px 28px; }
+
+  #rb-estimator .rb-modal-input { font-size: 16px; height: 48px; }
+  #rb-estimator .rb-search-row { flex-direction: column; gap: 8px; }
+  #rb-estimator .rb-btn-search { width: 100%; justify-content: center; height: 44px; }
+
+  #rb-estimator .rb-btn-next,
+  #rb-estimator .rb-btn-send,
+  #rb-estimator .rb-btn-retry { height: 52px; font-size: 13px; }
+}
+
+/* Extra tweaks for very small phones */
+@media (max-width: 380px) {
+  #rb-estimator .rb-metric-value { font-size: 13px; }
+  #rb-estimator .rb-fields-grid { gap: 8px; }
+  #rb-estimator .rb-app { padding: 10px; }
 }
 </style>
 
@@ -1208,3 +1313,5 @@
   addPanel();
 })();
 </script>
+</body>
+</html>
