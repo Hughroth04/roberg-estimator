@@ -1077,23 +1077,42 @@
     }
   }
 
+  var isSubmitting = false;
+
   function createEstimate(payload) {
+    if (isSubmitting) return;
+    isSubmitting = true;
+    var sendBtn = document.getElementById('rb-btn-send');
+    if (sendBtn) sendBtn.disabled = true;
+
     fetch(BACKEND_URL + '/api/create-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.success) throw new Error(data.error || 'Estimate creation failed');
+    .then(function(r) {
+      return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; });
+    })
+    .then(function(res) {
+      var data = res.data || {};
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || ('Estimate creation failed (HTTP ' + res.status + ')'));
+      }
+      var count = (typeof data.panel_count === 'number')
+        ? data.panel_count
+        : (payload.panels ? payload.panels.length : 0);
       document.getElementById('rb-success-msg').textContent =
-        'Estimate created with ' + data.line_items.length + ' panel' + (data.line_items.length>1?'s':'') + '. Open it in HCP to review and send to the customer.';
-      document.getElementById('rb-btn-open-hcp').href = data.hcp_url;
+        'Estimate created with ' + count + ' panel' + (count !== 1 ? 's' : '') + '. Open it in HCP to review and send to the customer.';
+      document.getElementById('rb-btn-open-hcp').href = data.hcp_url || '#';
       showStep('success');
     })
     .catch(function(e) {
       document.getElementById('rb-error-msg').textContent = e.message;
       showStep('error');
+    })
+    .then(function() {
+      isSubmitting = false;
+      if (sendBtn) sendBtn.disabled = false;
     });
   }
 
