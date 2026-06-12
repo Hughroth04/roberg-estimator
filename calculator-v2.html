@@ -880,7 +880,22 @@
   // ── CONFIG — update this URL after you deploy to Render ──
   var BACKEND_URL = 'https://roberg-hcp-backend.onrender.com';
 
-  var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120, MINIMUM = 163;
+  var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120;
+
+  // Per-category minimum sale price. Edit values here to adjust.
+  // Any category not listed falls back to DEFAULT_MINIMUM.
+  var MINIMUMS = {
+    'Driveway':  163,
+    'Sidewalk':  100,
+    'Patio':     163,
+    'Pool deck': 163,
+    'Garage':    163,
+    'Other':     163
+  };
+  var DEFAULT_MINIMUM = 163;
+  function getMinimum(category) {
+    return (MINIMUMS[category] != null) ? MINIMUMS[category] : DEFAULT_MINIMUM;
+  }
   var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
   var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -891,14 +906,15 @@
     return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
   }
 
-  function calcPanel(l, w, sides, depth) {
+  function calcPanel(l, w, sides, depth, category) {
     var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
     var lbsRaw = vol * CONVERSION, saleRaw = lbsRaw * RATE_SALE, costRaw = lbsRaw * RATE_COST;
-    var isMin = saleRaw < MINIMUM;
+    var min = getMinimum(category);
+    var isMin = saleRaw < min;
     return {
       lbs: Math.ceil(lbsRaw),
-      sale: isMin ? MINIMUM : Math.ceil(saleRaw),
-      cost: isMin ? Math.ceil(MINIMUM * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
+      sale: isMin ? min : Math.ceil(saleRaw),
+      cost: isMin ? Math.ceil(min * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
       isMin: isMin
     };
   }
@@ -959,7 +975,7 @@
   function updateCardResults(id) {
     var p = panels.find(function(p) { return p.id === id; });
     if (!p) return;
-    var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth) : null;
+    var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth, p.category) : null;
     var lbsEl=document.getElementById('rb-lbs-'+id), costEl=document.getElementById('rb-cost-'+id);
     var saleEl=document.getElementById('rb-sale-'+id), lbl=document.getElementById('rb-salelbl-'+id);
     var btn=document.getElementById('rb-copybtn-'+id);
@@ -977,7 +993,7 @@
   function copyPanel(id) {
     var p = panels.find(function(p) { return p.id===id; });
     if (!p || !isReady(p)) return;
-    var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+    var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
     navigator.clipboard.writeText(buildHCPLine(p, calc)).then(function() {
       var btn = document.getElementById('rb-copybtn-'+id);
       btn.classList.add('rb-copied'); btn.innerHTML = CHECK_SVG+' Copied!';
@@ -988,7 +1004,7 @@
 
   function copyAll() {
     var lines = [];
-    panels.forEach(function(p) { if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length,p.width,p.sides,p.depth))); });
+    panels.forEach(function(p) { if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length,p.width,p.sides,p.depth,p.category))); });
     if (!lines.length) { showToast('No panels ready yet'); return; }
     navigator.clipboard.writeText(lines.join('\n\n---\n\n')).then(function() {
       var btn = document.getElementById('rb-copy-all-btn');
@@ -1008,7 +1024,7 @@
     if (!container) return;
     container.innerHTML = '';
     panels.forEach(function(p) {
-      var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth) : null;
+      var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth,p.category) : null;
       var div = document.createElement('div');
       div.className = 'rb-panel-card'; div.id = 'rb-card-'+p.id;
       var catOpts = CATEGORIES.map(function(c) { return '<option'+(c===p.category?' selected':'')+'>'+c+'</option>'; }).join('');
@@ -1042,7 +1058,7 @@
     var html='', total=0;
     panels.forEach(function(p) {
       if (isReady(p)) {
-        var calc=calcPanel(p.length,p.width,p.sides,p.depth); total+=calc.sale;
+        var calc=calcPanel(p.length,p.width,p.sides,p.depth,p.category); total+=calc.sale;
         html+='<div class="rb-summary-line"><span class="rb-sname">'+p.name+' \u2014 '+p.length+'\xd7'+p.width+', '+p.sides+'s '+p.depth+'"</span><span class="rb-sval">'+fmt(calc.sale)+'</span></div>';
       }
     });
@@ -1121,7 +1137,7 @@
     var reviewList = document.getElementById('rb-review-list');
     var total = 0;
     reviewList.innerHTML = ready.map(function(p) {
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
       total += calc.sale;
       return '<div class="rb-review-item">'+
         '<div><div class="rb-review-item-name">'+p.name+' — '+p.category+'</div>'+
@@ -1145,7 +1161,7 @@
       payload = {
         customer_id: selectedCustomerId,
         panels: ready.map(function(p) {
-          var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
           return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
         })
       };
@@ -1198,7 +1214,7 @@
         payload = {
           customer_id: cust.id,
           panels: ready.map(function(p) {
-            var calc = calcPanel(p.length, p.width, p.sides, p.depth);
+            var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
             return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
           })
         };
