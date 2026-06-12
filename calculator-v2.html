@@ -216,8 +216,22 @@
               <input type="email" id="rb-email" class="rb-modal-input" placeholder="john@email.com">
             </div>
             <div class="rb-mfield">
-              <label>Service Address *</label>
-              <input type="text" id="rb-address" class="rb-modal-input" placeholder="123 Main St, Pearland TX 77581">
+              <label>Street Address *</label>
+              <input type="text" id="rb-street" class="rb-modal-input" placeholder="123 Main St" autocomplete="address-line1">
+            </div>
+            <div class="rb-mfield">
+              <label>City *</label>
+              <input type="text" id="rb-city" class="rb-modal-input" placeholder="Pearland" autocomplete="address-level2">
+            </div>
+            <div class="rb-field-row-2">
+              <div class="rb-mfield">
+                <label>State *</label>
+                <input type="text" id="rb-state" class="rb-modal-input" placeholder="TX" maxlength="2" autocomplete="address-level1" style="text-transform:uppercase">
+              </div>
+              <div class="rb-mfield">
+                <label>ZIP *</label>
+                <input type="text" id="rb-zip" class="rb-modal-input" placeholder="77581" inputmode="numeric" autocomplete="postal-code" maxlength="10">
+              </div>
             </div>
           </div>
 
@@ -1033,15 +1047,23 @@
       createEstimate(payload);
     } else {
       // Create new customer first
-      var first = document.getElementById('rb-first-name').value.trim();
-      var last  = document.getElementById('rb-last-name').value.trim();
-      var phone = document.getElementById('rb-phone').value.trim();
-      var email = document.getElementById('rb-email').value.trim();
-      var addr  = document.getElementById('rb-address').value.trim();
+      var first  = document.getElementById('rb-first-name').value.trim();
+      var last   = document.getElementById('rb-last-name').value.trim();
+      var phone  = document.getElementById('rb-phone').value.trim();
+      var email  = document.getElementById('rb-email').value.trim();
+      var street = document.getElementById('rb-street').value.trim();
+      var city   = document.getElementById('rb-city').value.trim();
+      var state  = document.getElementById('rb-state').value.trim().toUpperCase();
+      var zip    = document.getElementById('rb-zip').value.trim();
 
       if (!first || !last) {
         showStep('review');
         showToast('First and last name are required');
+        return;
+      }
+      if (!street || !city || !state || !zip) {
+        showStep('review');
+        showToast('Complete service address is required');
         return;
       }
 
@@ -1050,7 +1072,14 @@
       var custBody = { first_name: first, last_name: last };
       if (phone) custBody.mobile_number = phone;
       if (email) custBody.email = email;
-      if (addr)  custBody.address = { street: addr };
+      custBody.addresses = [{
+        type:    'service',
+        street:  street,
+        city:    city,
+        state:   state,
+        zip:     zip,
+        country: 'US'
+      }];
 
       fetch(BACKEND_URL + '/api/customers', {
         method: 'POST',
@@ -1101,8 +1130,11 @@
       var count = (typeof data.panel_count === 'number')
         ? data.panel_count
         : (payload.panels ? payload.panels.length : 0);
+      var prefix = data.estimate_number
+        ? ('Estimate #' + data.estimate_number + ' created')
+        : 'Estimate created';
       document.getElementById('rb-success-msg').textContent =
-        'Estimate created with ' + count + ' panel' + (count !== 1 ? 's' : '') + '. Open it in HCP to review and send to the customer.';
+        prefix + ' with ' + count + ' panel' + (count !== 1 ? 's' : '') + '. Open it in HCP to review and send to the customer.';
       document.getElementById('rb-btn-open-hcp').href = data.hcp_url || '#';
       showStep('success');
     })
