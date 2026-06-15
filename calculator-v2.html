@@ -147,7 +147,11 @@
 
   <div class="rb-app">
     <div class="rb-main">
-      <div class="rb-section-label">Job Panels</div>
+      <div class="rb-section-header">
+        <div class="rb-section-label" id="rb-section-label">Job Panels</div>
+        <button class="rb-btn-add-option-inline" id="rb-add-option-inline" type="button" style="display:none">+ Option</button>
+      </div>
+      <div class="rb-tab-strip" id="rb-tab-strip"></div>
       <div id="rb-panels"></div>
       <button class="rb-btn-add" id="rb-btn-add">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -324,6 +328,17 @@
           <button type="submit" class="rb-btn-login" id="rb-btn-login">Sign In</button>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- Action sheet for tab ⋯ menu -->
+  <div class="rb-action-sheet-overlay" id="rb-tab-action-sheet" style="display:none">
+    <div class="rb-action-sheet">
+      <div class="rb-action-sheet-title">Option: <span id="rb-tab-action-name"></span></div>
+      <button class="rb-action-sheet-btn" id="rb-action-rename" type="button">Rename</button>
+      <button class="rb-action-sheet-btn" id="rb-action-duplicate" type="button">Duplicate option</button>
+      <button class="rb-action-sheet-btn rb-action-sheet-danger" id="rb-action-delete" type="button">Delete option</button>
+      <button class="rb-action-sheet-btn rb-action-sheet-cancel" id="rb-action-cancel" type="button">Cancel</button>
     </div>
   </div>
 
@@ -932,6 +947,206 @@
 #rb-estimator .rb-btn-signout:hover,
 #rb-estimator .rb-btn-signout:active { color: var(--rb-text-muted); }
 
+/* ── OPTION TABS (multi-option estimates) ── */
+#rb-estimator .rb-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 10px;
+}
+#rb-estimator .rb-section-header .rb-section-label { margin-bottom: 0; }
+
+#rb-estimator .rb-btn-add-option-inline {
+  background: var(--rb-surface); color: var(--rb-navy);
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 6px 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+}
+#rb-estimator .rb-btn-add-option-inline:hover { border-color: var(--rb-blue); }
+#rb-estimator .rb-btn-add-option-inline:active { background: var(--rb-blue-light); border-color: var(--rb-blue); }
+#rb-estimator .rb-btn-add-option-inline:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#rb-estimator .rb-tab-strip {
+  display: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 6px;
+  padding: 2px 2px 8px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+#rb-estimator .rb-tab-strip::-webkit-scrollbar { height: 4px; }
+#rb-estimator .rb-tab-strip::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 2px; }
+
+#rb-estimator .rb-tab {
+  flex: 0 0 auto;
+  min-width: 130px;
+  max-width: 200px;
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: var(--rb-radius-lg);
+  padding: 8px 10px 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  box-shadow: var(--rb-shadow);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  text-align: left;
+}
+#rb-estimator .rb-tab.rb-active {
+  background: var(--rb-navy);
+  border-color: var(--rb-navy);
+}
+#rb-estimator .rb-tab-name {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  outline: none;
+  padding: 2px 4px;
+  margin: -2px -4px 2px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--rb-navy);
+  -webkit-appearance: none; appearance: none;
+  box-shadow: none; cursor: text;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+#rb-estimator .rb-tab.rb-active .rb-tab-name { color: #fff; }
+#rb-estimator .rb-tab-name:hover { background: rgba(114,165,183,0.10); }
+#rb-estimator .rb-tab.rb-active .rb-tab-name:hover { background: rgba(255,255,255,0.10); }
+#rb-estimator .rb-tab-name:focus {
+  background: var(--rb-blue-light);
+  border-color: var(--rb-blue);
+  color: var(--rb-navy);
+  box-shadow: 0 0 0 2px rgba(114,165,183,0.20);
+}
+#rb-estimator .rb-tab-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+}
+#rb-estimator .rb-tab-subtotal {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--rb-blue);
+}
+#rb-estimator .rb-tab.rb-active .rb-tab-subtotal { color: var(--rb-blue); }
+#rb-estimator .rb-tab-more {
+  background: none; border: none;
+  color: var(--rb-text-hint);
+  font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 2px 6px;
+  font-family: inherit;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-tab.rb-active .rb-tab-more { color: rgba(255,255,255,0.65); }
+#rb-estimator .rb-tab-more:hover { color: var(--rb-navy); background: rgba(0,0,0,0.04); }
+#rb-estimator .rb-tab.rb-active .rb-tab-more:hover { color: #fff; background: rgba(255,255,255,0.10); }
+
+#rb-estimator .rb-tab-add {
+  background: none;
+  border: 2px dashed var(--rb-gray);
+  color: var(--rb-text-muted);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer;
+  padding: 0 14px;
+  min-width: 100px;
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--rb-radius-lg);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+#rb-estimator .rb-tab-add:active {
+  background: var(--rb-blue-light);
+  border-color: var(--rb-blue);
+  color: var(--rb-navy);
+}
+
+/* Per-option subtotal lines in sidebar summary */
+#rb-estimator .rb-summary-option .rb-sname {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+}
+
+/* Multi-option grouping in review modal */
+#rb-estimator .rb-review-option { margin-bottom: 14px; }
+#rb-estimator .rb-review-option:last-child { margin-bottom: 0; }
+#rb-estimator .rb-review-option-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--rb-border);
+  margin-bottom: 8px;
+}
+#rb-estimator .rb-review-option-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--rb-navy);
+}
+#rb-estimator .rb-review-option-sub {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px; font-weight: 800;
+  color: var(--rb-blue);
+}
+
+/* Action sheet for tab ⋯ menu (Rename / Duplicate / Delete) */
+#rb-estimator .rb-action-sheet-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 99988;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px;
+}
+#rb-estimator .rb-action-sheet {
+  background: var(--rb-surface);
+  border-radius: var(--rb-radius-lg);
+  width: 100%; max-width: 380px;
+  padding: 14px 14px 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+#rb-estimator .rb-action-sheet-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--rb-text-muted); text-transform: uppercase;
+  text-align: center; padding-bottom: 10px;
+  border-bottom: 1px solid var(--rb-border); margin-bottom: 10px;
+  word-break: break-word;
+}
+#rb-estimator .rb-action-sheet-btn {
+  width: 100%; height: 48px;
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--rb-navy);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  margin-bottom: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+#rb-estimator .rb-action-sheet-btn:active { background: var(--rb-blue-light); border-color: var(--rb-blue); }
+#rb-estimator .rb-action-sheet-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#rb-estimator .rb-action-sheet-danger { color: #b03030; border-color: #e0a0a0; }
+#rb-estimator .rb-action-sheet-danger:active { background: #fef0f0; }
+#rb-estimator .rb-action-sheet-cancel {
+  background: var(--rb-surface2);
+  color: var(--rb-text-muted);
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
 /* Responsive — desktop kept as-is, mobile gets proper layout */
 @media (min-width: 480px) {
   #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
@@ -1008,6 +1223,15 @@
   #rb-estimator .rb-btn-hcp { height: 56px; font-size: 12px; }
   #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
+
+  /* Tab strip on mobile — 16px input avoids iOS zoom on focus */
+  #rb-estimator .rb-tab { min-width: 150px; max-width: 220px; padding: 9px 10px 7px; }
+  #rb-estimator .rb-tab-name { font-size: 16px; padding: 3px 5px; margin: -3px -5px 4px; }
+  #rb-estimator .rb-tab-subtotal { font-size: 12px; }
+  #rb-estimator .rb-tab-more { font-size: 18px; padding: 4px 8px; }
+  #rb-estimator .rb-tab-add { min-width: 110px; font-size: 12px; padding: 10px 14px; }
+  #rb-estimator .rb-btn-add-option-inline { font-size: 11px; padding: 8px 12px; }
+  #rb-estimator .rb-action-sheet-btn { height: 52px; font-size: 13px; }
 
   /* Modal becomes a near-fullscreen bottom sheet on mobile */
   #rb-estimator .rb-modal-overlay {
@@ -1307,7 +1531,15 @@
   var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Void Fill','Other'];
   var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
-  var panels = [], nextId = 1;
+
+  // Multi-option model: an estimate is an ordered list of options; each option
+  // holds its own panel list. Single-option estimates (the common case) hide
+  // the tab strip and look identical to the original UX. Capped at MAX_OPTIONS
+  // because HCP estimate proposals get unwieldy beyond that.
+  var MAX_OPTIONS = 5;
+  var options = [], activeOptionId = null;
+  var nextPanelId = 1, nextOptionId = 1, nextOptionNumber = 1;
+  var actionSheetOptionId = null;
   var selectedCustomerId = null, selectedCustomerName = null;
 
   function disclaimers(lbs) {
@@ -1368,24 +1600,48 @@
     return escapeHtml(s).replace(/"/g, '&quot;');
   }
 
-  // Default name format: "<Category> Lift and Level (Panel N)" where N is the
-  // panel's ordinal position WITHIN its category, in order of appearance.
+  // ── Option / panel lookup helpers ──
+  function getActiveOption() {
+    return options.find(function(o) { return o.id === activeOptionId; }) || null;
+  }
+  function findPanelInfo(panelId) {
+    for (var i = 0; i < options.length; i++) {
+      var p = options[i].panels.find(function(p) { return p.id === panelId; });
+      if (p) return { option: options[i], panel: p };
+    }
+    return null;
+  }
+  function optionSubtotal(opt) {
+    var total = 0;
+    opt.panels.forEach(function(p) {
+      if (isReady(p)) total += calcPanel(p.length, p.width, p.sides, p.depth, p.category).sale;
+    });
+    return total;
+  }
+
+  // Default panel name format: "<Category> Lift and Level (Panel N)" where N is
+  // the panel's ordinal position WITHIN its category and WITHIN its option.
   // Custom names (isCustomName === true) still count toward the category's
   // running total but are not overwritten.
   function regenerateAutoNames() {
-    var counts = {};
-    panels.forEach(function(p) {
-      var cat = p.category || 'Panel';
-      counts[cat] = (counts[cat] || 0) + 1;
-      p._defaultName = cat + ' Lift and Level (Panel ' + counts[cat] + ')';
-      if (!p.isCustomName) p.name = p._defaultName;
+    options.forEach(function(opt) {
+      var counts = {};
+      opt.panels.forEach(function(p) {
+        var cat = p.category || 'Panel';
+        counts[cat] = (counts[cat] || 0) + 1;
+        p._defaultName = cat + ' Lift and Level (Panel ' + counts[cat] + ')';
+        if (!p.isCustomName) p.name = p._defaultName;
+      });
     });
   }
 
   // Reflect any auto-name changes in the live DOM without re-rendering whole
   // panel cards (preserves focus on whatever input the user is editing).
+  // Only the active option's panels are in the DOM at any time.
   function syncPanelNameInputs() {
-    panels.forEach(function(p) {
+    var opt = getActiveOption();
+    if (!opt) return;
+    opt.panels.forEach(function(p) {
       var input = document.querySelector('#rb-card-' + p.id + ' .rb-panel-name');
       if (!input) return;
       if (input.value !== p.name) input.value = p.name;
@@ -1394,8 +1650,10 @@
   }
 
   function addPanel() {
-    var id = nextId++;
-    panels.push({
+    var opt = getActiveOption();
+    if (!opt) return;
+    var id = nextPanelId++;
+    opt.panels.push({
       id: id,
       name: '',
       isCustomName: false,
@@ -1411,14 +1669,17 @@
   }
 
   function removePanel(id) {
-    panels = panels.filter(function(p) { return p.id !== id; });
+    var info = findPanelInfo(id);
+    if (!info) return;
+    info.option.panels = info.option.panels.filter(function(p) { return p.id !== id; });
     regenerateAutoNames();
     renderAll();
   }
 
   function updateField(id, field, value) {
-    var p = panels.find(function(p) { return p.id === id; });
-    if (!p) return;
+    var info = findPanelInfo(id);
+    if (!info) return;
+    var p = info.panel;
     if (field === 'name') {
       // Allow the input to be temporarily empty while typing; we'll restore the
       // default on blur if the user leaves it blank. Any non-empty edit is treated
@@ -1426,6 +1687,7 @@
       p.name = value;
       if (value && value.length) p.isCustomName = true;
       renderSummary();
+      renderTabStrip();
       return;
     }
     if (field === 'category') {
@@ -1434,16 +1696,17 @@
       // panels, so recompute everything and refresh the name inputs in place.
       regenerateAutoNames();
       syncPanelNameInputs();
-      updateCardResults(id); renderSummary();
+      updateCardResults(id); renderSummary(); renderTabStrip();
       return;
     }
     p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value)||0) : value;
-    updateCardResults(id); renderSummary();
+    updateCardResults(id); renderSummary(); renderTabStrip();
   }
 
   function updateCardResults(id) {
-    var p = panels.find(function(p) { return p.id === id; });
-    if (!p) return;
+    var info = findPanelInfo(id);
+    if (!info) return;
+    var p = info.panel;
     var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth, p.category) : null;
     var lbsEl=document.getElementById('rb-lbs-'+id), costEl=document.getElementById('rb-cost-'+id);
     var saleEl=document.getElementById('rb-sale-'+id), lbl=document.getElementById('rb-salelbl-'+id);
@@ -1460,8 +1723,9 @@
   }
 
   function copyPanel(id) {
-    var p = panels.find(function(p) { return p.id===id; });
-    if (!p || !isReady(p)) return;
+    var info = findPanelInfo(id);
+    if (!info || !isReady(info.panel)) return;
+    var p = info.panel;
     var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
     navigator.clipboard.writeText(buildHCPLine(p, calc)).then(function() {
       var btn = document.getElementById('rb-copybtn-'+id);
@@ -1471,28 +1735,236 @@
     });
   }
 
+  // Copy every ready panel across every option. With 2+ options, each option's
+  // panels are preceded by a header line so the manual paste shows the
+  // grouping. Single-option output is unchanged from before.
   function copyAll() {
-    var lines = [];
-    panels.forEach(function(p) { if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length,p.width,p.sides,p.depth,p.category))); });
-    if (!lines.length) { showToast('No panels ready yet'); return; }
-    navigator.clipboard.writeText(lines.join('\n\n---\n\n')).then(function() {
+    var totalReady = 0;
+    var blocks = options.map(function(opt) {
+      var lines = [];
+      opt.panels.forEach(function(p) {
+        if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth, p.category)));
+      });
+      totalReady += lines.length;
+      return { name: opt.name, lines: lines };
+    }).filter(function(b) { return b.lines.length > 0; });
+    if (!totalReady) { showToast('No panels ready yet'); return; }
+    var text;
+    if (options.length === 1) {
+      text = blocks[0].lines.join('\n\n---\n\n');
+    } else {
+      text = blocks.map(function(b) {
+        return '=== ' + b.name + ' ===\n\n' + b.lines.join('\n\n---\n\n');
+      }).join('\n\n\n');
+    }
+    navigator.clipboard.writeText(text).then(function() {
       var btn = document.getElementById('rb-copy-all-btn');
       btn.classList.add('rb-copied'); btn.innerHTML = CHECK_SVG+' Copied!';
-      showToast('All '+lines.length+' panels copied');
+      showToast('All ' + totalReady + ' panel' + (totalReady !== 1 ? 's' : '') + ' copied');
       setTimeout(function() { btn.classList.remove('rb-copied'); btn.innerHTML = COPY_SVG+' Copy All for HCP (manual)'; }, 2500);
     });
   }
 
   function resetAll() {
-    if (panels.length && !confirm('Clear all panels and start over?')) return;
-    panels = []; nextId = 1; renderAll();
+    var hasAnyPanels = options.some(function(o) { return o.panels.length > 0; });
+    var hasMultipleOptions = options.length > 1;
+    if ((hasAnyPanels || hasMultipleOptions) && !confirm('Clear all panels and start over?')) return;
+    options = [];
+    nextPanelId = 1; nextOptionId = 1; nextOptionNumber = 1;
+    activeOptionId = null;
+    seedFirstOption();
+    renderAll();
+  }
+
+  // Initialize the estimate with a single empty Option 1. Used at boot and on
+  // resetAll.
+  function seedFirstOption() {
+    if (options.length) return;
+    var num = nextOptionNumber++;
+    var id = nextOptionId++;
+    options.push({
+      id: id,
+      defaultNumber: num,
+      name: 'Option ' + num,
+      isCustomName: false,
+      panels: []
+    });
+    activeOptionId = id;
+  }
+
+  // ── Option management ──
+  // Per HCP behavior: option numbers monotonically increase and don't recycle
+  // after a delete. Default name "Option N" tracks the per-estimate creation
+  // counter, not the array index.
+  function addOption() {
+    if (options.length >= MAX_OPTIONS) {
+      showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
+      return;
+    }
+    var num = nextOptionNumber++;
+    var id = nextOptionId++;
+    options.push({
+      id: id,
+      defaultNumber: num,
+      name: 'Option ' + num,
+      isCustomName: false,
+      panels: []
+    });
+    activeOptionId = id;
+    renderAll();
+    // Scroll the new tab into view in case the strip overflows.
+    setTimeout(function() {
+      var strip = document.getElementById('rb-tab-strip');
+      if (strip) strip.scrollLeft = strip.scrollWidth;
+    }, 30);
+  }
+
+  // (a) "keep original names verbatim" — duplicated panels copy the source
+  // panel name as-is and are marked isCustomName so regenerateAutoNames won't
+  // overwrite them. Newly added panels in the duplicate still auto-number.
+  function duplicateOption(id) {
+    if (options.length >= MAX_OPTIONS) {
+      showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
+      return;
+    }
+    var srcIdx = options.findIndex(function(o) { return o.id === id; });
+    if (srcIdx < 0) return;
+    var src = options[srcIdx];
+    var num = nextOptionNumber++;
+    var newId = nextOptionId++;
+    var newOpt = {
+      id: newId,
+      defaultNumber: num,
+      name: 'Option ' + num,
+      isCustomName: false,
+      panels: src.panels.map(function(p) {
+        return {
+          id: nextPanelId++,
+          name: p.name,
+          isCustomName: true,
+          length: p.length, width: p.width,
+          sides: p.sides, depth: p.depth,
+          category: p.category, notes: p.notes,
+          _defaultName: p._defaultName
+        };
+      })
+    };
+    options.splice(srcIdx + 1, 0, newOpt);
+    activeOptionId = newId;
+    renderAll();
+    setTimeout(function() {
+      var strip = document.getElementById('rb-tab-strip');
+      var newTab = strip && strip.querySelector('.rb-tab[data-option-id="' + newId + '"]');
+      if (newTab && newTab.scrollIntoView) newTab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    }, 30);
+  }
+
+  function removeOption(id) {
+    if (options.length <= 1) {
+      showToast('Estimate needs at least one option');
+      return;
+    }
+    var idx = options.findIndex(function(o) { return o.id === id; });
+    if (idx < 0) return;
+    var opt = options[idx];
+    var hasPanels = opt.panels.length > 0;
+    if (hasPanels && !confirm('Delete "' + opt.name + '" and its ' + opt.panels.length + ' panel' + (opt.panels.length !== 1 ? 's' : '') + '?')) {
+      return;
+    }
+    options.splice(idx, 1);
+    if (activeOptionId === id) {
+      var nextActive = options[Math.max(0, idx - 1)];
+      activeOptionId = nextActive ? nextActive.id : null;
+    }
+    renderAll();
+  }
+
+  function switchOption(id) {
+    if (activeOptionId === id) return;
+    activeOptionId = id;
+    renderAll();
+  }
+
+  function renameOption(id, name) {
+    var opt = options.find(function(o) { return o.id === id; });
+    if (!opt) return;
+    opt.name = name;
+    if (name && name.length) opt.isCustomName = true;
+    renderSummary();
+  }
+
+  // ── Action sheet (tab ⋯ menu) ──
+  function openTabActionSheet(optionId) {
+    var opt = options.find(function(o) { return o.id === optionId; });
+    if (!opt) return;
+    actionSheetOptionId = optionId;
+    var nameEl = document.getElementById('rb-tab-action-name');
+    if (nameEl) nameEl.textContent = opt.name;
+    var dup = document.getElementById('rb-action-duplicate');
+    if (dup) dup.disabled = options.length >= MAX_OPTIONS;
+    var del = document.getElementById('rb-action-delete');
+    if (del) del.disabled = options.length <= 1;
+    document.getElementById('rb-tab-action-sheet').style.display = 'flex';
+  }
+  function closeTabActionSheet() {
+    actionSheetOptionId = null;
+    document.getElementById('rb-tab-action-sheet').style.display = 'none';
   }
 
   function renderAll() {
+    renderTabStrip();
+    renderActiveOptionPanels();
+    renderAddOptionInlineButton();
+    renderSummary();
+  }
+
+  // Inline "+ Option" button shown only in single-option mode (when the tab
+  // strip is hidden). Once a second option exists, the strip's "+ Option" tab
+  // takes over and this inline button is hidden.
+  function renderAddOptionInlineButton() {
+    var btn = document.getElementById('rb-add-option-inline');
+    if (!btn) return;
+    var show = options.length === 1;
+    btn.style.display = show ? 'inline-flex' : 'none';
+    btn.disabled = options.length >= MAX_OPTIONS;
+  }
+
+  function renderTabStrip() {
+    var strip = document.getElementById('rb-tab-strip');
+    if (!strip) return;
+    if (options.length <= 1) {
+      strip.style.display = 'none';
+      strip.innerHTML = '';
+      return;
+    }
+    strip.style.display = 'flex';
+    var html = '';
+    options.forEach(function(opt) {
+      var isActive = opt.id === activeOptionId;
+      var sub = optionSubtotal(opt);
+      html += '<div class="rb-tab' + (isActive ? ' rb-active' : '') + '" data-option-id="' + opt.id + '">'
+           +    '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" '
+           +          'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
+           +          'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
+           +    '<div class="rb-tab-meta">'
+           +      '<span class="rb-tab-subtotal">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
+           +      '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
+           +    '</div>'
+           + '</div>';
+    });
+    if (options.length < MAX_OPTIONS) {
+      html += '<button class="rb-tab rb-tab-add" id="rb-tab-add-btn" type="button" aria-label="Add option">+ Option</button>';
+    }
+    strip.innerHTML = html;
+  }
+
+  function renderActiveOptionPanels() {
     var container = document.getElementById('rb-panels');
     if (!container) return;
     container.innerHTML = '';
-    panels.forEach(function(p) {
+    var opt = getActiveOption();
+    if (!opt) return;
+    opt.panels.forEach(function(p) {
       var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth,p.category) : null;
       var div = document.createElement('div');
       div.className = 'rb-panel-card'; div.id = 'rb-card-'+p.id;
@@ -1519,33 +1991,88 @@
         '<div class="rb-panel-footer"><button class="rb-btn-copy-panel" id="rb-copybtn-'+p.id+'" data-id="'+p.id+'"'+(calc?'':' disabled')+'>'+COPY_SVG+' Copy This Panel</button></div>';
       container.appendChild(div);
     });
-    renderSummary();
   }
 
+  // Sidebar summary: per-panel breakdown in single-option mode (today's UX);
+  // per-option subtotals in multi-option mode. The "Sum of all" total in
+  // multi-option mode is informational only — customers can approve any
+  // combination of options, so the actual job total depends on what they pick.
   function renderSummary() {
-    var rows=document.getElementById('rb-summary-rows'), totalEl=document.getElementById('rb-summary-total');
-    var totalV=document.getElementById('rb-total-val'), barV=document.getElementById('rb-total-bar-value');
+    var rows = document.getElementById('rb-summary-rows');
+    var totalEl = document.getElementById('rb-summary-total');
+    var totalV = document.getElementById('rb-total-val');
+    var totalLabelEl = totalEl ? totalEl.querySelector('.rb-total-label') : null;
+    var barV = document.getElementById('rb-total-bar-value');
     if (!rows) return;
-    var html='', total=0;
-    panels.forEach(function(p) {
-      if (isReady(p)) {
-        var calc=calcPanel(p.length,p.width,p.sides,p.depth,p.category); total+=calc.sale;
-        html+='<div class="rb-summary-line"><span class="rb-sname">'+escapeHtml(p.name)+' \u2014 '+p.length+'\xd7'+p.width+', '+p.sides+'s '+p.depth+'"</span><span class="rb-sval">'+fmt(calc.sale)+'</span></div>';
+
+    if (options.length <= 1) {
+      var html = '', total = 0;
+      var opt = options[0];
+      (opt ? opt.panels : []).forEach(function(p) {
+        if (isReady(p)) {
+          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+          total += calc.sale;
+          html += '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml(p.name) + ' \u2014 ' + p.length + '\xd7' + p.width + ', ' + p.sides + 's ' + p.depth + '"</span><span class="rb-sval">' + fmt(calc.sale) + '</span></div>';
+        }
+      });
+      if (totalLabelEl) totalLabelEl.textContent = 'Total';
+      if (!html) {
+        rows.innerHTML = '<div class="rb-empty">Add panels above</div>';
+        totalEl.style.display = 'none'; if (barV) barV.textContent = '\u2014';
+      } else {
+        rows.innerHTML = html; totalEl.style.display = 'flex';
+        totalV.textContent = fmt(total); if (barV) barV.textContent = fmt(total);
       }
+      return;
+    }
+
+    var grand = 0, anyValue = false;
+    var html2 = '';
+    options.forEach(function(opt) {
+      var sub = optionSubtotal(opt);
+      grand += sub;
+      if (sub > 0) anyValue = true;
+      html2 += '<div class="rb-summary-line rb-summary-option">'
+            +    '<span class="rb-sname">' + escapeHtml(opt.name) + '</span>'
+            +    '<span class="rb-sval">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
+            +  '</div>';
     });
-    if (!html) {
-      rows.innerHTML='<div class="rb-empty">Add panels above</div>';
-      totalEl.style.display='none'; if (barV) barV.textContent='\u2014';
+    rows.innerHTML = html2;
+    if (totalLabelEl) totalLabelEl.textContent = 'Sum of all';
+    if (anyValue) {
+      totalEl.style.display = 'flex';
+      totalV.textContent = fmt(grand);
+      if (barV) barV.textContent = fmt(grand);
     } else {
-      rows.innerHTML=html; totalEl.style.display='flex';
-      totalV.textContent=fmt(total); if (barV) barV.textContent=fmt(total);
+      totalEl.style.display = 'none';
+      if (barV) barV.textContent = '\u2014';
     }
   }
 
   // ── HCP Modal ──
+  // Validation: hard-block the send flow if (a) no panels at all, or (b) any
+  // option is empty. Per spec, empty options force the user to delete them
+  // before sending — we don't silently skip them. We navigate to the first
+  // empty option so the user can see exactly which tab to act on.
+  function validateEstimateReady() {
+    var anyReady = options.some(function(o) { return o.panels.some(isReady); });
+    if (!anyReady) return { ok: false, reason: 'Add at least one panel first' };
+    var emptyOpts = options.filter(function(o) { return o.panels.filter(isReady).length === 0; });
+    if (emptyOpts.length > 0) {
+      var first = emptyOpts[0];
+      activeOptionId = first.id;
+      renderAll();
+      var msg = (options.length === 1)
+        ? 'Add at least one complete panel first'
+        : (first.name + ' has no panels \u2014 add panels or delete the option');
+      return { ok: false, reason: msg };
+    }
+    return { ok: true };
+  }
+
   function openModal() {
-    var ready = panels.filter(function(p) { return isReady(p); });
-    if (!ready.length) { showToast('Add at least one panel first'); return; }
+    var check = validateEstimateReady();
+    if (!check.ok) { showToast(check.reason); return; }
     showStep('customer');
     selectedCustomerId = null; selectedCustomerName = null;
     document.getElementById('rb-selected-customer').style.display = 'none';
@@ -1603,99 +2130,135 @@
     showToast(name + ' selected');
   }
 
+  function panelReviewItemHTML(p, calc) {
+    return '<div class="rb-review-item">'+
+      '<div><div class="rb-review-item-name">'+escapeHtml(p.name)+' \u2014 '+escapeHtml(p.category)+'</div>'+
+      '<div class="rb-review-item-detail">'+p.length+'\xd7'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam</div></div>'+
+      '<div class="rb-review-item-price">'+fmt(calc.sale)+'</div>'+
+    '</div>';
+  }
+
   function goToReview() {
-    var ready = panels.filter(function(p) { return isReady(p); });
     var reviewList = document.getElementById('rb-review-list');
-    var total = 0;
-    reviewList.innerHTML = ready.map(function(p) {
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-      total += calc.sale;
-      return '<div class="rb-review-item">'+
-        '<div><div class="rb-review-item-name">'+escapeHtml(p.name)+' — '+escapeHtml(p.category)+'</div>'+
-        '<div class="rb-review-item-detail">'+p.length+'×'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam</div></div>'+
-        '<div class="rb-review-item-price">'+fmt(calc.sale)+'</div>'+
-        '</div>';
-    }).join('');
-    document.getElementById('rb-review-total-val').textContent = fmt(total);
+    var grand = 0;
+
+    if (options.length <= 1) {
+      var ready = (options[0] ? options[0].panels.filter(isReady) : []);
+      reviewList.innerHTML = ready.map(function(p) {
+        var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+        grand += calc.sale;
+        return panelReviewItemHTML(p, calc);
+      }).join('');
+    } else {
+      reviewList.innerHTML = options.map(function(opt) {
+        var ready = opt.panels.filter(isReady);
+        if (!ready.length) return '';
+        var sub = 0;
+        var inner = ready.map(function(p) {
+          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+          sub += calc.sale;
+          return panelReviewItemHTML(p, calc);
+        }).join('');
+        grand += sub;
+        return '<div class="rb-review-option">'
+             +   '<div class="rb-review-option-header">'
+             +     '<span class="rb-review-option-name">'+escapeHtml(opt.name)+'</span>'
+             +     '<span class="rb-review-option-sub">'+fmt(sub)+'</span>'
+             +   '</div>'
+             +   inner
+             + '</div>';
+      }).join('');
+    }
+    document.getElementById('rb-review-total-val').textContent = fmt(grand);
     showStep('review');
   }
 
-  function sendToHCP() {
-    var ready = panels.filter(function(p) { return isReady(p); });
-    document.getElementById('rb-loading-msg').textContent = 'Creating estimate in HouseCall Pro…';
-    showStep('loading');
-
-    var payload;
-
-    if (selectedCustomerId) {
-      // Existing customer
-      payload = {
-        customer_id: selectedCustomerId,
-        panels: ready.map(function(p) {
+  // Build the new options-grouped payload the backend now accepts. Each option
+  // contributes an HCP estimate-option tab. Empty options were already blocked
+  // by validateEstimateReady() at openModal time, but we re-check here as a
+  // safety net in case the user removed all panels from an option after
+  // entering the modal.
+  function buildOptionsPayload() {
+    return options.map(function(opt) {
+      return {
+        name: (opt.name && opt.name.trim()) ? opt.name.trim() : ('Option ' + opt.defaultNumber),
+        panels: opt.panels.filter(isReady).map(function(p) {
           var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-          return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
+          return {
+            name: p.name, category: p.category,
+            sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
+            depth: p.depth, sides: p.sides,
+            description: buildDesc(p, calc)
+          };
         })
       };
-      createEstimate(payload);
-    } else {
-      // Create new customer first
-      var first  = document.getElementById('rb-first-name').value.trim();
-      var last   = document.getElementById('rb-last-name').value.trim();
-      var phone  = document.getElementById('rb-phone').value.trim();
-      var email  = document.getElementById('rb-email').value.trim();
-      var street = document.getElementById('rb-street').value.trim();
-      var city   = document.getElementById('rb-city').value.trim();
-      var state  = document.getElementById('rb-state').value.trim().toUpperCase();
-      var zip    = document.getElementById('rb-zip').value.trim();
+    }).filter(function(o) { return o.panels.length > 0; });
+  }
 
-      if (!first || !last) {
-        showStep('review');
-        showToast('First and last name are required');
-        return;
-      }
-      if (!street || !city || !state || !zip) {
-        showStep('review');
-        showToast('Complete service address is required');
-        return;
-      }
-
-      document.getElementById('rb-loading-msg').textContent = 'Creating customer…';
-
-      var custBody = { first_name: first, last_name: last };
-      if (phone) custBody.mobile_number = phone;
-      if (email) custBody.email = email;
-      custBody.addresses = [{
-        type:    'service',
-        street:  street,
-        city:    city,
-        state:   state,
-        zip:     zip,
-        country: 'US'
-      }];
-
-      apiFetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(custBody)
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(cust) {
-        if (!cust.id) throw new Error(cust.message || 'Customer creation failed');
-        document.getElementById('rb-loading-msg').textContent = 'Creating estimate…';
-        payload = {
-          customer_id: cust.id,
-          panels: ready.map(function(p) {
-            var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-            return { name: p.name, category: p.category, sale: calc.sale, cost: calc.cost, lbs: calc.lbs, depth: p.depth, sides: p.sides, description: buildDesc(p, calc) };
-          })
-        };
-        createEstimate(payload);
-      })
-      .catch(function(e) {
-        document.getElementById('rb-error-msg').textContent = e.message;
-        showStep('error');
-      });
+  function sendToHCP() {
+    var check = validateEstimateReady();
+    if (!check.ok) {
+      showStep('review');
+      showToast(check.reason);
+      return;
     }
+
+    var optionsPayload = buildOptionsPayload();
+
+    document.getElementById('rb-loading-msg').textContent = 'Creating estimate in HouseCall Pro\u2026';
+    showStep('loading');
+
+    if (selectedCustomerId) {
+      createEstimate({ customer_id: selectedCustomerId, options: optionsPayload });
+      return;
+    }
+
+    // Create new customer first
+    var first  = document.getElementById('rb-first-name').value.trim();
+    var last   = document.getElementById('rb-last-name').value.trim();
+    var phone  = document.getElementById('rb-phone').value.trim();
+    var email  = document.getElementById('rb-email').value.trim();
+    var street = document.getElementById('rb-street').value.trim();
+    var city   = document.getElementById('rb-city').value.trim();
+    var state  = document.getElementById('rb-state').value.trim().toUpperCase();
+    var zip    = document.getElementById('rb-zip').value.trim();
+
+    if (!first || !last) {
+      showStep('review');
+      showToast('First and last name are required');
+      return;
+    }
+    if (!street || !city || !state || !zip) {
+      showStep('review');
+      showToast('Complete service address is required');
+      return;
+    }
+
+    document.getElementById('rb-loading-msg').textContent = 'Creating customer\u2026';
+
+    var custBody = { first_name: first, last_name: last };
+    if (phone) custBody.mobile_number = phone;
+    if (email) custBody.email = email;
+    custBody.addresses = [{
+      type: 'service', street: street, city: city,
+      state: state, zip: zip, country: 'US'
+    }];
+
+    apiFetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(custBody)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(cust) {
+      if (!cust.id) throw new Error(cust.message || 'Customer creation failed');
+      document.getElementById('rb-loading-msg').textContent = 'Creating estimate\u2026';
+      createEstimate({ customer_id: cust.id, options: optionsPayload });
+    })
+    .catch(function(e) {
+      document.getElementById('rb-error-msg').textContent = e.message;
+      showStep('error');
+    });
   }
 
   var isSubmitting = false;
@@ -1719,14 +2282,22 @@
       if (!res.ok || !data.success) {
         throw new Error(data.error || ('Estimate creation failed (HTTP ' + res.status + ')'));
       }
-      var count = (typeof data.panel_count === 'number')
+      var panelCount = (typeof data.panel_count === 'number')
         ? data.panel_count
-        : (payload.panels ? payload.panels.length : 0);
+        : (payload.options
+            ? payload.options.reduce(function(n, o) { return n + (o.panels ? o.panels.length : 0); }, 0)
+            : (payload.panels ? payload.panels.length : 0));
+      var optionCount = (typeof data.option_count === 'number')
+        ? data.option_count
+        : (payload.options ? payload.options.length : 1);
       var prefix = data.estimate_number
         ? ('Estimate #' + data.estimate_number + ' created')
         : 'Estimate created';
+      var detail = (optionCount > 1)
+        ? (' with ' + optionCount + ' options and ' + panelCount + ' total panel' + (panelCount !== 1 ? 's' : ''))
+        : (' with ' + panelCount + ' panel' + (panelCount !== 1 ? 's' : ''));
       document.getElementById('rb-success-msg').textContent =
-        prefix + ' with ' + count + ' panel' + (count !== 1 ? 's' : '') + '. Open it in HCP to review and send to the customer.';
+        prefix + detail + '. Open it in HCP to review and send to the customer.';
       document.getElementById('rb-btn-open-hcp').href = data.hcp_url || '#';
       showStep('success');
     })
@@ -1748,22 +2319,43 @@
       var resultItem = e.target.closest('.rb-search-result-item');
       if (resultItem) { selectCustomer(resultItem.getAttribute('data-id'), resultItem.getAttribute('data-name')); return; }
 
+      // ── Tab strip interactions ──
+      // Tab ⋯ button: open the action sheet for that option. Stop propagation
+      // so the parent .rb-tab click handler doesn't also fire (and switch tabs).
+      var moreBtn = e.target.closest('.rb-tab-more');
+      if (moreBtn) {
+        e.stopPropagation();
+        openTabActionSheet(parseInt(moreBtn.getAttribute('data-option-id'), 10));
+        return;
+      }
+      // Click anywhere else on a tab (except the editable name input): switch
+      // active. Clicking the name input itself just focuses it for renaming.
+      var tab = e.target.closest('.rb-tab');
+      if (tab && !tab.classList.contains('rb-tab-add')) {
+        if (e.target && e.target.classList && e.target.classList.contains('rb-tab-name')) return;
+        var oid = parseInt(tab.getAttribute('data-option-id'), 10);
+        if (!isNaN(oid)) switchOption(oid);
+        return;
+      }
+
       var t = e.target.closest('button, a');
       if (!t) return;
       var tid = t.id;
-      if (tid === 'rb-btn-add')          { addPanel(); return; }
-      if (tid === 'rb-copy-all-btn')     { copyAll();  return; }
-      if (tid === 'rb-btn-reset')        { resetAll(); return; }
-      if (tid === 'rb-btn-hcp')          { openModal(); return; }
-      if (tid === 'rb-modal-close')      { closeModal(); return; }
-      if (tid === 'rb-btn-search-cust')  { searchCustomers(); return; }
-      if (tid === 'rb-btn-next-step')    { goToReview(); return; }
-      if (tid === 'rb-btn-back-step')    { showStep('customer'); return; }
-      if (tid === 'rb-btn-send')         { sendToHCP(); return; }
-      if (tid === 'rb-btn-done')         { closeModal(); return; }
-      if (tid === 'rb-btn-retry')        { showStep('review'); return; }
-      if (tid === 'rb-btn-signout')      { signOut(); return; }
-      if (tid === 'rb-btn-change-cust')  {
+      if (tid === 'rb-btn-add')           { addPanel(); return; }
+      if (tid === 'rb-copy-all-btn')      { copyAll();  return; }
+      if (tid === 'rb-btn-reset')         { resetAll(); return; }
+      if (tid === 'rb-btn-hcp')           { openModal(); return; }
+      if (tid === 'rb-modal-close')       { closeModal(); return; }
+      if (tid === 'rb-btn-search-cust')   { searchCustomers(); return; }
+      if (tid === 'rb-btn-next-step')     { goToReview(); return; }
+      if (tid === 'rb-btn-back-step')     { showStep('customer'); return; }
+      if (tid === 'rb-btn-send')          { sendToHCP(); return; }
+      if (tid === 'rb-btn-done')          { closeModal(); return; }
+      if (tid === 'rb-btn-retry')         { showStep('review'); return; }
+      if (tid === 'rb-btn-signout')       { signOut(); return; }
+      if (tid === 'rb-add-option-inline') { addOption(); return; }
+      if (tid === 'rb-tab-add-btn')       { addOption(); return; }
+      if (tid === 'rb-btn-change-cust')   {
         selectedCustomerId = null; selectedCustomerName = null;
         document.getElementById('rb-selected-customer').style.display = 'none';
         document.getElementById('rb-new-cust-form').style.display = 'block';
@@ -1788,41 +2380,107 @@
       });
     }
 
-    // Panel title UX: Enter commits the edit (blur), and blurring with an empty
-    // title restores the default "Panel N" name.
+    // Panel/tab title UX: Enter commits the edit (blur), and blurring with an
+    // empty title restores the default name.
     root.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('rb-panel-name')) {
+      if (!e.target || !e.target.classList) return;
+      if (e.key === 'Enter' && (e.target.classList.contains('rb-panel-name') || e.target.classList.contains('rb-tab-name'))) {
         e.preventDefault();
         e.target.blur();
       }
     });
     root.addEventListener('focusout', function(e) {
       var t = e.target;
-      if (!t || !t.classList || !t.classList.contains('rb-panel-name')) return;
-      var id = parseInt(t.getAttribute('data-id'), 10);
-      var p = panels.find(function(x) { return x.id === id; });
-      if (!p) return;
-      var trimmed = (t.value || '').trim();
-      if (!trimmed) {
-        // Empty title → restore to the category-based default.
-        p.isCustomName = false;
-        regenerateAutoNames();
-        syncPanelNameInputs();
-        renderSummary();
-      } else if (trimmed !== t.value) {
-        // Normalize: drop leading/trailing whitespace on commit
-        p.name = trimmed;
-        t.value = trimmed;
-        renderSummary();
+      if (!t || !t.classList) return;
+
+      // Panel name input
+      if (t.classList.contains('rb-panel-name')) {
+        var pid = parseInt(t.getAttribute('data-id'), 10);
+        var info = findPanelInfo(pid);
+        if (!info) return;
+        var p = info.panel;
+        var trimmed = (t.value || '').trim();
+        if (!trimmed) {
+          p.isCustomName = false;
+          regenerateAutoNames();
+          syncPanelNameInputs();
+          renderSummary();
+        } else if (trimmed !== t.value) {
+          p.name = trimmed;
+          t.value = trimmed;
+          renderSummary();
+        }
+        return;
+      }
+
+      // Option (tab) name input
+      if (t.classList.contains('rb-tab-name')) {
+        var oid = parseInt(t.getAttribute('data-option-id'), 10);
+        var opt = options.find(function(o) { return o.id === oid; });
+        if (!opt) return;
+        var trimmed2 = (t.value || '').trim();
+        if (!trimmed2) {
+          opt.isCustomName = false;
+          opt.name = 'Option ' + opt.defaultNumber;
+          t.value = opt.name;
+          renderSummary();
+        } else if (trimmed2 !== opt.name) {
+          opt.name = trimmed2;
+          opt.isCustomName = true;
+          t.value = trimmed2;
+          renderSummary();
+        }
+        return;
       }
     });
 
-    // Close modal on overlay click
+    // Close estimate modal on overlay click
     var overlay = document.getElementById('rb-modal');
     if (overlay) {
       overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
     }
 
+    // ── Action sheet (tab ⋯ menu) ──
+    var sheetOverlay = document.getElementById('rb-tab-action-sheet');
+    if (sheetOverlay) {
+      // Backdrop click closes the sheet (clicks inside the sheet card don't
+      // bubble up to this handler because we check e.target).
+      sheetOverlay.addEventListener('click', function(e) {
+        if (e.target === sheetOverlay) closeTabActionSheet();
+      });
+    }
+    var actCancel = document.getElementById('rb-action-cancel');
+    if (actCancel) actCancel.addEventListener('click', closeTabActionSheet);
+
+    var actRename = document.getElementById('rb-action-rename');
+    if (actRename) actRename.addEventListener('click', function() {
+      var id = actionSheetOptionId;
+      closeTabActionSheet();
+      if (id == null) return;
+      // Focus the tab's name input so the user can rename inline. Defer so the
+      // sheet's close animation finishes first.
+      setTimeout(function() {
+        var inp = document.querySelector('.rb-tab-name[data-option-id="' + id + '"]');
+        if (inp) { try { inp.focus(); inp.select(); } catch (_) {} }
+      }, 60);
+    });
+
+    var actDuplicate = document.getElementById('rb-action-duplicate');
+    if (actDuplicate) actDuplicate.addEventListener('click', function() {
+      var id = actionSheetOptionId;
+      closeTabActionSheet();
+      if (id != null) duplicateOption(id);
+    });
+
+    var actDelete = document.getElementById('rb-action-delete');
+    if (actDelete) actDelete.addEventListener('click', function() {
+      var id = actionSheetOptionId;
+      closeTabActionSheet();
+      if (id != null) removeOption(id);
+    });
+
+    // Panel field input/change — data-id + data-field. Tab name inputs only
+    // have data-option-id (no data-field) so they're naturally excluded.
     root.addEventListener('input', function(e) {
       var t=e.target, id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
       if (id && field) updateField(parseInt(id,10), field, t.value);
@@ -1832,10 +2490,21 @@
       if (id && field) updateField(parseInt(id,10), field, t.value);
     });
 
+    // Live update of the option name (separate from panel field handler above
+    // because option name inputs use data-option-id, not data-id/data-field).
+    root.addEventListener('input', function(e) {
+      var t = e.target;
+      if (!t || !t.classList || !t.classList.contains('rb-tab-name')) return;
+      var oid = parseInt(t.getAttribute('data-option-id'), 10);
+      if (isNaN(oid)) return;
+      renameOption(oid, t.value);
+    });
+
     // Keep Render server warm — ping every 10 minutes (helper skips auth for /health)
     setInterval(function() { apiFetch('/health').catch(function(){}); }, 600000);
   }
 
+  seedFirstOption();
   addPanel();
   bootAuth();
 })();
