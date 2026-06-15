@@ -427,13 +427,39 @@
 }
 #rb-estimator .rb-panel-card:focus-within { border-top-color: var(--rb-blue); }
 #rb-estimator .rb-panel-top {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 14px;
 }
 #rb-estimator .rb-panel-name {
+  /* <input> styled to look like a bold uppercase heading */
+  flex: 1 1 0; min-width: 0; width: auto;
   font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
   color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+  line-height: 1.3;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  outline: none;
+  padding: 4px 8px;
+  margin: -4px 0 -4px -8px;
+  -webkit-appearance: none; appearance: none;
+  box-shadow: none;
+  cursor: text;
+  text-overflow: ellipsis;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-#rb-estimator .rb-panel-controls { display: flex; align-items: center; gap: 6px; }
+#rb-estimator .rb-panel-name:hover { background: rgba(114,165,183,0.10); }
+#rb-estimator .rb-panel-name:focus {
+  background: var(--rb-blue-light);
+  border-color: var(--rb-blue);
+  box-shadow: 0 0 0 2px rgba(114,165,183,0.20);
+}
+#rb-estimator .rb-panel-name::placeholder {
+  color: var(--rb-text-hint);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+#rb-estimator .rb-panel-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 #rb-estimator .rb-cat-select {
   font-size: 12px; height: 32px; padding: 0 8px;
   border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
@@ -947,7 +973,8 @@
 
   /* Panel cards: a touch more breathing room, force 2-col fields */
   #rb-estimator .rb-panel-card { padding: 14px; }
-  #rb-estimator .rb-panel-name { font-size: 14px; }
+  /* 16px font-size avoids iOS Safari auto-zooming on the editable title */
+  #rb-estimator .rb-panel-name { font-size: 16px; padding: 6px 10px; margin: -6px 0 -6px -10px; }
   #rb-estimator .rb-fields-grid {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
@@ -1319,9 +1346,27 @@
   }
 
   // ── Panel rendering ──
+  // Small HTML/attribute escape helpers (used for user-editable strings).
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  function defaultPanelName(index) { return 'Panel ' + (index + 1); }
+
   function addPanel() {
     var id = nextId++;
-    panels.push({ id:id, name:'Panel '+(panels.length+1), length:0, width:0, sides:1, depth:1, category:'Driveway', notes:'' });
+    panels.push({
+      id: id,
+      name: defaultPanelName(panels.length),
+      isCustomName: false,
+      length: 0, width: 0, sides: 1, depth: 1, category: 'Driveway', notes: ''
+    });
     renderAll();
     setTimeout(function() {
       var cards = document.querySelectorAll('#rb-estimator .rb-panel-card');
@@ -1332,13 +1377,25 @@
 
   function removePanel(id) {
     panels = panels.filter(function(p) { return p.id !== id; });
-    panels.forEach(function(p,i) { p.name = 'Panel '+(i+1); });
+    // Renumber only the auto-named panels by their new index; keep custom titles intact.
+    panels.forEach(function(p, i) {
+      if (!p.isCustomName) p.name = defaultPanelName(i);
+    });
     renderAll();
   }
 
   function updateField(id, field, value) {
     var p = panels.find(function(p) { return p.id === id; });
     if (!p) return;
+    if (field === 'name') {
+      // Allow the input to be temporarily empty while typing; we'll restore the
+      // default on blur if the user leaves it blank. Any non-empty edit is treated
+      // as a custom name.
+      p.name = value;
+      if (value && value.length) p.isCustomName = true;
+      renderSummary();
+      return;
+    }
     p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value)||0) : value;
     updateCardResults(id); renderSummary();
   }
@@ -1401,7 +1458,9 @@
       var catOpts = CATEGORIES.map(function(c) { return '<option'+(c===p.category?' selected':'')+'>'+c+'</option>'; }).join('');
       var sideOpts = [1,2,3,4].map(function(n) { return '<option value="'+n+'"'+(n===p.sides?' selected':'')+'>'+n+'</option>'; }).join('');
       div.innerHTML =
-        '<div class="rb-panel-top"><div class="rb-panel-name">'+p.name+'</div><div class="rb-panel-controls">'+
+        '<div class="rb-panel-top">'+
+        '<input class="rb-panel-name" type="text" value="'+escapeAttr(p.name)+'" data-id="'+p.id+'" data-field="name" spellcheck="false" autocomplete="off" autocapitalize="words" aria-label="Panel name" placeholder="'+escapeAttr(defaultPanelName(panels.indexOf(p)))+'">'+
+        '<div class="rb-panel-controls">'+
         '<select class="rb-cat-select" data-id="'+p.id+'" data-field="category">'+catOpts+'</select>'+
         '<button class="rb-btn-remove" data-id="'+p.id+'" title="Remove">\u2715</button></div></div>'+
         '<div class="rb-fields-grid">'+
@@ -1430,7 +1489,7 @@
     panels.forEach(function(p) {
       if (isReady(p)) {
         var calc=calcPanel(p.length,p.width,p.sides,p.depth,p.category); total+=calc.sale;
-        html+='<div class="rb-summary-line"><span class="rb-sname">'+p.name+' \u2014 '+p.length+'\xd7'+p.width+', '+p.sides+'s '+p.depth+'"</span><span class="rb-sval">'+fmt(calc.sale)+'</span></div>';
+        html+='<div class="rb-summary-line"><span class="rb-sname">'+escapeHtml(p.name)+' \u2014 '+p.length+'\xd7'+p.width+', '+p.sides+'s '+p.depth+'"</span><span class="rb-sval">'+fmt(calc.sale)+'</span></div>';
       }
     });
     if (!html) {
@@ -1511,7 +1570,7 @@
       var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
       total += calc.sale;
       return '<div class="rb-review-item">'+
-        '<div><div class="rb-review-item-name">'+p.name+' — '+p.category+'</div>'+
+        '<div><div class="rb-review-item-name">'+escapeHtml(p.name)+' — '+escapeHtml(p.category)+'</div>'+
         '<div class="rb-review-item-detail">'+p.length+'×'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam</div></div>'+
         '<div class="rb-review-item-price">'+fmt(calc.sale)+'</div>'+
         '</div>';
@@ -1687,6 +1746,35 @@
         attemptLogin();
       });
     }
+
+    // Panel title UX: Enter commits the edit (blur), and blurring with an empty
+    // title restores the default "Panel N" name.
+    root.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target && e.target.classList && e.target.classList.contains('rb-panel-name')) {
+        e.preventDefault();
+        e.target.blur();
+      }
+    });
+    root.addEventListener('focusout', function(e) {
+      var t = e.target;
+      if (!t || !t.classList || !t.classList.contains('rb-panel-name')) return;
+      var id = parseInt(t.getAttribute('data-id'), 10);
+      var p = panels.find(function(x) { return x.id === id; });
+      if (!p) return;
+      var trimmed = (t.value || '').trim();
+      if (!trimmed) {
+        var idx = panels.indexOf(p);
+        p.name = defaultPanelName(idx);
+        p.isCustomName = false;
+        t.value = p.name;
+        renderSummary();
+      } else if (trimmed !== t.value) {
+        // Normalize: drop leading/trailing whitespace on commit
+        p.name = trimmed;
+        t.value = trimmed;
+        renderSummary();
+      }
+    });
 
     // Close modal on overlay click
     var overlay = document.getElementById('rb-modal');
