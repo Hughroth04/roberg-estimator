@@ -141,7 +141,7 @@
 
   <div class="rb-header">
     <div class="rb-logo">
-      Ro<span>-Berg</span>
+      <span class="rb-logo-brand">Ro<span>-Berg</span></span>
       <div class="rb-logo-divider"></div>
       <span class="rb-logo-sub">Field Estimator</span>
     </div>
@@ -319,7 +319,7 @@
   <div class="rb-login-overlay" id="rb-login-overlay" style="display:flex" role="dialog" aria-modal="true" aria-labelledby="rb-login-title">
     <div class="rb-login-card">
       <div class="rb-login-logo">
-        Ro<span>-Berg</span>
+        <span class="rb-login-brand">Ro<span>-Berg</span></span>
         <div class="rb-login-divider"></div>
         <span class="rb-login-sub">Field Estimator</span>
       </div>
@@ -421,8 +421,9 @@
   letter-spacing: 0.05em; text-transform: uppercase;
   color: #fff; display: flex; align-items: center; gap: 8px;
 }
-#rb-estimator .rb-logo span { color: var(--rb-blue); }
-#rb-estimator .rb-logo-divider { width: 2px; height: 18px; background: var(--rb-blue); border-radius: 2px; opacity: 0.5; }
+#rb-estimator .rb-logo-brand { white-space: nowrap; }
+#rb-estimator .rb-logo-brand span { color: var(--rb-blue); }
+#rb-estimator .rb-logo-divider { width: 2px; height: 18px; background: var(--rb-blue); border-radius: 2px; opacity: 0.5; flex-shrink: 0; }
 #rb-estimator .rb-logo-sub {
   font-family: 'Open Sans', sans-serif;
   font-size: 10px; font-weight: 500;
@@ -894,10 +895,12 @@
   display: flex; align-items: center; gap: 8px; justify-content: center;
   margin-bottom: 22px;
 }
-#rb-estimator .rb-login-logo span { color: var(--rb-blue); }
+#rb-estimator .rb-login-brand { white-space: nowrap; }
+#rb-estimator .rb-login-brand span { color: var(--rb-blue); }
 #rb-estimator .rb-login-divider {
   width: 2px; height: 18px; background: var(--rb-blue);
   border-radius: 2px; opacity: 0.6;
+  flex-shrink: 0;
 }
 #rb-estimator .rb-login-sub {
   font-family: 'Open Sans', sans-serif;
