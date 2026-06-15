@@ -1288,13 +1288,22 @@
     'Patio':     163,
     'Pool deck': 163,
     'Garage':    163,
+    'Void Fill': 163,
     'Other':     163
   };
   var DEFAULT_MINIMUM = 163;
   function getMinimum(category) {
     return (MINIMUMS[category] != null) ? MINIMUMS[category] : DEFAULT_MINIMUM;
   }
-  var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
+  // Per-category foam-density conversion (lbs of foam per cubic yard).
+  // Categories not listed fall back to CONVERSION.
+  var CONVERSION_OVERRIDES = {
+    'Void Fill': 108
+  };
+  function getConversion(category) {
+    return (CONVERSION_OVERRIDES[category] != null) ? CONVERSION_OVERRIDES[category] : CONVERSION;
+  }
+  var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Void Fill','Other'];
   var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
   var panels = [], nextId = 1;
@@ -1306,7 +1315,8 @@
 
   function calcPanel(l, w, sides, depth, category) {
     var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
-    var lbsRaw = vol * CONVERSION, saleRaw = lbsRaw * RATE_SALE, costRaw = lbsRaw * RATE_COST;
+    var conversion = getConversion(category);
+    var lbsRaw = vol * conversion, saleRaw = lbsRaw * RATE_SALE, costRaw = lbsRaw * RATE_COST;
     var min = getMinimum(category);
     var isMin = saleRaw < min;
     return {
