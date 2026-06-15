@@ -99,6 +99,13 @@
 
   body.page { overflow-x: clip; }
 
+  /* Prevent any child from widening the page on mobile */
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   h1.entry-title,
   .et_pb_title_container,
   .et_pb_title_container h1,
@@ -389,7 +396,10 @@
   color: var(--rb-text);
   background: var(--rb-bg);
   border-radius: var(--rb-radius-lg);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
+  width: 100%;
+  max-width: 100%;
   -webkit-font-smoothing: antialiased;
   box-sizing: border-box;
 }
@@ -440,6 +450,12 @@
 #rb-estimator .rb-app {
   display: grid; grid-template-columns: 1fr 320px;
   gap: 20px; padding: 20px; align-items: start;
+  width: 100%; max-width: 100%; min-width: 0;
+}
+#rb-estimator .rb-main,
+#rb-estimator .rb-sidebar {
+  min-width: 0;
+  max-width: 100%;
 }
 #rb-estimator .rb-section-label {
   font-family: 'Montserrat', sans-serif;
@@ -453,11 +469,13 @@
   border-radius: var(--rb-radius-lg); padding: 16px; margin-bottom: 10px;
   box-shadow: var(--rb-shadow); border-top: 3px solid transparent;
   transition: border-top-color 0.15s;
+  width: 100%; max-width: 100%; min-width: 0;
 }
 #rb-estimator .rb-panel-card:focus-within { border-top-color: var(--rb-blue); }
 #rb-estimator .rb-panel-top {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 14px;
+  min-width: 0; max-width: 100%;
 }
 #rb-estimator .rb-panel-name {
   /* <input> styled to look like a bold uppercase heading */
@@ -986,11 +1004,15 @@
   display: none;
   flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   gap: 6px;
-  padding: 2px 2px 8px;
+  padding: 2px 0 8px;
   margin-bottom: 8px;
   scrollbar-width: thin;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 #rb-estimator .rb-tab-strip::-webkit-scrollbar { height: 4px; }
 #rb-estimator .rb-tab-strip::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 2px; }
@@ -1016,12 +1038,13 @@
 }
 #rb-estimator .rb-tab-name {
   width: 100%;
+  max-width: 100%;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 4px;
   outline: none;
   padding: 2px 4px;
-  margin: -2px -4px 2px;
+  margin: 0 0 2px;
   font-family: 'Montserrat', sans-serif;
   font-size: 12px; font-weight: 800;
   letter-spacing: 0.04em; text-transform: uppercase;
@@ -1123,6 +1146,10 @@
   padding: 12px;
   margin-bottom: 10px;
   box-shadow: var(--rb-shadow);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 #rb-estimator .rb-photos-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -1142,6 +1169,9 @@
 }
 #rb-estimator .rb-photos-strip {
   display: flex; flex-wrap: wrap; gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 #rb-estimator .rb-photo-thumb {
   position: relative;
@@ -1344,13 +1374,44 @@
     grid-template-columns: 1fr;
     padding: 12px;
     gap: 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+  #rb-estimator .rb-main,
+  #rb-estimator .rb-sidebar,
+  #rb-estimator #rb-panels {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
   #rb-estimator .rb-section-label { font-size: 11px; margin-bottom: 8px; }
+  #rb-estimator .rb-section-header {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
 
   /* Panel cards: a touch more breathing room, force 2-col fields */
-  #rb-estimator .rb-panel-card { padding: 14px; }
-  /* 16px font-size avoids iOS Safari auto-zooming on the editable title */
-  #rb-estimator .rb-panel-name { font-size: 16px; padding: 6px 10px; margin: -6px 0 -6px -10px; }
+  #rb-estimator .rb-panel-card {
+    padding: 14px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* 16px font-size avoids iOS Safari auto-zooming on the editable title.
+     Avoid negative left margins here — they push content past the card edge
+     and can cause horizontal page overflow on narrow phones. */
+  #rb-estimator .rb-panel-name {
+    font-size: 16px;
+    padding: 6px 10px;
+    margin: 0 0 4px;
+    max-width: 100%;
+  }
+  #rb-estimator .rb-panel-top {
+    min-width: 0;
+    max-width: 100%;
+  }
   #rb-estimator .rb-fields-grid {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
@@ -1378,15 +1439,31 @@
   #rb-estimator .rb-summary-card { padding: 16px; }
   #rb-estimator .rb-total-val { font-size: 24px; }
 
-  /* Larger touch-friendly buttons */
+  /* Full-width buttons must not exceed the viewport */
+  #rb-estimator .rb-btn-add,
+  #rb-estimator .rb-btn-hcp,
+  #rb-estimator .rb-btn-copy-all,
+  #rb-estimator .rb-btn-reset,
+  #rb-estimator .rb-btn-signout,
+  #rb-estimator .rb-summary-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
   #rb-estimator .rb-btn-add { height: 56px; font-size: 12px; }
   #rb-estimator .rb-btn-hcp { height: 56px; font-size: 12px; }
   #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
 
   /* Tab strip on mobile — 16px input avoids iOS zoom on focus */
-  #rb-estimator .rb-tab { min-width: 150px; max-width: 220px; padding: 9px 10px 7px; }
-  #rb-estimator .rb-tab-name { font-size: 16px; padding: 3px 5px; margin: -3px -5px 4px; }
+  #rb-estimator .rb-tab-strip {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  #rb-estimator .rb-tab { min-width: 130px; max-width: min(220px, 78vw); padding: 9px 10px 7px; }
+  #rb-estimator .rb-tab-name { font-size: 16px; padding: 3px 5px; margin: 0 0 4px; }
   #rb-estimator .rb-tab-subtotal { font-size: 12px; }
   #rb-estimator .rb-tab-more { font-size: 18px; padding: 4px 8px; }
   #rb-estimator .rb-tab-add { min-width: 110px; font-size: 12px; padding: 10px 14px; }
