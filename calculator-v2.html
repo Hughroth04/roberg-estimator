@@ -152,6 +152,14 @@
         <button class="rb-btn-add-option-inline" id="rb-add-option-inline" type="button" style="display:none">+ Option</button>
       </div>
       <div class="rb-tab-strip" id="rb-tab-strip"></div>
+      <div class="rb-photos-section" id="rb-photos-section">
+        <div class="rb-photos-header">
+          <div class="rb-photos-label">Photos for this option</div>
+          <div class="rb-photos-count" id="rb-photos-count">0 / 10</div>
+        </div>
+        <div class="rb-photos-strip" id="rb-photos-strip"></div>
+      </div>
+      <input type="file" id="rb-photo-input" accept="image/*" multiple style="display:none">
       <div id="rb-panels"></div>
       <button class="rb-btn-add" id="rb-btn-add">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -329,6 +337,12 @@
         </form>
       </div>
     </div>
+  </div>
+
+  <!-- Photo preview overlay (tap a thumbnail to view full-size) -->
+  <div class="rb-photo-preview-overlay" id="rb-photo-preview" style="display:none">
+    <button class="rb-photo-preview-close" id="rb-photo-preview-close" type="button" aria-label="Close">&#x2715;</button>
+    <img id="rb-photo-preview-img" alt="">
   </div>
 
   <!-- Action sheet for tab ⋯ menu -->
@@ -1101,6 +1115,152 @@
   color: var(--rb-blue);
 }
 
+/* ── PHOTOS SECTION (per-option attachments) ── */
+#rb-estimator .rb-photos-section {
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: var(--rb-radius-lg);
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--rb-shadow);
+}
+#rb-estimator .rb-photos-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; gap: 8px;
+}
+#rb-estimator .rb-photos-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--rb-text-hint);
+}
+#rb-estimator .rb-photos-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--rb-text-hint);
+}
+#rb-estimator .rb-photos-strip {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+#rb-estimator .rb-photo-thumb {
+  position: relative;
+  width: 72px; height: 72px;
+  border-radius: var(--rb-radius);
+  overflow: hidden;
+  background: var(--rb-surface2);
+  border: 1px solid var(--rb-border);
+  flex: 0 0 auto;
+}
+#rb-estimator .rb-photo-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#rb-estimator .rb-photo-remove {
+  position: absolute; top: 3px; right: 3px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  border: none;
+  font-size: 12px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+#rb-estimator .rb-photo-remove:hover { background: #b03030; }
+#rb-estimator .rb-photo-remove:active { background: #8a2424; }
+#rb-estimator .rb-btn-add-photo {
+  width: 72px; height: 72px;
+  border: 2px dashed var(--rb-gray);
+  border-radius: var(--rb-radius);
+  background: var(--rb-surface);
+  color: var(--rb-text-muted);
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  flex: 0 0 auto; padding: 0;
+}
+#rb-estimator .rb-btn-add-photo:active {
+  background: var(--rb-blue-light);
+  border-color: var(--rb-blue);
+  color: var(--rb-navy);
+}
+#rb-estimator .rb-btn-add-photo:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+#rb-estimator .rb-btn-add-photo .rb-add-photo-plus {
+  font-size: 22px; font-weight: 300; line-height: 1;
+}
+#rb-estimator .rb-photo-empty {
+  font-size: 11px;
+  color: var(--rb-text-hint);
+  padding: 6px 0;
+  align-self: center;
+}
+#rb-estimator .rb-photos-processing {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--rb-blue);
+}
+
+/* Photo preview overlay (tap a thumbnail to view full-size) */
+#rb-estimator .rb-photo-preview-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.88);
+  z-index: 99991;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  cursor: zoom-out;
+}
+#rb-estimator .rb-photo-preview-overlay img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--rb-radius);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+#rb-estimator .rb-photo-preview-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.18);
+  border: none; border-radius: 50%;
+  color: #fff; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Photo upload failures shown in success modal */
+#rb-estimator .rb-photo-warning {
+  margin: 10px 0 16px;
+  padding: 10px 12px;
+  background: #fef8e6;
+  border: 1px solid #e8d090;
+  border-radius: var(--rb-radius);
+  font-size: 12px;
+  color: #6b5410;
+  text-align: left;
+}
+#rb-estimator .rb-photo-warning-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: #6b5410; margin-bottom: 4px;
+}
+#rb-estimator .rb-photo-warning ul {
+  list-style: disc; padding-left: 18px; margin: 4px 0 0;
+}
+
 /* Action sheet for tab ⋯ menu (Rename / Duplicate / Delete) */
 #rb-estimator .rb-action-sheet-overlay {
   position: fixed; inset: 0;
@@ -1232,6 +1392,11 @@
   #rb-estimator .rb-tab-add { min-width: 110px; font-size: 12px; padding: 10px 14px; }
   #rb-estimator .rb-btn-add-option-inline { font-size: 11px; padding: 8px 12px; }
   #rb-estimator .rb-action-sheet-btn { height: 52px; font-size: 13px; }
+
+  /* Photos: bigger touch targets on phones */
+  #rb-estimator .rb-photo-thumb,
+  #rb-estimator .rb-btn-add-photo { width: 80px; height: 80px; }
+  #rb-estimator .rb-photo-remove { width: 26px; height: 26px; font-size: 14px; }
 
   /* Modal becomes a near-fullscreen bottom sheet on mobile */
   #rb-estimator .rb-modal-overlay {
@@ -1533,14 +1698,25 @@
   var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
 
   // Multi-option model: an estimate is an ordered list of options; each option
-  // holds its own panel list. Single-option estimates (the common case) hide
-  // the tab strip and look identical to the original UX. Capped at MAX_OPTIONS
-  // because HCP estimate proposals get unwieldy beyond that.
+  // holds its own panel list AND its own photo attachments. Single-option
+  // estimates (the common case) hide the tab strip and look identical to the
+  // original UX. Capped at MAX_OPTIONS because HCP estimate proposals get
+  // unwieldy beyond that; MAX_PHOTOS_PER_OPTION caps the per-option photo
+  // count to keep the create-estimate payload (which carries base64 photos)
+  // under the backend's 25 MB body limit.
   var MAX_OPTIONS = 5;
+  var MAX_PHOTOS_PER_OPTION = 10;
+  // Phone cameras shoot ~12 MP today; downscale long edge to PHOTO_MAX_DIM
+  // and re-encode as JPEG at PHOTO_JPEG_QUALITY before upload. Typical
+  // output: 150–400 KB per photo.
+  var PHOTO_MAX_DIM = 1920;
+  var PHOTO_JPEG_QUALITY = 0.75;
+
   var options = [], activeOptionId = null;
-  var nextPanelId = 1, nextOptionId = 1, nextOptionNumber = 1;
+  var nextPanelId = 1, nextOptionId = 1, nextOptionNumber = 1, nextPhotoId = 1;
   var actionSheetOptionId = null;
   var selectedCustomerId = null, selectedCustomerName = null;
+  var isProcessingPhotos = false;
 
   function disclaimers(lbs) {
     return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
@@ -1787,7 +1963,8 @@
       defaultNumber: num,
       name: 'Option ' + num,
       isCustomName: false,
-      panels: []
+      panels: [],
+      photos: []
     });
     activeOptionId = id;
   }
@@ -1808,7 +1985,8 @@
       defaultNumber: num,
       name: 'Option ' + num,
       isCustomName: false,
-      panels: []
+      panels: [],
+      photos: []
     });
     activeOptionId = id;
     renderAll();
@@ -1846,6 +2024,17 @@
           sides: p.sides, depth: p.depth,
           category: p.category, notes: p.notes,
           _defaultName: p._defaultName
+        };
+      }),
+      // Photos are duplicated too — same data URL (cheap, JS strings are
+      // immutable) but a fresh photo id so the user can delete one from the
+      // duplicate without affecting the source.
+      photos: src.photos.map(function(ph) {
+        return {
+          id: nextPhotoId++,
+          fileName: ph.fileName,
+          dataUrl: ph.dataUrl,
+          sizeBytes: ph.sizeBytes
         };
       })
     };
@@ -1893,6 +2082,173 @@
     renderSummary();
   }
 
+  // ── Photo handling (per-option attachments) ──
+  // Load a File into an Image element via an Object URL (cheaper than reading
+  // the whole file to a data URL twice).
+  function loadImageFromFile(file) {
+    return new Promise(function(resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload  = function() { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+      img.src = url;
+    });
+  }
+
+  // Downscale the given Image so its longer edge is at most PHOTO_MAX_DIM and
+  // re-encode as JPEG. Returns a data URL string. Phones routinely shoot
+  // 12 MP photos at 3–5 MB each; this brings them to ~150–400 KB for upload.
+  function downscaleToJpegDataUrl(img) {
+    var w = img.naturalWidth || img.width;
+    var h = img.naturalHeight || img.height;
+    var scale = Math.min(1, PHOTO_MAX_DIM / Math.max(w, h));
+    var tw = Math.max(1, Math.round(w * scale));
+    var th = Math.max(1, Math.round(h * scale));
+    var canvas = document.createElement('canvas');
+    canvas.width = tw; canvas.height = th;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, tw, th);
+    return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
+  }
+
+  // Approx bytes from a base64 data URL (4 chars → 3 bytes, minus padding).
+  function approxDataUrlBytes(dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    if (comma < 0) return 0;
+    var b64 = dataUrl.slice(comma + 1);
+    var padding = (b64.indexOf('=') >= 0) ? b64.length - b64.indexOf('=') : 0;
+    return Math.floor(b64.length * 0.75) - padding;
+  }
+
+  // Build a clean filename for the upload (HCP shows it on the attachment).
+  // Strip path separators just in case the browser/OS exposes a path.
+  function sanitizeFileName(name) {
+    var clean = String(name || 'photo.jpg').replace(/[\\\/]/g, '_').trim();
+    if (!clean) clean = 'photo.jpg';
+    // Force .jpg extension since we re-encoded as JPEG above.
+    if (!/\.(jpe?g)$/i.test(clean)) {
+      clean = clean.replace(/\.[^.]+$/, '') + '.jpg';
+    }
+    return clean;
+  }
+
+  // Process a FileList from the photo input. Downscale each, cap at the
+  // per-option max, and append to the active option in selection order.
+  function addPhotosFromFiles(files) {
+    var opt = getActiveOption();
+    if (!opt || isProcessingPhotos) return;
+    var available = MAX_PHOTOS_PER_OPTION - opt.photos.length;
+    if (available <= 0) {
+      showToast('Already at the ' + MAX_PHOTOS_PER_OPTION + '-photo limit for this option');
+      return;
+    }
+    // Filter to images (the accept attr does this on most browsers, but be
+    // defensive in case the user picked from "All files" on Android).
+    var imageFiles = [];
+    for (var i = 0; i < files.length && imageFiles.length < available; i++) {
+      var f = files[i];
+      if (f && f.type && f.type.indexOf('image/') === 0) imageFiles.push(f);
+    }
+    var skipped = files.length - imageFiles.length;
+    if (!imageFiles.length) {
+      if (skipped > 0) showToast('No image files selected');
+      return;
+    }
+
+    isProcessingPhotos = true;
+    renderPhotosStrip();
+
+    var done = 0, added = 0, failed = 0;
+    imageFiles.forEach(function(file) {
+      loadImageFromFile(file)
+        .then(function(img) {
+          var dataUrl = downscaleToJpegDataUrl(img);
+          opt.photos.push({
+            id: nextPhotoId++,
+            fileName: sanitizeFileName(file.name),
+            dataUrl: dataUrl,
+            sizeBytes: approxDataUrlBytes(dataUrl)
+          });
+          added++;
+        })
+        .catch(function(_e) { failed++; })
+        .then(function() {
+          done++;
+          if (done === imageFiles.length) {
+            isProcessingPhotos = false;
+            renderPhotosStrip();
+            var msg;
+            if (failed > 0 && added === 0) {
+              msg = 'Could not read ' + failed + ' image' + (failed !== 1 ? 's' : '');
+            } else if (failed > 0) {
+              msg = added + ' added \u2014 ' + failed + ' could not be read';
+            } else if (added === 1) {
+              msg = 'Photo added';
+            } else {
+              msg = added + ' photos added';
+            }
+            if (files.length > imageFiles.length + failed) {
+              msg += ' (capped at ' + MAX_PHOTOS_PER_OPTION + ')';
+            }
+            showToast(msg);
+          }
+        });
+    });
+  }
+
+  function removePhoto(optionId, photoId) {
+    var opt = options.find(function(o) { return o.id === optionId; });
+    if (!opt) return;
+    opt.photos = opt.photos.filter(function(p) { return p.id !== photoId; });
+    renderPhotosStrip();
+  }
+
+  function renderPhotosStrip() {
+    var section = document.getElementById('rb-photos-section');
+    var strip = document.getElementById('rb-photos-strip');
+    var countEl = document.getElementById('rb-photos-count');
+    if (!section || !strip) return;
+    var opt = getActiveOption();
+    if (!opt) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    var count = opt.photos.length;
+    if (countEl) countEl.textContent = count + ' / ' + MAX_PHOTOS_PER_OPTION;
+    var html = '';
+    opt.photos.forEach(function(ph) {
+      html += '<div class="rb-photo-thumb" data-photo-id="' + ph.id + '">'
+           +    '<img src="' + ph.dataUrl + '" alt="' + escapeAttr(ph.fileName) + '">'
+           +    '<button class="rb-photo-remove" type="button" data-photo-id="' + ph.id + '" aria-label="Remove photo">\u2715</button>'
+           +  '</div>';
+    });
+    if (isProcessingPhotos) {
+      html += '<div class="rb-photo-empty rb-photos-processing">Processing\u2026</div>';
+    } else if (count < MAX_PHOTOS_PER_OPTION) {
+      html += '<button class="rb-btn-add-photo" id="rb-btn-add-photo" type="button" aria-label="Add photo">'
+           +    '<span class="rb-add-photo-plus">+</span>'
+           +    '<span>Photo</span>'
+           +  '</button>';
+    }
+    strip.innerHTML = html;
+  }
+
+  function openPhotoPreview(dataUrl) {
+    var overlay = document.getElementById('rb-photo-preview');
+    var img = document.getElementById('rb-photo-preview-img');
+    if (!overlay || !img) return;
+    img.src = dataUrl;
+    overlay.style.display = 'flex';
+  }
+  function closePhotoPreview() {
+    var overlay = document.getElementById('rb-photo-preview');
+    var img = document.getElementById('rb-photo-preview-img');
+    if (overlay) overlay.style.display = 'none';
+    // Clear the src so the dataUrl isn't held in memory longer than needed.
+    if (img) img.src = '';
+  }
+
   // ── Action sheet (tab ⋯ menu) ──
   function openTabActionSheet(optionId) {
     var opt = options.find(function(o) { return o.id === optionId; });
@@ -1913,6 +2269,7 @@
 
   function renderAll() {
     renderTabStrip();
+    renderPhotosStrip();
     renderActiveOptionPanels();
     renderAddOptionInlineButton();
     renderSummary();
@@ -2173,11 +2530,19 @@
     showStep('review');
   }
 
+  // Strip the "data:image/jpeg;base64," prefix so the backend can forward
+  // pure base64 to HCP's attachment endpoint.
+  function dataUrlToBase64(dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  }
+
   // Build the new options-grouped payload the backend now accepts. Each option
-  // contributes an HCP estimate-option tab. Empty options were already blocked
-  // by validateEstimateReady() at openModal time, but we re-check here as a
-  // safety net in case the user removed all panels from an option after
-  // entering the modal.
+  // contributes an HCP estimate-option tab AND its attached photos (uploaded
+  // by the backend as a second pass once HCP returns the new option IDs).
+  // Empty options were already blocked by validateEstimateReady() at
+  // openModal time, but we re-check here as a safety net in case the user
+  // removed all panels from an option after entering the modal.
   function buildOptionsPayload() {
     return options.map(function(opt) {
       return {
@@ -2190,6 +2555,9 @@
             depth: p.depth, sides: p.sides,
             description: buildDesc(p, calc)
           };
+        }),
+        photos: opt.photos.map(function(ph) {
+          return { fileName: ph.fileName, fileContent: dataUrlToBase64(ph.dataUrl) };
         })
       };
     }).filter(function(o) { return o.panels.length > 0; });
@@ -2296,9 +2664,47 @@
       var detail = (optionCount > 1)
         ? (' with ' + optionCount + ' options and ' + panelCount + ' total panel' + (panelCount !== 1 ? 's' : ''))
         : (' with ' + panelCount + ' panel' + (panelCount !== 1 ? 's' : ''));
+
+      // Photo upload summary. We never fail the whole estimate just because
+      // photos failed — the estimate exists in HCP either way, and the user
+      // can re-attach manually if needed.
+      var photosTotal    = (typeof data.photos_total === 'number')    ? data.photos_total    : 0;
+      var photosUploaded = (typeof data.photos_uploaded === 'number') ? data.photos_uploaded : 0;
+      var photosFailed   = (typeof data.photos_failed === 'number')   ? data.photos_failed   : 0;
+      var photoErrors    = Array.isArray(data.photo_errors) ? data.photo_errors : [];
+
+      var photoDetail = '';
+      if (photosTotal > 0 && photosFailed === 0) {
+        photoDetail = ' \u2014 ' + photosUploaded + ' photo' + (photosUploaded !== 1 ? 's' : '') + ' attached';
+      }
       document.getElementById('rb-success-msg').textContent =
-        prefix + detail + '. Open it in HCP to review and send to the customer.';
+        prefix + detail + photoDetail + '. Open it in HCP to review and send to the customer.';
       document.getElementById('rb-btn-open-hcp').href = data.hcp_url || '#';
+
+      // Surface any failed photo uploads in a warning panel so the user
+      // knows to re-attach them in the HCP UI.
+      var msgEl = document.getElementById('rb-success-msg');
+      var existingWarn = document.getElementById('rb-photo-upload-warning');
+      if (existingWarn && existingWarn.parentNode) existingWarn.parentNode.removeChild(existingWarn);
+      if (photosFailed > 0 && msgEl) {
+        var warn = document.createElement('div');
+        warn.id = 'rb-photo-upload-warning';
+        warn.className = 'rb-photo-warning';
+        var html = '<div class="rb-photo-warning-title">'
+                 + photosFailed + ' of ' + photosTotal + ' photo' + (photosTotal !== 1 ? 's' : '')
+                 + ' failed to upload</div>';
+        if (photoErrors.length) {
+          html += '<ul>';
+          photoErrors.forEach(function(err) {
+            html += '<li>' + escapeHtml((err.option_name || 'Option') + ': ' + (err.file_name || '(unnamed)') + ' \u2014 ' + (err.error || 'unknown error')) + '</li>';
+          });
+          html += '</ul>';
+        }
+        html += '<div style="margin-top:6px">Open the estimate in HCP and re-attach these photos manually.</div>';
+        warn.innerHTML = html;
+        msgEl.parentNode.insertBefore(warn, msgEl.nextSibling);
+      }
+
       showStep('success');
     })
     .catch(function(e) {
@@ -2318,6 +2724,26 @@
       // Search result selection
       var resultItem = e.target.closest('.rb-search-result-item');
       if (resultItem) { selectCustomer(resultItem.getAttribute('data-id'), resultItem.getAttribute('data-name')); return; }
+
+      // ── Photos: thumbnail tap to preview, ✕ to remove ──
+      // Check the remove button first so its click doesn't also trigger the
+      // preview from the parent thumbnail.
+      var photoRemove = e.target.closest('.rb-photo-remove');
+      if (photoRemove) {
+        e.stopPropagation();
+        var rid = parseInt(photoRemove.getAttribute('data-photo-id'), 10);
+        if (!isNaN(rid) && activeOptionId != null) removePhoto(activeOptionId, rid);
+        return;
+      }
+      var photoThumb = e.target.closest('.rb-photo-thumb');
+      if (photoThumb) {
+        var opt = getActiveOption();
+        if (!opt) return;
+        var pid = parseInt(photoThumb.getAttribute('data-photo-id'), 10);
+        var photo = opt.photos.find(function(p) { return p.id === pid; });
+        if (photo) openPhotoPreview(photo.dataUrl);
+        return;
+      }
 
       // ── Tab strip interactions ──
       // Tab ⋯ button: open the action sheet for that option. Stop propagation
@@ -2355,6 +2781,12 @@
       if (tid === 'rb-btn-signout')       { signOut(); return; }
       if (tid === 'rb-add-option-inline') { addOption(); return; }
       if (tid === 'rb-tab-add-btn')       { addOption(); return; }
+      if (tid === 'rb-btn-add-photo') {
+        var input = document.getElementById('rb-photo-input');
+        if (input) input.click();
+        return;
+      }
+      if (tid === 'rb-photo-preview-close') { closePhotoPreview(); return; }
       if (tid === 'rb-btn-change-cust')   {
         selectedCustomerId = null; selectedCustomerName = null;
         document.getElementById('rb-selected-customer').style.display = 'none';
@@ -2438,6 +2870,29 @@
     var overlay = document.getElementById('rb-modal');
     if (overlay) {
       overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    }
+
+    // Photo file input: native picker fires `change` after the user picks.
+    // We reset the input value afterward so picking the same file again
+    // still triggers a fresh change event.
+    var photoInput = document.getElementById('rb-photo-input');
+    if (photoInput) {
+      photoInput.addEventListener('change', function(e) {
+        var files = e.target.files;
+        if (files && files.length) addPhotosFromFiles(files);
+        e.target.value = '';
+      });
+    }
+
+    // Photo preview overlay: tap backdrop (or the close button, handled in
+    // the main click delegate) to dismiss. Tapping the image itself also
+    // closes — cursor:zoom-out hints at this.
+    var photoPreview = document.getElementById('rb-photo-preview');
+    if (photoPreview) {
+      photoPreview.addEventListener('click', function(e) {
+        if (e.target.id === 'rb-photo-preview-close') return;
+        closePhotoPreview();
+      });
     }
 
     // ── Action sheet (tab ⋯ menu) ──
