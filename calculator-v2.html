@@ -176,6 +176,7 @@
         Copy All for HCP (manual)
       </button>
       <button class="rb-btn-reset" id="rb-btn-reset">Clear All Panels</button>
+      <button class="rb-btn-signout" id="rb-btn-signout" type="button">Sign out</button>
     </div>
   </div>
 
@@ -291,6 +292,37 @@
           <button class="rb-btn-retry" id="rb-btn-retry">Try Again</button>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Overlay -->
+  <div class="rb-login-overlay" id="rb-login-overlay" style="display:flex" role="dialog" aria-modal="true" aria-labelledby="rb-login-title">
+    <div class="rb-login-card">
+      <div class="rb-login-logo">
+        Ro<span>-Berg</span>
+        <div class="rb-login-divider"></div>
+        <span class="rb-login-sub">Field Estimator</span>
+      </div>
+
+      <!-- Boot / silent-refresh state -->
+      <div class="rb-login-loading" id="rb-login-loading">
+        <div class="rb-login-spinner"></div>
+        <div class="rb-login-loading-msg">Checking session…</div>
+      </div>
+
+      <!-- Login form state -->
+      <div class="rb-login-form-wrap" id="rb-login-form-wrap" style="display:none">
+        <div class="rb-login-title" id="rb-login-title">Sign In</div>
+        <div class="rb-login-desc">Enter the password to access the estimator.</div>
+        <form id="rb-login-form" autocomplete="on" novalidate>
+          <div class="rb-mfield">
+            <label for="rb-login-password">Password</label>
+            <input type="password" id="rb-login-password" name="password" class="rb-login-input" autocomplete="current-password" placeholder="Password" required>
+          </div>
+          <div class="rb-login-error" id="rb-login-error" style="display:none"></div>
+          <button type="submit" class="rb-btn-login" id="rb-btn-login">Sign In</button>
+        </form>
       </div>
     </div>
   </div>
@@ -763,6 +795,116 @@
 }
 #rb-estimator .rb-toast.rb-show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ── LOGIN OVERLAY ── */
+#rb-estimator .rb-login-overlay {
+  position: fixed; inset: 0;
+  background: var(--rb-bg);
+  z-index: 99995;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  font-family: 'Open Sans', sans-serif;
+}
+#rb-estimator .rb-login-card {
+  background: var(--rb-surface);
+  border-radius: var(--rb-radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  padding: 28px 26px 24px;
+  width: 100%; max-width: 380px;
+  border-top: 4px solid var(--rb-blue);
+}
+#rb-estimator .rb-login-logo {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--rb-navy);
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  margin-bottom: 22px;
+}
+#rb-estimator .rb-login-logo span { color: var(--rb-blue); }
+#rb-estimator .rb-login-divider {
+  width: 2px; height: 18px; background: var(--rb-blue);
+  border-radius: 2px; opacity: 0.6;
+}
+#rb-estimator .rb-login-sub {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 10px; font-weight: 500;
+  color: var(--rb-text-hint);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+#rb-estimator .rb-login-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--rb-navy); text-align: center; margin-bottom: 6px;
+}
+#rb-estimator .rb-login-desc {
+  font-size: 13px; color: var(--rb-text-muted);
+  text-align: center; margin-bottom: 18px;
+}
+#rb-estimator .rb-login-form-wrap .rb-mfield { margin-bottom: 0; }
+#rb-estimator .rb-login-input {
+  width: 100%; height: 50px; padding: 0 14px;
+  border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
+  font-size: 16px; font-family: 'Open Sans', sans-serif; color: var(--rb-text);
+  outline: none; background: var(--rb-surface);
+  -webkit-appearance: none; appearance: none; box-shadow: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#rb-estimator .rb-login-input:focus {
+  border-color: var(--rb-blue);
+  box-shadow: 0 0 0 3px rgba(114,165,183,0.18);
+}
+#rb-estimator .rb-login-error {
+  margin-top: 12px; padding: 10px 12px;
+  background: #fef0f0; color: #b03030;
+  border: 1px solid #e7c0c0; border-radius: var(--rb-radius);
+  font-size: 12px; line-height: 1.45;
+}
+#rb-estimator .rb-btn-login {
+  width: 100%; height: 50px; margin-top: 16px;
+  background: var(--rb-navy); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg); cursor: pointer;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  transition: background 0.15s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-login:active { background: var(--rb-navy2); }
+#rb-estimator .rb-btn-login:disabled { opacity: 0.55; cursor: not-allowed; }
+
+#rb-estimator .rb-login-loading {
+  text-align: center; padding: 12px 0 6px;
+}
+#rb-estimator .rb-login-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--rb-border);
+  border-top-color: var(--rb-blue);
+  border-radius: 50%;
+  animation: rb-spin 0.8s linear infinite;
+  margin: 6px auto 14px;
+}
+#rb-estimator .rb-login-loading-msg {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--rb-text-muted);
+}
+
+/* Sign-out link in sidebar */
+#rb-estimator .rb-btn-signout {
+  width: 100%; height: 32px;
+  background: none; color: rgba(255,255,255,0.32);
+  border: none;
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; margin-top: 4px; padding: 0;
+  text-decoration: underline; text-underline-offset: 3px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+#rb-estimator .rb-btn-signout:hover,
+#rb-estimator .rb-btn-signout:active { color: rgba(255,255,255,0.7); }
+
 /* Responsive — desktop kept as-is, mobile gets proper layout */
 @media (min-width: 480px) {
   #rb-estimator .rb-fields-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
@@ -864,6 +1006,13 @@
   #rb-estimator .rb-btn-next,
   #rb-estimator .rb-btn-send,
   #rb-estimator .rb-btn-retry { height: 52px; font-size: 13px; }
+
+  /* Login overlay fills viewport on phones; bigger touch targets */
+  #rb-estimator .rb-login-overlay { padding: 16px; align-items: flex-start; padding-top: 14vh; }
+  #rb-estimator .rb-login-card { max-width: 100%; padding: 24px 20px 22px; }
+  #rb-estimator .rb-login-input { height: 52px; font-size: 16px; }
+  #rb-estimator .rb-btn-login { height: 54px; font-size: 13px; }
+  #rb-estimator .rb-btn-signout { height: 38px; font-size: 11px; }
 }
 
 /* Extra tweaks for very small phones */
@@ -879,6 +1028,228 @@
 
   // ── CONFIG — update this URL after you deploy to Render ──
   var BACKEND_URL = 'https://roberg-hcp-backend.onrender.com';
+
+  // ── AUTH (Bearer-token) ──
+  var TOKEN_KEY        = 'rb_access_token';
+  var REFRESH_KEY      = 'rb_refresh_token';
+  var EXPIRES_AT_KEY   = 'rb_access_token_expires_at';
+  // Subtract a small buffer so we refresh slightly before the server expires the token.
+  var TOKEN_BUFFER_MS  = 30000;
+
+  function getAccessToken()  { try { return localStorage.getItem(TOKEN_KEY); }   catch(e) { return null; } }
+  function getRefreshToken() { try { return localStorage.getItem(REFRESH_KEY); } catch(e) { return null; } }
+  function getTokenExpiresAt() {
+    try {
+      var v = localStorage.getItem(EXPIRES_AT_KEY);
+      return v ? parseInt(v, 10) : 0;
+    } catch(e) { return 0; }
+  }
+  function setTokensFromResponse(data) {
+    if (!data || !data.access_token || !data.refresh_token) return false;
+    var ttlMs = (parseInt(data.expires_in, 10) || 0) * 1000;
+    var expiresAt = Date.now() + ttlMs - TOKEN_BUFFER_MS;
+    try {
+      localStorage.setItem(TOKEN_KEY,      data.access_token);
+      localStorage.setItem(REFRESH_KEY,    data.refresh_token);
+      localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
+    } catch(e) { /* localStorage may be unavailable in private mode */ }
+    return true;
+  }
+  function clearTokens() {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+      localStorage.removeItem(EXPIRES_AT_KEY);
+    } catch(e) {}
+  }
+  function isAccessTokenValid() {
+    return !!getAccessToken() && getTokenExpiresAt() > Date.now();
+  }
+
+  // Single in-flight refresh promise so concurrent 401s don't all hammer /api/auth/refresh.
+  var _refreshInFlight = null;
+  function refreshAccessToken() {
+    if (_refreshInFlight) return _refreshInFlight;
+    var rt = getRefreshToken();
+    if (!rt) return Promise.reject(new Error('No refresh token'));
+    _refreshInFlight = fetch(BACKEND_URL + '/api/auth/refresh', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ refresh_token: rt })
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('Refresh failed (HTTP ' + r.status + ')');
+      return r.json();
+    })
+    .then(function(data) {
+      if (!setTokensFromResponse(data)) throw new Error('Refresh response missing tokens');
+      return data;
+    });
+    // Reset the in-flight slot once it settles (success or failure).
+    _refreshInFlight.then(
+      function() { _refreshInFlight = null; },
+      function() { _refreshInFlight = null; }
+    );
+    return _refreshInFlight;
+  }
+
+  // apiFetch — prepends BACKEND_URL, attaches Bearer for protected routes, retries once on 401.
+  function apiFetch(path, init) {
+    init = init || {};
+    var url = BACKEND_URL + path;
+    var skipAuth = (path.indexOf('/api/auth/') === 0) || (path === '/health');
+
+    function buildOpts() {
+      var headers = {};
+      if (init.headers) {
+        for (var k in init.headers) {
+          if (Object.prototype.hasOwnProperty.call(init.headers, k)) headers[k] = init.headers[k];
+        }
+      }
+      if (!skipAuth) {
+        var t = getAccessToken();
+        if (t) headers['Authorization'] = 'Bearer ' + t;
+      }
+      var opts = {};
+      for (var k2 in init) {
+        if (Object.prototype.hasOwnProperty.call(init, k2)) opts[k2] = init[k2];
+      }
+      opts.headers = headers;
+      return opts;
+    }
+
+    return fetch(url, buildOpts()).then(function(res) {
+      if (res.status !== 401 || skipAuth) return res;
+      // Attempt exactly one silent refresh, then retry.
+      return refreshAccessToken().then(function() {
+        return fetch(url, buildOpts());
+      }).catch(function(err) {
+        clearTokens();
+        showLoginForm();
+        throw err;
+      });
+    });
+  }
+
+  // ── LOGIN UI ──
+  function showLoginLoading() {
+    var ov = document.getElementById('rb-login-overlay');
+    var ld = document.getElementById('rb-login-loading');
+    var fm = document.getElementById('rb-login-form-wrap');
+    if (ov) ov.style.display = 'flex';
+    if (ld) ld.style.display = 'block';
+    if (fm) fm.style.display = 'none';
+  }
+  function showLoginForm() {
+    var ov = document.getElementById('rb-login-overlay');
+    var ld = document.getElementById('rb-login-loading');
+    var fm = document.getElementById('rb-login-form-wrap');
+    var er = document.getElementById('rb-login-error');
+    var inp = document.getElementById('rb-login-password');
+    if (ov) ov.style.display = 'flex';
+    if (ld) ld.style.display = 'none';
+    if (fm) fm.style.display = 'block';
+    if (er) { er.textContent = ''; er.style.display = 'none'; }
+    if (inp) {
+      inp.value = '';
+      // Defer focus so iOS doesn't auto-zoom under a layout shift.
+      setTimeout(function() { try { inp.focus(); } catch(e) {} }, 60);
+    }
+  }
+  function hideLogin() {
+    var ov = document.getElementById('rb-login-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  var isLoggingIn = false;
+  function attemptLogin() {
+    if (isLoggingIn) return;
+    var input = document.getElementById('rb-login-password');
+    var btn   = document.getElementById('rb-btn-login');
+    var err   = document.getElementById('rb-login-error');
+    var pw    = input ? input.value : '';
+    if (!pw) {
+      if (err) { err.textContent = 'Password is required.'; err.style.display = 'block'; }
+      return;
+    }
+    isLoggingIn = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+    if (err) { err.textContent = ''; err.style.display = 'none'; }
+
+    fetch(BACKEND_URL + '/api/auth/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: pw })
+    })
+    .then(function(r) {
+      return r.json().then(
+        function(data) { return { ok: r.ok, status: r.status, data: data }; },
+        function()     { return { ok: r.ok, status: r.status, data: {} }; }
+      );
+    })
+    .then(function(res) {
+      if (!res.ok) {
+        var msg;
+        if (res.status === 401) {
+          msg = 'Incorrect password.';
+        } else if (res.status === 429) {
+          msg = (res.data && res.data.error) || 'Too many login attempts. Try again in 15 minutes.';
+        } else {
+          msg = (res.data && res.data.error) || ('Sign-in failed (HTTP ' + res.status + ').');
+        }
+        throw new Error(msg);
+      }
+      if (!setTokensFromResponse(res.data)) throw new Error('Sign-in response missing tokens.');
+      hideLogin();
+    })
+    .catch(function(e) {
+      if (err) { err.textContent = e.message || 'Sign-in failed.'; err.style.display = 'block'; }
+      if (input) { input.value = ''; try { input.focus(); } catch(_) {} }
+    })
+    .then(function() {
+      isLoggingIn = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+    });
+  }
+
+  function signOut() {
+    try { closeModal(); } catch(e) {}
+    clearTokens();
+    showLoginForm();
+    showToast('Signed out');
+  }
+
+  function bootAuth() {
+    var accessOk  = isAccessTokenValid();
+    var hasRefresh = !!getRefreshToken();
+
+    if (!accessOk && !hasRefresh) {
+      showLoginForm();
+      return;
+    }
+
+    showLoginLoading();
+
+    function tryRefreshOrLogin() {
+      return refreshAccessToken()
+        .then(function() { hideLogin(); })
+        .catch(function() { clearTokens(); showLoginForm(); });
+    }
+
+    if (accessOk) {
+      // Verify the stored token is still good.
+      fetch(BACKEND_URL + '/api/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + getAccessToken() }
+      })
+      .then(function(r) {
+        if (r.ok) { hideLogin(); return; }
+        return tryRefreshOrLogin();
+      })
+      .catch(function() { tryRefreshOrLogin(); });
+    } else {
+      tryRefreshOrLogin();
+    }
+  }
 
   var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120;
 
@@ -1082,8 +1453,8 @@
     document.getElementById('rb-cust-search').value = '';
     document.getElementById('rb-search-results').style.display = 'none';
     document.getElementById('rb-modal').style.display = 'flex';
-    // Ping the server to wake it up
-    fetch(BACKEND_URL + '/health').catch(function(){});
+    // Ping the server to wake it up (public endpoint, no auth)
+    apiFetch('/health').catch(function(){});
   }
 
   function closeModal() { document.getElementById('rb-modal').style.display = 'none'; }
@@ -1101,7 +1472,7 @@
     var resultsEl = document.getElementById('rb-search-results');
     resultsEl.style.display = 'block';
     resultsEl.innerHTML = '<div class="rb-no-results">Searching…</div>';
-    fetch(BACKEND_URL + '/api/customers/search?q=' + encodeURIComponent(q))
+    apiFetch('/api/customers/search?q=' + encodeURIComponent(q))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         var customers = data.customers || data.data || [];
@@ -1202,7 +1573,7 @@
         country: 'US'
       }];
 
-      fetch(BACKEND_URL + '/api/customers', {
+      apiFetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(custBody)
@@ -1235,7 +1606,7 @@
     var sendBtn = document.getElementById('rb-btn-send');
     if (sendBtn) sendBtn.disabled = true;
 
-    fetch(BACKEND_URL + '/api/create-estimate', {
+    apiFetch('/api/create-estimate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1291,6 +1662,7 @@
       if (tid === 'rb-btn-send')         { sendToHCP(); return; }
       if (tid === 'rb-btn-done')         { closeModal(); return; }
       if (tid === 'rb-btn-retry')        { showStep('review'); return; }
+      if (tid === 'rb-btn-signout')      { signOut(); return; }
       if (tid === 'rb-btn-change-cust')  {
         selectedCustomerId = null; selectedCustomerName = null;
         document.getElementById('rb-selected-customer').style.display = 'none';
@@ -1305,6 +1677,15 @@
     var searchInput = document.getElementById('rb-cust-search');
     if (searchInput) {
       searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') searchCustomers(); });
+    }
+
+    // Login form: submit via Enter key or Sign In button (also lets password managers save).
+    var loginForm = document.getElementById('rb-login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        attemptLogin();
+      });
     }
 
     // Close modal on overlay click
@@ -1322,11 +1703,12 @@
       if (id && field) updateField(parseInt(id,10), field, t.value);
     });
 
-    // Keep Render server warm — ping every 10 minutes
-    setInterval(function() { fetch(BACKEND_URL+'/health').catch(function(){}); }, 600000);
+    // Keep Render server warm — ping every 10 minutes (helper skips auth for /health)
+    setInterval(function() { apiFetch('/health').catch(function(){}); }, 600000);
   }
 
   addPanel();
+  bootAuth();
 })();
 </script>
 </body>
