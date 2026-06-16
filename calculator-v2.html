@@ -473,6 +473,19 @@
   width: 100%; max-width: 100%; min-width: 0;
 }
 #rb-estimator .rb-panel-card:focus-within { border-top-color: var(--rb-blue); }
+
+/* Joint sealant calculator (Option 2) */
+#rb-estimator .rb-sealant-card { border-top-color: rgba(114,165,183,0.35); }
+#rb-estimator .rb-sealant-title {
+  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
+  color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+  line-height: 1.3; padding: 4px 0;
+}
+#rb-estimator .rb-sealant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#rb-estimator .rb-internal-hint {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--rb-text-hint); margin-left: 4px;
+}
 #rb-estimator .rb-panel-top {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 14px;
@@ -1419,6 +1432,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
+  #rb-estimator .rb-sealant-grid { grid-template-columns: 1fr; }
 
   /* 16px inputs prevent iOS Safari from zooming when an input is focused */
   #rb-estimator .rb-field input,
@@ -1763,6 +1777,13 @@
 
   var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120;
 
+  // Self leveling joint sealant (Option 2). Unit cost is internal-only — it
+  // feeds HCP unit_cost for reporting but never appears in the customer-facing
+  // line description.
+  var SEALANT_DEFAULT_UNIT_COST = 8.50;
+  var SEALANT_LINE_NAME = 'Self Leveling Joint Sealant';
+  var DEFAULT_SEALANT_OPTION_NAME = 'Joint Sealant';
+
   // Per-category minimum sale price. Edit values here to adjust.
   // Any category not listed falls back to DEFAULT_MINIMUM.
   var MINIMUMS = {
@@ -1813,6 +1834,63 @@
 
   function disclaimers(lbs) {
     return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
+  }
+
+  function calcSealant(s) {
+    var feet = parseFloat(s.feet) || 0;
+    var unitCost = parseFloat(s.unitCost);
+    if (isNaN(unitCost) || unitCost < 0) unitCost = SEALANT_DEFAULT_UNIT_COST;
+    var unitTotal = parseFloat(s.unitTotal) || 0;
+    return {
+      feet: feet,
+      cost: Math.ceil(unitCost * feet),
+      sale: Math.ceil(unitTotal)
+    };
+  }
+
+  function isSealantReady(s) {
+    if (!s) return false;
+    return (parseFloat(s.feet) || 0) > 0 && (parseFloat(s.unitTotal) || 0) > 0;
+  }
+
+  function buildSealantDesc(s, calc) {
+    return 'Apply self leveling joint sealant to expansion joints and control joints.\n\n'
+      + calc.feet + ' linear feet.';
+  }
+
+  function buildSealantHCPLine(s, calc) {
+    return SEALANT_LINE_NAME + '\n' + buildSealantDesc(s, calc);
+  }
+
+  function isPanelsOption(opt) { return !opt || opt.kind !== 'sealant'; }
+  function isSealantOption(opt) { return !!(opt && opt.kind === 'sealant'); }
+
+  function optionIsReady(opt) {
+    if (isSealantOption(opt)) return isSealantReady(opt.sealant);
+    return opt.panels.some(isReady);
+  }
+
+  function getOptionLineItems(opt) {
+    if (isSealantOption(opt)) {
+      if (!isSealantReady(opt.sealant)) return [];
+      var sc = calcSealant(opt.sealant);
+      return [{
+        name: SEALANT_LINE_NAME,
+        category: 'Joint Sealant',
+        sale: sc.sale,
+        cost: sc.cost,
+        description: buildSealantDesc(opt.sealant, sc)
+      }];
+    }
+    return opt.panels.filter(isReady).map(function(p) {
+      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      return {
+        name: p.name, category: p.category,
+        sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
+        depth: p.depth, sides: p.sides,
+        description: buildDesc(p, calc)
+      };
+    });
   }
 
   function calcPanel(l, w, sides, depth, category) {
@@ -1881,6 +1959,9 @@
     return null;
   }
   function optionSubtotal(opt) {
+    if (isSealantOption(opt)) {
+      return isSealantReady(opt.sealant) ? calcSealant(opt.sealant).sale : 0;
+    }
     var total = 0;
     opt.panels.forEach(function(p) {
       if (isReady(p)) total += calcPanel(p.length, p.width, p.sides, p.depth, p.category).sale;
@@ -1920,7 +2001,7 @@
 
   function addPanel() {
     var opt = getActiveOption();
-    if (!opt) return;
+    if (!opt || !isPanelsOption(opt)) return;
     var id = nextPanelId++;
     opt.panels.push({
       id: id,
@@ -2011,13 +2092,19 @@
     var totalReady = 0;
     var blocks = options.map(function(opt) {
       var lines = [];
-      opt.panels.forEach(function(p) {
-        if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth, p.category)));
-      });
+      if (isSealantOption(opt)) {
+        if (isSealantReady(opt.sealant)) {
+          lines.push(buildSealantHCPLine(opt.sealant, calcSealant(opt.sealant)));
+        }
+      } else {
+        opt.panels.forEach(function(p) {
+          if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth, p.category)));
+        });
+      }
       totalReady += lines.length;
       return { name: opt.name, lines: lines };
     }).filter(function(b) { return b.lines.length > 0; });
-    if (!totalReady) { showToast('No panels ready yet'); return; }
+    if (!totalReady) { showToast('No line items ready yet'); return; }
     var text;
     if (options.length === 1) {
       text = blocks[0].lines.join('\n\n---\n\n');
@@ -2035,31 +2122,58 @@
   }
 
   function resetAll() {
-    var hasAnyPanels = options.some(function(o) { return o.panels.length > 0; });
-    var hasMultipleOptions = options.length > 1;
-    if ((hasAnyPanels || hasMultipleOptions) && !confirm('Clear all panels and start over?')) return;
+    var hasAnyContent = options.some(function(o) {
+      if (isSealantOption(o)) return isSealantReady(o.sealant);
+      return o.panels.length > 0;
+    });
+    if (hasAnyContent && !confirm('Clear all and start over?')) return;
     options = [];
     nextPanelId = 1; nextOptionId = 1; nextOptionNumber = 1;
     activeOptionId = null;
-    seedFirstOption();
+    seedDefaultOptions();
+    addPanel();
     renderAll();
   }
 
-  // Initialize the estimate with a single empty Option 1. Used at boot and on
-  // resetAll.
-  function seedFirstOption() {
-    if (options.length) return;
+  function createPanelsOption() {
     var num = nextOptionNumber++;
-    var id = nextOptionId++;
-    options.push({
-      id: id,
+    return {
+      id: nextOptionId++,
       defaultNumber: num,
       name: 'Option ' + num,
       isCustomName: false,
+      kind: 'panels',
       panels: [],
       photos: []
-    });
-    activeOptionId = id;
+    };
+  }
+
+  function createDefaultSealantOption() {
+    var num = nextOptionNumber++;
+    return {
+      id: nextOptionId++,
+      defaultNumber: num,
+      name: DEFAULT_SEALANT_OPTION_NAME,
+      isCustomName: false,
+      kind: 'sealant',
+      isDefaultSealant: true,
+      panels: [],
+      photos: [],
+      sealant: {
+        feet: 0,
+        unitCost: SEALANT_DEFAULT_UNIT_COST,
+        unitTotal: 0
+      }
+    };
+  }
+
+  // Option 1 is always concrete lifting panels; Option 2 is always joint sealant.
+  function seedDefaultOptions() {
+    if (options.length) return;
+    var opt1 = createPanelsOption();
+    options.push(opt1);
+    options.push(createDefaultSealantOption());
+    activeOptionId = opt1.id;
   }
 
   // ── Option management ──
@@ -2071,17 +2185,9 @@
       showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
       return;
     }
-    var num = nextOptionNumber++;
-    var id = nextOptionId++;
-    options.push({
-      id: id,
-      defaultNumber: num,
-      name: 'Option ' + num,
-      isCustomName: false,
-      panels: [],
-      photos: []
-    });
-    activeOptionId = id;
+    var newOpt = createPanelsOption();
+    options.push(newOpt);
+    activeOptionId = newOpt.id;
     renderAll();
     // Scroll the new tab into view in case the strip overflows.
     setTimeout(function() {
@@ -2103,34 +2209,61 @@
     var src = options[srcIdx];
     var num = nextOptionNumber++;
     var newId = nextOptionId++;
-    var newOpt = {
-      id: newId,
-      defaultNumber: num,
-      name: 'Option ' + num,
-      isCustomName: false,
-      panels: src.panels.map(function(p) {
-        return {
-          id: nextPanelId++,
-          name: p.name,
-          isCustomName: true,
-          length: p.length, width: p.width,
-          sides: p.sides, depth: p.depth,
-          category: p.category, notes: p.notes,
-          _defaultName: p._defaultName
-        };
-      }),
-      // Photos are duplicated too — same data URL (cheap, JS strings are
-      // immutable) but a fresh photo id so the user can delete one from the
-      // duplicate without affecting the source.
-      photos: src.photos.map(function(ph) {
-        return {
-          id: nextPhotoId++,
-          fileName: ph.fileName,
-          dataUrl: ph.dataUrl,
-          sizeBytes: ph.sizeBytes
-        };
-      })
-    };
+    var newOpt;
+    if (isSealantOption(src)) {
+      newOpt = {
+        id: newId,
+        defaultNumber: num,
+        name: 'Option ' + num,
+        isCustomName: false,
+        kind: 'sealant',
+        isDefaultSealant: false,
+        panels: [],
+        photos: src.photos.map(function(ph) {
+          return {
+            id: nextPhotoId++,
+            fileName: ph.fileName,
+            dataUrl: ph.dataUrl,
+            sizeBytes: ph.sizeBytes
+          };
+        }),
+        sealant: {
+          feet: src.sealant.feet,
+          unitCost: src.sealant.unitCost,
+          unitTotal: src.sealant.unitTotal
+        }
+      };
+    } else {
+      newOpt = {
+        id: newId,
+        defaultNumber: num,
+        name: 'Option ' + num,
+        isCustomName: false,
+        kind: 'panels',
+        panels: src.panels.map(function(p) {
+          return {
+            id: nextPanelId++,
+            name: p.name,
+            isCustomName: true,
+            length: p.length, width: p.width,
+            sides: p.sides, depth: p.depth,
+            category: p.category, notes: p.notes,
+            _defaultName: p._defaultName
+          };
+        }),
+        // Photos are duplicated too — same data URL (cheap, JS strings are
+        // immutable) but a fresh photo id so the user can delete one from the
+        // duplicate without affecting the source.
+        photos: src.photos.map(function(ph) {
+          return {
+            id: nextPhotoId++,
+            fileName: ph.fileName,
+            dataUrl: ph.dataUrl,
+            sizeBytes: ph.sizeBytes
+          };
+        })
+      };
+    }
     options.splice(srcIdx + 1, 0, newOpt);
     activeOptionId = newId;
     renderAll();
@@ -2142,15 +2275,21 @@
   }
 
   function removeOption(id) {
-    if (options.length <= 1) {
-      showToast('Estimate needs at least one option');
+    var opt = options.find(function(o) { return o.id === id; });
+    if (opt && opt.isDefaultSealant) {
+      showToast('Joint Sealant is included on every estimate');
+      return;
+    }
+    if (options.length <= 2) {
+      showToast('Estimate needs at least two options');
       return;
     }
     var idx = options.findIndex(function(o) { return o.id === id; });
     if (idx < 0) return;
-    var opt = options[idx];
+    opt = options[idx];
     var hasPanels = opt.panels.length > 0;
-    if (hasPanels && !confirm('Delete "' + opt.name + '" and its ' + opt.panels.length + ' panel' + (opt.panels.length !== 1 ? 's' : '') + '?')) {
+    var hasSealant = isSealantOption(opt) && isSealantReady(opt.sealant);
+    if ((hasPanels || hasSealant) && !confirm('Delete "' + opt.name + '"' + (hasPanels ? (' and its ' + opt.panels.length + ' panel' + (opt.panels.length !== 1 ? 's' : '')) : '') + '?')) {
       return;
     }
     options.splice(idx, 1);
@@ -2352,7 +2491,7 @@
     var dup = document.getElementById('rb-action-duplicate');
     if (dup) dup.disabled = options.length >= MAX_OPTIONS;
     var del = document.getElementById('rb-action-delete');
-    if (del) del.disabled = options.length <= 1;
+    if (del) del.disabled = opt.isDefaultSealant || options.length <= 2;
     document.getElementById('rb-tab-action-sheet').style.display = 'flex';
   }
   function closeTabActionSheet() {
@@ -2408,12 +2547,72 @@
     strip.innerHTML = html;
   }
 
+  function updateSealantField(field, value) {
+    var opt = getActiveOption();
+    if (!opt || !isSealantOption(opt)) return;
+    var s = opt.sealant;
+    if (field === 'feet' || field === 'unitCost' || field === 'unitTotal') {
+      s[field] = parseFloat(value) || 0;
+    }
+    updateSealantResults();
+    renderSummary();
+    renderTabStrip();
+  }
+
+  function updateSealantResults() {
+    var opt = getActiveOption();
+    if (!opt || !isSealantOption(opt)) return;
+    var calc = isSealantReady(opt.sealant) ? calcSealant(opt.sealant) : null;
+    var feetEl = document.getElementById('rb-sealant-feet-display');
+    var costEl = document.getElementById('rb-sealant-cost');
+    var saleEl = document.getElementById('rb-sealant-sale');
+    if (feetEl) feetEl.textContent = calc ? (calc.feet + ' ft') : '\u2014';
+    if (costEl) costEl.textContent = calc ? fmt(calc.cost) : '\u2014';
+    if (saleEl) saleEl.textContent = calc ? fmt(calc.sale) : '\u2014';
+  }
+
   function renderActiveOptionPanels() {
     var container = document.getElementById('rb-panels');
     if (!container) return;
     container.innerHTML = '';
     var opt = getActiveOption();
     if (!opt) return;
+
+    var sectionLabel = document.getElementById('rb-section-label');
+    var addBtn = document.getElementById('rb-btn-add');
+    if (sectionLabel) {
+      sectionLabel.textContent = isSealantOption(opt) ? 'Joint Sealant' : 'Job Panels';
+    }
+    if (addBtn) {
+      addBtn.style.display = isPanelsOption(opt) ? 'inline-flex' : 'none';
+    }
+
+    if (isSealantOption(opt)) {
+      var s = opt.sealant;
+      var calc = isSealantReady(s) ? calcSealant(s) : null;
+      var div = document.createElement('div');
+      div.className = 'rb-panel-card rb-sealant-card';
+      div.innerHTML =
+        '<div class="rb-panel-top">' +
+          '<div class="rb-panel-name rb-sealant-title">' + escapeHtml(SEALANT_LINE_NAME) + '</div>' +
+        '</div>' +
+        '<div class="rb-fields-grid rb-sealant-grid">' +
+          '<div class="rb-field"><label>Unit amount (ft)</label>' +
+            '<input type="number" min="0" step="0.5" value="' + (s.feet || '') + '" placeholder="0" data-sealant-field="feet" inputmode="decimal"></div>' +
+          '<div class="rb-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
+            '<input type="number" min="0" step="0.01" value="' + (s.unitCost != null ? s.unitCost : SEALANT_DEFAULT_UNIT_COST) + '" placeholder="' + SEALANT_DEFAULT_UNIT_COST + '" data-sealant-field="unitCost" inputmode="decimal"></div>' +
+          '<div class="rb-field"><label>Unit total ($)</label>' +
+            '<input type="number" min="0" step="1" value="' + (s.unitTotal || '') + '" placeholder="0" data-sealant-field="unitTotal" inputmode="decimal"></div>' +
+        '</div>' +
+        '<div class="rb-results-bar">' +
+          '<div class="rb-metric"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div>' +
+          '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-sealant-cost">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
+          '<div class="rb-metric"><span class="rb-metric-label">Sale</span><span class="rb-metric-value rb-price" id="rb-sealant-sale">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
+        '</div>';
+      container.appendChild(div);
+      return;
+    }
+
     opt.panels.forEach(function(p) {
       var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth,p.category) : null;
       var div = document.createElement('div');
@@ -2505,16 +2704,21 @@
   // before sending — we don't silently skip them. We navigate to the first
   // empty option so the user can see exactly which tab to act on.
   function validateEstimateReady() {
-    var anyReady = options.some(function(o) { return o.panels.some(isReady); });
-    if (!anyReady) return { ok: false, reason: 'Add at least one panel first' };
-    var emptyOpts = options.filter(function(o) { return o.panels.filter(isReady).length === 0; });
+    var anyReady = options.some(optionIsReady);
+    if (!anyReady) return { ok: false, reason: 'Add at least one complete line item first' };
+    var emptyOpts = options.filter(function(o) { return !optionIsReady(o); });
     if (emptyOpts.length > 0) {
       var first = emptyOpts[0];
       activeOptionId = first.id;
       renderAll();
-      var msg = (options.length === 1)
-        ? 'Add at least one complete panel first'
-        : (first.name + ' has no panels \u2014 add panels or delete the option');
+      var msg;
+      if (isSealantOption(first)) {
+        msg = first.name + ' \u2014 enter feet and unit total';
+      } else if (options.length === 1) {
+        msg = 'Add at least one complete panel first';
+      } else {
+        msg = first.name + ' has no panels \u2014 add panels or delete the option';
+      }
       return { ok: false, reason: msg };
     }
     return { ok: true };
@@ -2588,34 +2792,50 @@
     '</div>';
   }
 
+  function sealantReviewItemHTML(calc) {
+    return '<div class="rb-review-item">' +
+      '<div><div class="rb-review-item-name">' + escapeHtml(SEALANT_LINE_NAME) + '</div>' +
+      '<div class="rb-review-item-detail">' + calc.feet + ' linear feet</div></div>' +
+      '<div class="rb-review-item-price">' + fmt(calc.sale) + '</div>' +
+    '</div>';
+  }
+
+  function getOptionReviewBlock(opt) {
+    if (isSealantOption(opt)) {
+      if (!isSealantReady(opt.sealant)) return { html: '', sub: 0 };
+      var sc = calcSealant(opt.sealant);
+      return { html: sealantReviewItemHTML(sc), sub: sc.sale };
+    }
+    var ready = opt.panels.filter(isReady);
+    if (!ready.length) return { html: '', sub: 0 };
+    var sub = 0;
+    var inner = ready.map(function(p) {
+      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      sub += calc.sale;
+      return panelReviewItemHTML(p, calc);
+    }).join('');
+    return { html: inner, sub: sub };
+  }
+
   function goToReview() {
     var reviewList = document.getElementById('rb-review-list');
     var grand = 0;
 
     if (options.length <= 1) {
-      var ready = (options[0] ? options[0].panels.filter(isReady) : []);
-      reviewList.innerHTML = ready.map(function(p) {
-        var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-        grand += calc.sale;
-        return panelReviewItemHTML(p, calc);
-      }).join('');
+      var block = getOptionReviewBlock(options[0] || { panels: [] });
+      reviewList.innerHTML = block.html;
+      grand = block.sub;
     } else {
       reviewList.innerHTML = options.map(function(opt) {
-        var ready = opt.panels.filter(isReady);
-        if (!ready.length) return '';
-        var sub = 0;
-        var inner = ready.map(function(p) {
-          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-          sub += calc.sale;
-          return panelReviewItemHTML(p, calc);
-        }).join('');
-        grand += sub;
+        var block = getOptionReviewBlock(opt);
+        if (!block.html) return '';
+        grand += block.sub;
         return '<div class="rb-review-option">'
              +   '<div class="rb-review-option-header">'
-             +     '<span class="rb-review-option-name">'+escapeHtml(opt.name)+'</span>'
-             +     '<span class="rb-review-option-sub">'+fmt(sub)+'</span>'
+             +     '<span class="rb-review-option-name">' + escapeHtml(opt.name) + '</span>'
+             +     '<span class="rb-review-option-sub">' + fmt(block.sub) + '</span>'
              +   '</div>'
-             +   inner
+             +   block.html
              + '</div>';
       }).join('');
     }
@@ -2640,15 +2860,7 @@
     return options.map(function(opt) {
       return {
         name: (opt.name && opt.name.trim()) ? opt.name.trim() : ('Option ' + opt.defaultNumber),
-        panels: opt.panels.filter(isReady).map(function(p) {
-          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-          return {
-            name: p.name, category: p.category,
-            sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
-            depth: p.depth, sides: p.sides,
-            description: buildDesc(p, calc)
-          };
-        }),
+        panels: getOptionLineItems(opt),
         photos: opt.photos.map(function(ph) {
           return { fileName: ph.fileName, fileContent: dataUrlToBase64(ph.dataUrl) };
         })
@@ -2946,13 +3158,27 @@
         var trimmed2 = (t.value || '').trim();
         if (!trimmed2) {
           opt.isCustomName = false;
-          opt.name = 'Option ' + opt.defaultNumber;
+          opt.name = opt.isDefaultSealant ? DEFAULT_SEALANT_OPTION_NAME : ('Option ' + opt.defaultNumber);
           t.value = opt.name;
           renderSummary();
         } else if (trimmed2 !== opt.name) {
           opt.name = trimmed2;
           opt.isCustomName = true;
           t.value = trimmed2;
+          renderSummary();
+        }
+        return;
+      }
+
+      // Sealant unit cost: restore default if left blank
+      if (t.getAttribute && t.getAttribute('data-sealant-field') === 'unitCost') {
+        var opt2 = getActiveOption();
+        if (!opt2 || !isSealantOption(opt2)) return;
+        var raw = (t.value || '').trim();
+        if (!raw) {
+          opt2.sealant.unitCost = SEALANT_DEFAULT_UNIT_COST;
+          t.value = String(SEALANT_DEFAULT_UNIT_COST);
+          updateSealantResults();
           renderSummary();
         }
         return;
@@ -3030,11 +3256,17 @@
     // Panel field input/change — data-id + data-field. Tab name inputs only
     // have data-option-id (no data-field) so they're naturally excluded.
     root.addEventListener('input', function(e) {
-      var t=e.target, id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
+      var t=e.target;
+      var sf = t.getAttribute('data-sealant-field');
+      if (sf) { updateSealantField(sf, t.value); return; }
+      var id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
       if (id && field) updateField(parseInt(id,10), field, t.value);
     });
     root.addEventListener('change', function(e) {
-      var t=e.target, id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
+      var t=e.target;
+      var sf = t.getAttribute('data-sealant-field');
+      if (sf) { updateSealantField(sf, t.value); return; }
+      var id=t.getAttribute('data-id'), field=t.getAttribute('data-field');
       if (id && field) updateField(parseInt(id,10), field, t.value);
     });
 
@@ -3052,7 +3284,7 @@
     setInterval(function() { apiFetch('/health').catch(function(){}); }, 600000);
   }
 
-  seedFirstOption();
+  seedDefaultOptions();
   addPanel();
   bootAuth();
 })();
