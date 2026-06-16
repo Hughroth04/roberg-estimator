@@ -486,6 +486,13 @@
   font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--rb-text-hint); margin-left: 4px;
 }
+#rb-estimator .rb-sealant-total {
+  display: flex; align-items: center;
+  height: 44px; padding: 0 12px;
+  background: var(--rb-navy); border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--rb-blue);
+}
 #rb-estimator .rb-panel-top {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 14px;
@@ -1840,17 +1847,19 @@
     var feet = parseFloat(s.feet) || 0;
     var unitCost = parseFloat(s.unitCost);
     if (isNaN(unitCost) || unitCost < 0) unitCost = SEALANT_DEFAULT_UNIT_COST;
-    var unitTotal = parseFloat(s.unitTotal) || 0;
+    var total = Math.ceil(unitCost * feet);
     return {
       feet: feet,
-      cost: Math.ceil(unitCost * feet),
-      sale: Math.ceil(unitTotal)
+      unitCost: unitCost,
+      total: total,
+      cost: total,
+      sale: total
     };
   }
 
   function isSealantReady(s) {
     if (!s) return false;
-    return (parseFloat(s.feet) || 0) > 0 && (parseFloat(s.unitTotal) || 0) > 0;
+    return (parseFloat(s.feet) || 0) > 0;
   }
 
   function buildSealantDesc(s, calc) {
@@ -2161,8 +2170,7 @@
       photos: [],
       sealant: {
         feet: 0,
-        unitCost: SEALANT_DEFAULT_UNIT_COST,
-        unitTotal: 0
+        unitCost: SEALANT_DEFAULT_UNIT_COST
       }
     };
   }
@@ -2229,8 +2237,7 @@
         }),
         sealant: {
           feet: src.sealant.feet,
-          unitCost: src.sealant.unitCost,
-          unitTotal: src.sealant.unitTotal
+          unitCost: src.sealant.unitCost
         }
       };
     } else {
@@ -2546,7 +2553,7 @@
     var opt = getActiveOption();
     if (!opt || !isSealantOption(opt)) return;
     var s = opt.sealant;
-    if (field === 'feet' || field === 'unitCost' || field === 'unitTotal') {
+    if (field === 'feet' || field === 'unitCost') {
       s[field] = parseFloat(value) || 0;
     }
     updateSealantResults();
@@ -2559,9 +2566,11 @@
     if (!opt || !isSealantOption(opt)) return;
     var calc = isSealantReady(opt.sealant) ? calcSealant(opt.sealant) : null;
     var feetEl = document.getElementById('rb-sealant-feet-display');
+    var totalEl = document.getElementById('rb-sealant-total');
     var costEl = document.getElementById('rb-sealant-cost');
     var saleEl = document.getElementById('rb-sealant-sale');
     if (feetEl) feetEl.textContent = calc ? (calc.feet + ' ft') : '\u2014';
+    if (totalEl) totalEl.textContent = calc ? fmt(calc.total) : '\u2014';
     if (costEl) costEl.textContent = calc ? fmt(calc.cost) : '\u2014';
     if (saleEl) saleEl.textContent = calc ? fmt(calc.sale) : '\u2014';
   }
@@ -2597,7 +2606,7 @@
           '<div class="rb-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
             '<input type="number" min="0" step="0.01" value="' + (s.unitCost != null ? s.unitCost : SEALANT_DEFAULT_UNIT_COST) + '" placeholder="' + SEALANT_DEFAULT_UNIT_COST + '" data-sealant-field="unitCost" inputmode="decimal"></div>' +
           '<div class="rb-field"><label>Unit total ($)</label>' +
-            '<input type="number" min="0" step="1" value="' + (s.unitTotal || '') + '" placeholder="0" data-sealant-field="unitTotal" inputmode="decimal"></div>' +
+            '<div class="rb-sealant-total" id="rb-sealant-total">' + (calc ? fmt(calc.total) : '\u2014') + '</div></div>' +
         '</div>' +
         '<div class="rb-results-bar">' +
           '<div class="rb-metric"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div>' +
@@ -2708,7 +2717,7 @@
       renderAll();
       var msg;
       if (isSealantOption(first)) {
-        msg = first.name + ' \u2014 enter feet and unit total';
+        msg = first.name + ' \u2014 enter linear feet';
       } else if (options.length === 1) {
         msg = 'Add at least one complete panel first';
       } else {
