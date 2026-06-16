@@ -481,7 +481,7 @@
   color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
   line-height: 1.3; padding: 4px 0;
 }
-#rb-estimator .rb-sealant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#rb-estimator .rb-sealant-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #rb-estimator .rb-internal-hint {
   font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--rb-text-hint); margin-left: 4px;
@@ -1784,10 +1784,10 @@
 
   var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120;
 
-  // Self leveling joint sealant (Option 2). Unit cost is internal-only — it
-  // feeds HCP unit_cost for reporting but never appears in the customer-facing
-  // line description.
-  var SEALANT_DEFAULT_UNIT_COST = 8.50;
+  // Self leveling joint sealant (Option 2). Unit cost ($/ft) is fixed for internal
+  // HCP reporting; unit price ($/ft) drives the customer sale total.
+  var SEALANT_UNIT_COST = 2.50;
+  var SEALANT_DEFAULT_UNIT_PRICE = 8.50;
   var SEALANT_LINE_NAME = 'Self Leveling Joint Sealant';
   var DEFAULT_SEALANT_OPTION_NAME = 'Joint Sealant';
 
@@ -1845,15 +1845,16 @@
 
   function calcSealant(s) {
     var feet = parseFloat(s.feet) || 0;
-    var unitCost = parseFloat(s.unitCost);
-    if (isNaN(unitCost) || unitCost < 0) unitCost = SEALANT_DEFAULT_UNIT_COST;
-    var total = Math.ceil(unitCost * feet);
+    var unitPrice = parseFloat(s.unitPrice);
+    if (isNaN(unitPrice) || unitPrice < 0) unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+    var sale = Math.ceil(unitPrice * feet);
+    var cost = Math.ceil(SEALANT_UNIT_COST * feet);
     return {
       feet: feet,
-      unitCost: unitCost,
-      total: total,
-      cost: total,
-      sale: total
+      unitPrice: unitPrice,
+      total: sale,
+      cost: cost,
+      sale: sale
     };
   }
 
@@ -2170,7 +2171,7 @@
       photos: [],
       sealant: {
         feet: 0,
-        unitCost: SEALANT_DEFAULT_UNIT_COST
+        unitPrice: SEALANT_DEFAULT_UNIT_PRICE
       }
     };
   }
@@ -2237,7 +2238,7 @@
         }),
         sealant: {
           feet: src.sealant.feet,
-          unitCost: src.sealant.unitCost
+          unitPrice: src.sealant.unitPrice
         }
       };
     } else {
@@ -2553,7 +2554,7 @@
     var opt = getActiveOption();
     if (!opt || !isSealantOption(opt)) return;
     var s = opt.sealant;
-    if (field === 'feet' || field === 'unitCost') {
+    if (field === 'feet' || field === 'unitPrice') {
       s[field] = parseFloat(value) || 0;
     }
     updateSealantResults();
@@ -2603,8 +2604,10 @@
         '<div class="rb-fields-grid rb-sealant-grid">' +
           '<div class="rb-field"><label>Unit amount (ft)</label>' +
             '<input type="number" min="0" step="0.5" value="' + (s.feet || '') + '" placeholder="0" data-sealant-field="feet" inputmode="decimal"></div>' +
+          '<div class="rb-field"><label>Unit price ($/ft)</label>' +
+            '<input type="number" min="0" step="0.01" value="' + (s.unitPrice != null ? s.unitPrice : SEALANT_DEFAULT_UNIT_PRICE) + '" placeholder="' + SEALANT_DEFAULT_UNIT_PRICE + '" data-sealant-field="unitPrice" inputmode="decimal"></div>' +
           '<div class="rb-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
-            '<input type="number" min="0" step="0.01" value="' + (s.unitCost != null ? s.unitCost : SEALANT_DEFAULT_UNIT_COST) + '" placeholder="' + SEALANT_DEFAULT_UNIT_COST + '" data-sealant-field="unitCost" inputmode="decimal"></div>' +
+            '<div class="rb-sealant-total">' + fmt(SEALANT_UNIT_COST) + '/ft</div></div>' +
           '<div class="rb-field"><label>Unit total ($)</label>' +
             '<div class="rb-sealant-total" id="rb-sealant-total">' + (calc ? fmt(calc.total) : '\u2014') + '</div></div>' +
         '</div>' +
@@ -3174,14 +3177,14 @@
         return;
       }
 
-      // Sealant unit cost: restore default if left blank
-      if (t.getAttribute && t.getAttribute('data-sealant-field') === 'unitCost') {
+      // Sealant unit price: restore default if left blank
+      if (t.getAttribute && t.getAttribute('data-sealant-field') === 'unitPrice') {
         var opt2 = getActiveOption();
         if (!opt2 || !isSealantOption(opt2)) return;
         var raw = (t.value || '').trim();
         if (!raw) {
-          opt2.sealant.unitCost = SEALANT_DEFAULT_UNIT_COST;
-          t.value = String(SEALANT_DEFAULT_UNIT_COST);
+          opt2.sealant.unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+          t.value = String(SEALANT_DEFAULT_UNIT_PRICE);
           updateSealantResults();
           renderSummary();
         }
