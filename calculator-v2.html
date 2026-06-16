@@ -1131,40 +1131,51 @@
 #rb-estimator .rb-tab-expanded {
   display: none;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
   width: 100%;
+  flex: 1 1 auto;
+  cursor: pointer;
 }
 #rb-estimator .rb-tab.rb-active .rb-tab-expanded { display: flex; }
+#rb-estimator .rb-tab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+}
 #rb-estimator .rb-tab-name {
-  width: 100%;
-  max-width: 100%;
+  width: auto;
+  max-width: 46%;
+  flex: 0 1 auto;
+  height: 22px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 4px;
   outline: none;
-  padding: 2px 4px;
-  margin: 0 0 2px;
+  padding: 0 4px;
+  margin: 0;
   font-family: 'Montserrat', sans-serif;
-  font-size: 12px; font-weight: 800;
-  letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.03em; text-transform: uppercase;
   color: var(--rb-navy);
   -webkit-appearance: none; appearance: none;
   box-shadow: none; cursor: text;
   text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
+#rb-estimator .rb-tab-name[readonly] { cursor: pointer; }
 #rb-estimator .rb-tab.rb-active .rb-tab-name { color: #fff; }
-#rb-estimator .rb-tab-name:hover { background: rgba(114,165,183,0.10); }
-#rb-estimator .rb-tab.rb-active .rb-tab-name:hover { background: rgba(255,255,255,0.10); }
+#rb-estimator .rb-tab-name:not([readonly]):hover,
+#rb-estimator .rb-tab.rb-active .rb-tab-name:not([readonly]):hover { background: rgba(114,165,183,0.10); }
+#rb-estimator .rb-tab.rb-active .rb-tab-name:not([readonly]):hover { background: rgba(255,255,255,0.10); }
 #rb-estimator .rb-tab-name:focus {
   background: var(--rb-blue-light);
   border-color: var(--rb-blue);
   color: var(--rb-navy);
   box-shadow: 0 0 0 2px rgba(114,165,183,0.20);
-}
-#rb-estimator .rb-tab-meta {
-  display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  min-width: 0;
+  max-width: 100%;
 }
 #rb-estimator .rb-tab-subtotal {
   font-family: 'Montserrat', sans-serif;
@@ -1174,8 +1185,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 0 4px;
+  cursor: pointer;
+  user-select: none;
 }
 #rb-estimator .rb-tab.rb-active .rb-tab-subtotal { color: var(--rb-blue); }
+#rb-estimator .rb-tab-meta {
+  display: flex; align-items: center; justify-content: flex-end;
+  flex-shrink: 0;
+}
 #rb-estimator .rb-tab-more {
   background: none; border: none;
   color: var(--rb-text-hint);
@@ -1614,13 +1632,14 @@
   }
   #rb-estimator .rb-tab-collapsed-num { font-size: 16px; }
   #rb-estimator .rb-tab-name {
-    font-size: 14px;
-    padding: 2px 4px;
-    margin: 0 0 3px;
-    width: 100%;
+    font-size: 11px;
+    height: 24px;
+    max-width: 42%;
+    padding: 0 4px;
+    margin: 0;
     box-sizing: border-box;
   }
-  #rb-estimator .rb-tab-subtotal { font-size: 11px; }
+  #rb-estimator .rb-tab-subtotal { font-size: 12px; padding: 2px 4px; }
   #rb-estimator .rb-tab-more {
     font-size: 16px;
     padding: 2px 4px;
@@ -2456,6 +2475,17 @@
     renderAll();
   }
 
+  function enableTabNameEdit(input) {
+    if (!input) return;
+    input.readOnly = false;
+    try { input.focus(); input.select(); } catch (_) {}
+  }
+
+  function lockTabNameEdit(input) {
+    if (!input) return;
+    input.readOnly = true;
+  }
+
   function switchOption(id) {
     if (activeOptionId === id) return;
     activeOptionId = id;
@@ -2690,13 +2720,15 @@
       html += '<div class="rb-tab' + (isActive ? ' rb-active' : '') + '" data-option-id="' + opt.id + '" role="tab" aria-selected="' + (isActive ? 'true' : 'false') + '" aria-label="Option ' + opt.defaultNumber + '">'
            +    '<span class="rb-tab-collapsed-num">' + opt.defaultNumber + '</span>'
            +    '<div class="rb-tab-expanded">'
-           +      '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" '
-           +            'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
-           +            'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
-           +      '<div class="rb-tab-meta">'
-           +        '<span class="rb-tab-subtotal">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
-           +        '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
+           +      '<div class="rb-tab-head">'
+           +        '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" readonly '
+           +              'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
+           +              'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
+           +        '<div class="rb-tab-meta">'
+           +          '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
+           +        '</div>'
            +      '</div>'
+           +      '<span class="rb-tab-subtotal">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
            +    '</div>'
            + '</div>';
     });
@@ -3226,7 +3258,10 @@
       // active. Clicking the name input itself just focuses it for renaming.
       var tab = e.target.closest('.rb-tab');
       if (tab && !tab.classList.contains('rb-tab-add')) {
-        if (e.target && e.target.classList && e.target.classList.contains('rb-tab-name')) return;
+        if (e.target && e.target.classList && e.target.classList.contains('rb-tab-name')) {
+          if (e.target.readOnly) enableTabNameEdit(e.target);
+          return;
+        }
         var oid = parseInt(tab.getAttribute('data-option-id'), 10);
         if (!isNaN(oid)) switchOption(oid);
         return;
@@ -3330,6 +3365,7 @@
           t.value = trimmed2;
           renderSummary();
         }
+        lockTabNameEdit(t);
         return;
       }
 
@@ -3398,7 +3434,7 @@
       // sheet's close animation finishes first.
       setTimeout(function() {
         var inp = document.querySelector('.rb-tab-name[data-option-id="' + id + '"]');
-        if (inp) { try { inp.focus(); inp.select(); } catch (_) {} }
+        if (inp) enableTabNameEdit(inp);
       }, 60);
     });
 
