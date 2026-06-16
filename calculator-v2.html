@@ -1082,26 +1082,59 @@
 #rb-estimator .rb-tab-strip::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 2px; }
 
 #rb-estimator .rb-tab {
-  flex: 0 0 auto;
-  min-width: 0;
-  max-width: 200px;
+  flex: 0 0 58px;
+  width: 58px;
+  min-width: 58px;
+  max-width: 58px;
   background: var(--rb-surface);
   border: 1px solid var(--rb-border);
   border-radius: var(--rb-radius-lg);
-  padding: 8px 10px 6px;
+  padding: 8px 6px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: flex 0.22s ease, max-width 0.22s ease, min-width 0.22s ease, width 0.22s ease,
+              padding 0.22s ease, background 0.15s, border-color 0.15s;
   box-shadow: var(--rb-shadow);
   -webkit-tap-highlight-color: transparent;
   position: relative;
   text-align: left;
   overflow: hidden;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 #rb-estimator .rb-tab.rb-active {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 116px;
+  max-width: none;
+  padding: 8px 10px 6px;
+  align-items: stretch;
+  justify-content: flex-start;
   background: var(--rb-navy);
   border-color: var(--rb-navy);
 }
+#rb-estimator .rb-tab-collapsed-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--rb-navy);
+  user-select: none;
+  pointer-events: none;
+}
+#rb-estimator .rb-tab.rb-active .rb-tab-collapsed-num { display: none; }
+#rb-estimator .rb-tab-expanded {
+  display: none;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+#rb-estimator .rb-tab.rb-active .rb-tab-expanded { display: flex; }
 #rb-estimator .rb-tab-name {
   width: 100%;
   max-width: 100%;
@@ -1552,7 +1585,7 @@
   #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
 
-  /* Tab strip: equal-width tabs so everything fits without shifting the page */
+  /* Tab strip: collapsed inactive tabs show option # only; active tab expands */
   #rb-estimator .rb-tab-strip {
     width: 100%;
     max-width: 100%;
@@ -1564,12 +1597,22 @@
     scrollbar-width: none;
   }
   #rb-estimator .rb-tab-strip::-webkit-scrollbar { display: none; }
-  #rb-estimator .rb-tab {
+  #rb-estimator .rb-tab:not(.rb-active) {
+    flex: 0 0 48px;
+    width: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 52px;
+    padding: 6px 4px;
+  }
+  #rb-estimator .rb-tab.rb-active {
     flex: 1 1 0;
     min-width: 0;
     max-width: none;
-    padding: 7px 6px 5px;
+    width: auto;
+    padding: 7px 8px 5px;
   }
+  #rb-estimator .rb-tab-collapsed-num { font-size: 16px; }
   #rb-estimator .rb-tab-name {
     font-size: 14px;
     padding: 2px 4px;
@@ -1584,9 +1627,9 @@
     flex-shrink: 0;
   }
   #rb-estimator .rb-tab-add {
-    flex: 0 0 56px;
-    min-width: 56px;
-    max-width: 56px;
+    flex: 0 0 48px;
+    min-width: 48px;
+    max-width: 48px;
     min-height: 52px;
     font-size: 22px;
     line-height: 1;
@@ -1652,9 +1695,15 @@
   #rb-estimator .rb-app { padding: 10px; }
   #rb-estimator .rb-header { padding: 0 10px; }
   #rb-estimator .rb-total-bar { padding: 0 10px; }
+  #rb-estimator .rb-tab:not(.rb-active) {
+    flex-basis: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    width: 40px;
+  }
   #rb-estimator .rb-tab-name { font-size: 13px; }
-  #rb-estimator .rb-tab { padding: 6px 4px 4px; }
-  #rb-estimator .rb-tab-add { flex-basis: 48px; min-width: 48px; max-width: 48px; min-height: 48px; }
+  #rb-estimator .rb-tab-collapsed-num { font-size: 15px; }
+  #rb-estimator .rb-tab-add { flex-basis: 40px; min-width: 40px; max-width: 40px; min-height: 48px; }
 }
 </style>
 
@@ -2638,13 +2687,16 @@
     options.forEach(function(opt) {
       var isActive = opt.id === activeOptionId;
       var sub = optionSubtotal(opt);
-      html += '<div class="rb-tab' + (isActive ? ' rb-active' : '') + '" data-option-id="' + opt.id + '">'
-           +    '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" '
-           +          'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
-           +          'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
-           +    '<div class="rb-tab-meta">'
-           +      '<span class="rb-tab-subtotal">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
-           +      '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
+      html += '<div class="rb-tab' + (isActive ? ' rb-active' : '') + '" data-option-id="' + opt.id + '" role="tab" aria-selected="' + (isActive ? 'true' : 'false') + '" aria-label="Option ' + opt.defaultNumber + '">'
+           +    '<span class="rb-tab-collapsed-num">' + opt.defaultNumber + '</span>'
+           +    '<div class="rb-tab-expanded">'
+           +      '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" '
+           +            'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
+           +            'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
+           +      '<div class="rb-tab-meta">'
+           +        '<span class="rb-tab-subtotal">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
+           +        '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
+           +      '</div>'
            +    '</div>'
            + '</div>';
     });
