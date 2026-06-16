@@ -59,18 +59,34 @@
 
   #content-area,
   #left-area,
+  #main-content,
   #main-content .container,
-  .container {
+  .container,
+  .et_pb_row,
+  .et_pb_column,
+  .et_pb_module,
+  .et_pb_code,
+  .et_pb_code_inner {
     width: 100% !important;
     max-width: 100% !important;
-    padding: 0 !important;
+    min-width: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    float: none !important;
     border: 0 !important;
     box-shadow: none !important;
   }
 
+  #content-area,
+  #left-area,
+  #main-content .container,
+  .container {
+    padding: 0 !important;
+  }
+
   #left-area {
-    padding-right: 0 !important;
-    float: none !important;
     border: none !important;
   }
 
@@ -104,6 +120,19 @@
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  #rb-estimator {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0 auto;
+    overflow-x: clip;
+    position: relative;
+    left: 0;
+    right: 0;
   }
 
   h1.entry-title,
@@ -396,10 +425,12 @@
   color: var(--rb-text);
   background: var(--rb-bg);
   border-radius: var(--rb-radius-lg);
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: visible;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+  margin: 0 auto;
   -webkit-font-smoothing: antialiased;
   box-sizing: border-box;
 }
@@ -414,6 +445,8 @@
   display: flex; align-items: center;
   border-bottom: 3px solid var(--rb-blue);
   box-shadow: var(--rb-shadow-lg); position: relative; z-index: 10;
+  width: 100%; max-width: 100%; min-width: 0;
+  box-sizing: border-box;
 }
 #rb-estimator .rb-logo {
   font-family: 'Montserrat', sans-serif;
@@ -436,6 +469,8 @@
   border-bottom: 1px solid var(--rb-navy3);
   padding: 0 16px; height: 48px;
   align-items: center; justify-content: space-between;
+  width: 100%; max-width: 100%; min-width: 0;
+  box-sizing: border-box;
 }
 #rb-estimator .rb-total-bar-label {
   font-family: 'Montserrat', sans-serif;
@@ -457,7 +492,9 @@
 #rb-estimator .rb-sidebar {
   min-width: 0;
   max-width: 100%;
+  overflow-x: clip;
 }
+#rb-estimator .rb-field { min-width: 0; }
 #rb-estimator .rb-section-label {
   font-family: 'Montserrat', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
@@ -1006,6 +1043,7 @@
 #rb-estimator .rb-section-header {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; margin-bottom: 10px;
+  width: 100%; max-width: 100%; min-width: 0;
 }
 #rb-estimator .rb-section-header .rb-section-label { margin-bottom: 0; }
 
@@ -1026,9 +1064,11 @@
 #rb-estimator .rb-tab-strip {
   display: none;
   flex-wrap: nowrap;
+  align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   gap: 6px;
   padding: 2px 0 8px;
   margin-bottom: 8px;
@@ -1036,13 +1076,14 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 #rb-estimator .rb-tab-strip::-webkit-scrollbar { height: 4px; }
 #rb-estimator .rb-tab-strip::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 2px; }
 
 #rb-estimator .rb-tab {
   flex: 0 0 auto;
-  min-width: 130px;
+  min-width: 0;
   max-width: 200px;
   background: var(--rb-surface);
   border: 1px solid var(--rb-border);
@@ -1054,6 +1095,8 @@
   -webkit-tap-highlight-color: transparent;
   position: relative;
   text-align: left;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 #rb-estimator .rb-tab.rb-active {
   background: var(--rb-navy);
@@ -1088,11 +1131,16 @@
 }
 #rb-estimator .rb-tab-meta {
   display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  min-width: 0;
 }
 #rb-estimator .rb-tab-subtotal {
   font-family: 'Montserrat', sans-serif;
   font-size: 11px; font-weight: 700;
   color: var(--rb-blue);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #rb-estimator .rb-tab.rb-active .rb-tab-subtotal { color: var(--rb-blue); }
 #rb-estimator .rb-tab-more {
@@ -1116,19 +1164,22 @@
   font-size: 11px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
   cursor: pointer;
-  padding: 0 14px;
-  min-width: 100px;
+  padding: 0 10px;
+  min-width: 72px;
   display: flex; align-items: center; justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--rb-radius-lg);
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
+  box-sizing: border-box;
 }
 #rb-estimator .rb-tab-add:active {
   background: var(--rb-blue-light);
   border-color: var(--rb-blue);
   color: var(--rb-navy);
 }
+#rb-estimator .rb-tab-add-short { display: none; }
+#rb-estimator .rb-tab-add-long { display: inline; }
 
 /* Per-option subtotal lines in sidebar summary */
 #rb-estimator .rb-summary-option .rb-sname {
@@ -1399,6 +1450,9 @@
     gap: 14px;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
   #rb-estimator .rb-main,
   #rb-estimator .rb-sidebar,
@@ -1406,6 +1460,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    overflow-x: clip;
   }
   #rb-estimator .rb-section-label { font-size: 11px; margin-bottom: 8px; }
   #rb-estimator .rb-section-header {
@@ -1434,12 +1489,30 @@
   #rb-estimator .rb-panel-top {
     min-width: 0;
     max-width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #rb-estimator .rb-panel-controls {
+    flex-shrink: 0;
+    max-width: 100%;
+  }
+  #rb-estimator .rb-cat-select {
+    max-width: min(110px, 42vw);
+    font-size: 11px;
   }
   #rb-estimator .rb-fields-grid {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
   #rb-estimator .rb-sealant-grid { grid-template-columns: 1fr; }
+  #rb-estimator .rb-sealant-total {
+    height: 50px;
+    font-size: 16px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   /* 16px inputs prevent iOS Safari from zooming when an input is focused */
   #rb-estimator .rb-field input,
@@ -1479,24 +1552,50 @@
   #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
 
-  /* Tab strip on mobile — 16px input avoids iOS zoom on focus */
+  /* Tab strip: equal-width tabs so everything fits without shifting the page */
   #rb-estimator .rb-tab-strip {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     padding-left: 0;
     padding-right: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
-  #rb-estimator .rb-tab { min-width: 130px; max-width: min(220px, 78vw); padding: 9px 10px 7px; }
-  #rb-estimator .rb-tab-name { font-size: 16px; padding: 3px 5px; margin: 0 0 4px; }
-  #rb-estimator .rb-tab-subtotal { font-size: 12px; }
-  #rb-estimator .rb-tab-more { font-size: 18px; padding: 4px 8px; }
-  #rb-estimator .rb-tab-add {
-    min-width: 140px;
-    min-height: 68px;
+  #rb-estimator .rb-tab-strip::-webkit-scrollbar { display: none; }
+  #rb-estimator .rb-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    padding: 7px 6px 5px;
+  }
+  #rb-estimator .rb-tab-name {
     font-size: 14px;
-    padding: 12px 18px;
-    border-width: 2px;
+    padding: 2px 4px;
+    margin: 0 0 3px;
+    width: 100%;
+    box-sizing: border-box;
   }
+  #rb-estimator .rb-tab-subtotal { font-size: 11px; }
+  #rb-estimator .rb-tab-more {
+    font-size: 16px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+  }
+  #rb-estimator .rb-tab-add {
+    flex: 0 0 56px;
+    min-width: 56px;
+    max-width: 56px;
+    min-height: 52px;
+    font-size: 22px;
+    line-height: 1;
+    letter-spacing: 0;
+    padding: 0;
+    border-width: 1.5px;
+  }
+  #rb-estimator .rb-tab-add-short { display: inline; }
+  #rb-estimator .rb-tab-add-long { display: none; }
   #rb-estimator .rb-btn-add-option-inline {
     font-size: 13px;
     letter-spacing: 0.08em;
@@ -1551,6 +1650,11 @@
   #rb-estimator .rb-metric-value { font-size: 13px; }
   #rb-estimator .rb-fields-grid { gap: 8px; }
   #rb-estimator .rb-app { padding: 10px; }
+  #rb-estimator .rb-header { padding: 0 10px; }
+  #rb-estimator .rb-total-bar { padding: 0 10px; }
+  #rb-estimator .rb-tab-name { font-size: 13px; }
+  #rb-estimator .rb-tab { padding: 6px 4px 4px; }
+  #rb-estimator .rb-tab-add { flex-basis: 48px; min-width: 48px; max-width: 48px; min-height: 48px; }
 }
 </style>
 
@@ -2545,7 +2649,7 @@
            + '</div>';
     });
     if (options.length < MAX_OPTIONS) {
-      html += '<button class="rb-tab rb-tab-add" id="rb-tab-add-btn" type="button" aria-label="Add option">+ Option</button>';
+      html += '<button class="rb-tab rb-tab-add" id="rb-tab-add-btn" type="button" aria-label="Add option"><span class="rb-tab-add-short">+</span><span class="rb-tab-add-long">+ Option</span></button>';
     }
     strip.innerHTML = html;
   }
