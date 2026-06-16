@@ -2275,18 +2275,13 @@
   }
 
   function removeOption(id) {
-    var opt = options.find(function(o) { return o.id === id; });
-    if (opt && opt.isDefaultSealant) {
-      showToast('Joint Sealant is included on every estimate');
-      return;
-    }
-    if (options.length <= 2) {
-      showToast('Estimate needs at least two options');
+    if (options.length <= 1) {
+      showToast('Estimate needs at least one option');
       return;
     }
     var idx = options.findIndex(function(o) { return o.id === id; });
     if (idx < 0) return;
-    opt = options[idx];
+    var opt = options[idx];
     var hasPanels = opt.panels.length > 0;
     var hasSealant = isSealantOption(opt) && isSealantReady(opt.sealant);
     if ((hasPanels || hasSealant) && !confirm('Delete "' + opt.name + '"' + (hasPanels ? (' and its ' + opt.panels.length + ' panel' + (opt.panels.length !== 1 ? 's' : '')) : '') + '?')) {
@@ -2491,7 +2486,7 @@
     var dup = document.getElementById('rb-action-duplicate');
     if (dup) dup.disabled = options.length >= MAX_OPTIONS;
     var del = document.getElementById('rb-action-delete');
-    if (del) del.disabled = opt.isDefaultSealant || options.length <= 2;
+    if (del) del.disabled = options.length <= 1;
     document.getElementById('rb-tab-action-sheet').style.display = 'flex';
   }
   function closeTabActionSheet() {
