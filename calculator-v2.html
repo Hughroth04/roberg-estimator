@@ -1631,11 +1631,12 @@
     padding: 7px 8px 5px;
   }
   #rb-estimator .rb-tab-collapsed-num { font-size: 16px; }
+  /* 16px font-size avoids iOS Safari auto-zoom and improves tap targets. */
   #rb-estimator .rb-tab-name {
-    font-size: 11px;
-    height: 24px;
-    max-width: 42%;
-    padding: 0 4px;
+    font-size: 16px;
+    height: 32px;
+    max-width: 55%;
+    padding: 0 6px;
     margin: 0;
     box-sizing: border-box;
   }
@@ -1720,7 +1721,7 @@
     max-width: 40px;
     width: 40px;
   }
-  #rb-estimator .rb-tab-name { font-size: 13px; }
+  #rb-estimator .rb-tab-name { font-size: 16px; height: 32px; }
   #rb-estimator .rb-tab-collapsed-num { font-size: 15px; }
   #rb-estimator .rb-tab-add { flex-basis: 40px; min-width: 40px; max-width: 40px; min-height: 48px; }
 }
@@ -2476,14 +2477,22 @@
   }
 
   function enableTabNameEdit(input) {
-    if (!input) return;
+    if (!input || !input.readOnly) return;
     input.readOnly = false;
-    try { input.focus(); input.select(); } catch (_) {}
+    input.removeAttribute('readonly');
+    // Defer focus so iOS/Android show the virtual keyboard after clearing readonly.
+    setTimeout(function() {
+      try {
+        input.focus({ preventScroll: true });
+        input.select();
+      } catch (_) {}
+    }, 50);
   }
 
   function lockTabNameEdit(input) {
     if (!input) return;
     input.readOnly = true;
+    input.setAttribute('readonly', '');
   }
 
   function switchOption(id) {
@@ -3220,6 +3229,13 @@
   // ── Event delegation ──
   var root = document.getElementById('rb-estimator');
   if (root) {
+    // Unlock option name editing on pointerdown so mobile taps open the keyboard.
+    root.addEventListener('pointerdown', function(e) {
+      var t = e.target;
+      if (!t || !t.classList || !t.classList.contains('rb-tab-name')) return;
+      if (t.readOnly) enableTabNameEdit(t);
+    }, { passive: true });
+
     root.addEventListener('click', function(e) {
       // Search result selection
       var resultItem = e.target.closest('.rb-search-result-item');
