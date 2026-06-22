@@ -575,13 +575,15 @@
   background-repeat: no-repeat; background-position: right 7px center; padding-right: 24px; max-width: 110px;
 }
 #rb-estimator .rb-cat-select:focus { border-color: var(--rb-blue); outline: none; }
-#rb-estimator .rb-btn-remove {
+#rb-estimator .rb-btn-remove,
+#rb-estimator .rb-btn-duplicate-panel {
   background: none; border: 1px solid var(--rb-border); border-radius: var(--rb-radius);
   min-width: 36px; height: 36px; cursor: pointer; color: var(--rb-text-hint);
   font-size: 15px; display: flex; align-items: center; justify-content: center;
   transition: all 0.1s; flex-shrink: 0; -webkit-tap-highlight-color: transparent; padding: 0;
   font-family: inherit;
 }
+#rb-estimator .rb-btn-duplicate-panel:active { border-color: var(--rb-blue); color: var(--rb-navy); background: var(--rb-blue-light); }
 #rb-estimator .rb-btn-remove:active { border-color: #e0a0a0; color: #b03030; background: #fef0f0; }
 
 /* Fields */
@@ -926,6 +928,21 @@
   pointer-events: none; white-space: nowrap; z-index: 99999; box-shadow: var(--rb-shadow-lg);
 }
 #rb-estimator .rb-toast.rb-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#rb-estimator .rb-toast.rb-toast-undo {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 18px;
+}
+#rb-estimator .rb-toast-msg { color: var(--rb-blue); }
+#rb-estimator .rb-toast-undo-btn {
+  background: rgba(114,165,183,0.15); border: 1px solid var(--rb-blue);
+  color: #fff; border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 6px 12px; cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-toast-undo-btn:active { background: rgba(114,165,183,0.35); }
 
 /* ── LOGIN OVERLAY ── */
 #rb-estimator .rb-login-overlay {
@@ -1990,6 +2007,10 @@
   var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Void Fill','Other'];
   var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:inline-flex;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>';
+  var DUPLICATE_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>';
+  var UNDO_MS = 6000;
+  var pendingUndo = null;
+  var undoHideTimer = null;
 
   // Multi-option model: an estimate is an ordered list of options; each option
   // holds its own panel list AND its own photo attachments. Single-option
@@ -2111,11 +2132,82 @@
     return p.name + '\n' + buildDesc(p, calc);
   }
 
-  function showToast(msg) {
+  function clearPendingUndo() {
+    pendingUndo = null;
+    if (undoHideTimer) { clearTimeout(undoHideTimer); undoHideTimer = null; }
+  }
+
+  function hideUndoToast() {
     var t = document.getElementById('rb-toast');
     if (!t) return;
-    t.textContent = msg; t.classList.add('rb-show');
+    t.classList.remove('rb-show');
+    setTimeout(function() {
+      if (!t.classList.contains('rb-show')) {
+        t.className = 'rb-toast';
+        t.innerHTML = '';
+      }
+    }, 250);
+  }
+
+  function showToast(msg) {
+    clearPendingUndo();
+    var t = document.getElementById('rb-toast');
+    if (!t) return;
+    t.className = 'rb-toast rb-show';
+    t.innerHTML = '';
+    t.textContent = msg;
     setTimeout(function() { t.classList.remove('rb-show'); }, 2200);
+  }
+
+  function showUndoToast(msg, undoState, onUndo) {
+    if (undoHideTimer) { clearTimeout(undoHideTimer); undoHideTimer = null; }
+    pendingUndo = { state: undoState, onUndo: onUndo };
+    var t = document.getElementById('rb-toast');
+    if (!t) return;
+    t.className = 'rb-toast rb-toast-undo rb-show';
+    t.innerHTML = '<span class="rb-toast-msg">' + escapeHtml(msg) + '</span>'
+      + '<button type="button" class="rb-toast-undo-btn">Undo</button>';
+    undoHideTimer = setTimeout(function() {
+      clearPendingUndo();
+      hideUndoToast();
+    }, UNDO_MS);
+  }
+
+  function performUndo() {
+    if (!pendingUndo) return;
+    var entry = pendingUndo;
+    clearPendingUndo();
+    hideUndoToast();
+    if (entry.onUndo) entry.onUndo(entry.state);
+  }
+
+  function clonePanelData(p) {
+    return {
+      id: p.id,
+      name: p.name,
+      isCustomName: p.isCustomName,
+      length: p.length, width: p.width,
+      sides: p.sides, depth: p.depth,
+      category: p.category, notes: p.notes || '',
+      _defaultName: p._defaultName
+    };
+  }
+
+  function cloneOptionData(opt) {
+    var copy = {
+      id: opt.id,
+      defaultNumber: opt.defaultNumber,
+      name: opt.name,
+      isCustomName: opt.isCustomName,
+      kind: opt.kind,
+      panels: opt.panels.map(clonePanelData),
+      photos: opt.photos.map(function(ph) {
+        return { id: ph.id, fileName: ph.fileName, dataUrl: ph.dataUrl, sizeBytes: ph.sizeBytes };
+      })
+    };
+    if (opt.isDefaultSealant) copy.isDefaultSealant = true;
+    if (opt.sealant) copy.sealant = { feet: opt.sealant.feet, unitPrice: opt.sealant.unitPrice };
+    return copy;
   }
 
   // ── Panel rendering ──
@@ -2201,12 +2293,49 @@
     }, 60);
   }
 
+  function duplicatePanel(id) {
+    var info = findPanelInfo(id);
+    if (!info) return;
+    var opt = info.option;
+    var src = info.panel;
+    var idx = opt.panels.findIndex(function(p) { return p.id === id; });
+    if (idx < 0) return;
+    var newPanel = {
+      id: nextPanelId++,
+      name: src.name,
+      isCustomName: true,
+      length: src.length, width: src.width,
+      sides: src.sides, depth: src.depth,
+      category: src.category, notes: src.notes || ''
+    };
+    opt.panels.splice(idx + 1, 0, newPanel);
+    regenerateAutoNames();
+    renderAll();
+    showToast('Panel duplicated');
+  }
+
   function removePanel(id) {
     var info = findPanelInfo(id);
     if (!info) return;
-    info.option.panels = info.option.panels.filter(function(p) { return p.id !== id; });
+    var opt = info.option;
+    var idx = opt.panels.findIndex(function(p) { return p.id === id; });
+    if (idx < 0) return;
+    var snapshot = clonePanelData(info.panel);
+    var optionId = opt.id;
+
+    opt.panels.splice(idx, 1);
     regenerateAutoNames();
     renderAll();
+
+    showUndoToast('Panel removed', { optionId: optionId, index: idx, panel: snapshot }, function(state) {
+      var o = options.find(function(x) { return x.id === state.optionId; });
+      if (!o) return;
+      var insertAt = Math.min(state.index, o.panels.length);
+      o.panels.splice(insertAt, 0, state.panel);
+      regenerateAutoNames();
+      renderAll();
+      showToast('Panel restored');
+    });
   }
 
   function updateField(id, field, value) {
@@ -2463,17 +2592,26 @@
     var idx = options.findIndex(function(o) { return o.id === id; });
     if (idx < 0) return;
     var opt = options[idx];
-    var hasPanels = opt.panels.length > 0;
-    var hasSealant = isSealantOption(opt) && isSealantReady(opt.sealant);
-    if ((hasPanels || hasSealant) && !confirm('Delete "' + opt.name + '"' + (hasPanels ? (' and its ' + opt.panels.length + ' panel' + (opt.panels.length !== 1 ? 's' : '')) : '') + '?')) {
-      return;
-    }
+    var snapshot = cloneOptionData(opt);
+    var prevActive = activeOptionId;
+    var deletedId = id;
+
     options.splice(idx, 1);
     if (activeOptionId === id) {
       var nextActive = options[Math.max(0, idx - 1)];
       activeOptionId = nextActive ? nextActive.id : null;
     }
     renderAll();
+
+    showUndoToast('Option removed', { index: idx, option: snapshot, prevActive: prevActive, deletedId: deletedId }, function(state) {
+      var insertAt = Math.min(state.index, options.length);
+      options.splice(insertAt, 0, state.option);
+      if (state.prevActive === state.deletedId) {
+        activeOptionId = state.deletedId;
+      }
+      renderAll();
+      showToast('Option restored');
+    });
   }
 
   function enableTabNameEdit(input) {
@@ -2828,7 +2966,8 @@
         '<input class="rb-panel-name" type="text" value="'+escapeAttr(p.name)+'" data-id="'+p.id+'" data-field="name" spellcheck="false" autocomplete="off" autocapitalize="words" aria-label="Panel name" placeholder="'+escapeAttr(p._defaultName || '')+'">'+
         '<div class="rb-panel-controls">'+
         '<select class="rb-cat-select" data-id="'+p.id+'" data-field="category">'+catOpts+'</select>'+
-        '<button class="rb-btn-remove" data-id="'+p.id+'" title="Remove">\u2715</button></div></div>'+
+        '<button class="rb-btn-duplicate-panel" data-id="'+p.id+'" type="button" title="Duplicate panel" aria-label="Duplicate panel">'+DUPLICATE_SVG+'</button>'+
+        '<button class="rb-btn-remove" data-id="'+p.id+'" type="button" title="Remove panel" aria-label="Remove panel">\u2715</button></div></div>'+
         '<div class="rb-fields-grid">'+
         '<div class="rb-field"><label>Length (ft)</label><input type="number" min="0" step="0.5" value="'+(p.length||'')+'" placeholder="0" data-id="'+p.id+'" data-field="length" inputmode="decimal"></div>'+
         '<div class="rb-field"><label>Width (ft)</label><input type="number" min="0" step="0.5" value="'+(p.width||'')+'" placeholder="0" data-id="'+p.id+'" data-field="width" inputmode="decimal"></div>'+
@@ -3312,8 +3451,10 @@
         document.getElementById('rb-new-cust-form').style.display = 'block';
         return;
       }
-      if (t.classList.contains('rb-btn-remove'))     { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
-      if (t.classList.contains('rb-btn-copy-panel')) { copyPanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-btn-remove'))          { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-btn-duplicate-panel')) { duplicatePanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-btn-copy-panel'))      { copyPanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-toast-undo-btn'))      { performUndo(); return; }
     });
 
     // Search on Enter key
