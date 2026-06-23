@@ -1940,7 +1940,7 @@
 
   function panelHasDraftableData(p) {
     if (!p) return false;
-    if (isReady(p) || p.notes || p.isCustomName) return true;
+    if (isReady(p) || p.isCustomName) return true;
     if (p.length || p.width) return true;
     if (p.sides && p.sides !== 1) return true;
     if (p.depth && p.depth !== 1) return true;
@@ -2283,7 +2283,7 @@
       isCustomName: p.isCustomName,
       length: p.length, width: p.width,
       sides: p.sides, depth: p.depth,
-      category: p.category, notes: p.notes || '',
+      category: p.category,
       _defaultName: p._defaultName
     };
   }
@@ -2455,7 +2455,7 @@
       id: id,
       name: '',
       isCustomName: false,
-      length: 0, width: 0, sides: 1, depth: 1, category: 'Driveway', notes: ''
+      length: 0, width: 0, sides: 1, depth: 1, category: 'Driveway'
     });
     regenerateAutoNames();
     renderAll();
@@ -2479,7 +2479,7 @@
       isCustomName: true,
       length: src.length, width: src.width,
       sides: src.sides, depth: src.depth,
-      category: src.category, notes: src.notes || ''
+      category: src.category
     };
     opt.panels.splice(idx + 1, 0, newPanel);
     regenerateAutoNames();
@@ -2755,7 +2755,7 @@
           isCustomName: true,
           length: p.length, width: p.width,
           sides: p.sides, depth: p.depth,
-          category: p.category, notes: p.notes,
+          category: p.category,
           _defaultName: p._defaultName
         };
       });
@@ -3173,7 +3173,6 @@
         '<div class="rb-field"><label>Sides</label><select data-id="'+p.id+'" data-field="sides">'+sideOpts+'</select></div>'+
         '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="'+(p.depth||'')+'" placeholder="0" data-id="'+p.id+'" data-field="depth" inputmode="decimal"></div>'+
         '</div>'+
-        '<div class="rb-field" style="margin-bottom:0"><label>Notes</label><input type="text" value="'+(p.notes||'')+'" placeholder="optional" data-id="'+p.id+'" data-field="notes" style="width:100%"></div>'+
         '<div class="rb-results-bar">'+
         '<div class="rb-metric"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
         '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
