@@ -34,8 +34,11 @@
   </div>
 
   <div class="rb-total-bar" id="rb-total-bar">
-    <span class="rb-total-bar-label">Job Total</span>
-    <span class="rb-total-bar-value" id="rb-total-bar-value">—</span>
+    <button type="button" class="rb-total-bar-send" id="rb-total-bar-send">Send to customer</button>
+    <div class="rb-total-bar-total">
+      <span class="rb-total-bar-label">Job Total</span>
+      <span class="rb-total-bar-value" id="rb-total-bar-value">—</span>
+    </div>
   </div>
 
   <div class="rb-app">
@@ -332,23 +335,59 @@
   color: rgba(255,255,255,0.45); letter-spacing: 0.08em; text-transform: uppercase;
 }
 
-/* Total bar */
+/* Total bar (mobile sticky banner) */
 #rb-estimator .rb-total-bar {
   display: none; background: var(--rb-navy2);
   border-bottom: 1px solid var(--rb-navy3);
-  padding: 0 16px; height: 48px;
-  align-items: center; justify-content: space-between;
+  padding: 0; height: 48px;
+  align-items: stretch;
   width: 100%; max-width: 100%; min-width: 0;
+  box-sizing: border-box;
+}
+#rb-estimator .rb-total-bar-send {
+  flex: 1 1 50%;
+  max-width: 50%;
+  margin: 0;
+  padding: 0 10px;
+  border: none;
+  border-right: 1px solid var(--rb-navy3);
+  background: var(--rb-green);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+#rb-estimator .rb-total-bar-send:active { background: #1f5e38; }
+#rb-estimator .rb-total-bar-total {
+  flex: 1 1 50%;
+  max-width: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  min-width: 0;
   box-sizing: border-box;
 }
 #rb-estimator .rb-total-bar-label {
   font-family: 'Montserrat', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: rgba(255,255,255,0.45);
+  flex-shrink: 0;
 }
 #rb-estimator .rb-total-bar-value {
   font-family: 'Montserrat', sans-serif;
   font-size: 20px; font-weight: 800; color: var(--rb-blue);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Layout */
@@ -1400,7 +1439,16 @@
     height: 46px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
   }
+  #rb-estimator .rb-total-bar-send {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    padding: 0 8px;
+  }
+  #rb-estimator .rb-total-bar-total { padding: 0 12px; }
   #rb-estimator .rb-total-bar-value { font-size: 19px; }
+
+  /* Send lives in the sticky bar on mobile */
+  #rb-estimator .rb-btn-hcp { display: none; }
 
   /* Single-column app layout */
   #rb-estimator .rb-app {
@@ -1622,7 +1670,8 @@
   #rb-estimator .rb-fields-grid { gap: 8px; }
   #rb-estimator .rb-app { padding: 10px; }
   #rb-estimator .rb-header { padding: 0 10px; }
-  #rb-estimator .rb-total-bar { padding: 0 10px; }
+  #rb-estimator .rb-total-bar-send { font-size: 8px; padding: 0 6px; }
+  #rb-estimator .rb-total-bar-total { padding: 0 10px; }
   #rb-estimator .rb-tab:not(.rb-active) {
     flex-basis: 40px;
     min-width: 40px;
@@ -3784,6 +3833,7 @@
       if (tid === 'rb-copy-all-btn')      { copyAll();  return; }
       if (tid === 'rb-btn-reset')         { resetAll(); return; }
       if (tid === 'rb-btn-hcp')           { openModal(); return; }
+      if (tid === 'rb-total-bar-send')    { openModal(); return; }
       if (tid === 'rb-modal-close')       { closeModal(); return; }
       if (tid === 'rb-btn-search-cust')   { searchCustomers(true); return; }
       if (tid === 'rb-btn-next-step')     { goToCustomer(); return; }
