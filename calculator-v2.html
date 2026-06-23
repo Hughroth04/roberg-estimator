@@ -2436,6 +2436,7 @@
     };
     if (opt.isDefaultSealant) copy.isDefaultSealant = true;
     if (opt.sealant) copy.sealant = { feet: opt.sealant.feet, unitPrice: opt.sealant.unitPrice };
+    if (opt._defaultName) copy._defaultName = opt._defaultName;
     return copy;
   }
 
@@ -2500,12 +2501,49 @@
     return 'Add panels above';
   }
 
+  function formatCategoryList(categories) {
+    if (!categories.length) return '';
+    if (categories.length === 1) return categories[0];
+    if (categories.length === 2) return categories[0] + ' and ' + categories[1];
+    return categories.slice(0, -1).join(', ') + ', and ' + categories[categories.length - 1];
+  }
+
+  function getPanelsOptionDefaultName(opt) {
+    if (!opt || !isPanelsOption(opt)) return '';
+    var seen = {};
+    var categories = [];
+    opt.panels.forEach(function(p) {
+      var cat = (p.category || 'Other').trim() || 'Other';
+      if (!seen[cat]) {
+        seen[cat] = true;
+        categories.push(cat);
+      }
+    });
+    if (!categories.length) return 'Option ' + opt.defaultNumber;
+    return formatCategoryList(categories);
+  }
+
+  function getSealantOptionDefaultName(opt) {
+    return DEFAULT_SEALANT_OPTION_NAME;
+  }
+
   // Default panel name format: "<Category> Lift and Level (Panel N)" where N is
   // the panel's ordinal position WITHIN its category and WITHIN its option.
   // Custom names (isCustomName === true) still count toward the category's
   // running total but are not overwritten.
+  //
+  // Option names for panel options follow panel categories: one service →
+  // "Driveway"; multiple → "Driveway and Sidewalk". Sealant options stay
+  // "Joint Sealant". Custom option names (isCustomName) are not overwritten.
   function regenerateAutoNames() {
     options.forEach(function(opt) {
+      if (isPanelsOption(opt)) {
+        opt._defaultName = getPanelsOptionDefaultName(opt);
+        if (!opt.isCustomName) opt.name = opt._defaultName;
+      } else if (isSealantOption(opt)) {
+        opt._defaultName = getSealantOptionDefaultName(opt);
+        if (!opt.isCustomName) opt.name = opt._defaultName;
+      }
       var counts = {};
       opt.panels.forEach(function(p) {
         var cat = p.category || 'Panel';
@@ -2513,6 +2551,15 @@
         p._defaultName = cat + ' Lift and Level (Panel ' + counts[cat] + ')';
         if (!p.isCustomName) p.name = p._defaultName;
       });
+    });
+  }
+
+  function syncOptionNameInputs() {
+    options.forEach(function(opt) {
+      var input = document.querySelector('.rb-tab-name[data-option-id="' + opt.id + '"]');
+      if (!input || document.activeElement === input) return;
+      if (!opt.isCustomName && input.value !== opt.name) input.value = opt.name;
+      if (opt._defaultName) input.placeholder = opt._defaultName;
     });
   }
 
@@ -2611,9 +2658,10 @@
     if (field === 'category') {
       p.category = value;
       // Changing category can renumber both the old and new category's auto-named
-      // panels, so recompute everything and refresh the name inputs in place.
+      // panels and refresh the option title from its services.
       regenerateAutoNames();
       syncPanelNameInputs();
+      syncOptionNameInputs();
       updateCardResults(id); renderSummary(); renderTabStrip();
       return;
     }
@@ -2716,7 +2764,8 @@
       isCustomName: false,
       kind: 'panels',
       panels: [],
-      photos: []
+      photos: [],
+      _defaultName: 'Option ' + num
     };
   }
 
@@ -2731,6 +2780,7 @@
       isDefaultSealant: true,
       panels: [],
       photos: [],
+      _defaultName: DEFAULT_SEALANT_OPTION_NAME,
       sealant: {
         feet: 0,
         unitPrice: SEALANT_DEFAULT_UNIT_PRICE
@@ -2836,6 +2886,7 @@
     }
     options.splice(srcIdx + 1, 0, newOpt);
     activeOptionId = newId;
+    regenerateAutoNames();
     renderAll();
     setTimeout(function() {
       var strip = document.getElementById('rb-tab-strip');
@@ -3133,7 +3184,7 @@
            +      '<div class="rb-tab-head">'
            +        '<input class="rb-tab-name" type="text" value="' + escapeAttr(opt.name) + '" readonly '
            +              'data-option-id="' + opt.id + '" maxlength="40" spellcheck="false" autocomplete="off" '
-           +              'autocapitalize="words" placeholder="Option ' + opt.defaultNumber + '" aria-label="Option name">'
+           +              'autocapitalize="words" placeholder="' + escapeAttr(opt._defaultName || ('Option ' + opt.defaultNumber)) + '" aria-label="Option name">'
            +        '<div class="rb-tab-meta">'
            +          '<button class="rb-tab-more" data-option-id="' + opt.id + '" type="button" aria-label="More actions">\u22ef</button>'
            +        '</div>'
@@ -3959,9 +4010,11 @@
         var trimmed2 = (t.value || '').trim();
         if (!trimmed2) {
           opt.isCustomName = false;
-          opt.name = opt.isDefaultSealant ? DEFAULT_SEALANT_OPTION_NAME : ('Option ' + opt.defaultNumber);
+          regenerateAutoNames();
           t.value = opt.name;
+          if (opt._defaultName) t.placeholder = opt._defaultName;
           renderSummary();
+          renderTabStrip();
         } else if (trimmed2 !== opt.name) {
           opt.name = trimmed2;
           opt.isCustomName = true;
