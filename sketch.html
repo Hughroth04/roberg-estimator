@@ -584,11 +584,18 @@
   }
 
   function initAttachMode() {
-    var params = new URLSearchParams(window.location.search);
     attachCtx = readAttachContext();
-    isAttachMode = params.get('attach') === '1' && attachCtx && attachCtx.optionId != null;
+    isAttachMode = !!(attachCtx && attachCtx.optionId != null);
     if (!isAttachMode || !btnAttach) return;
     btnAttach.style.display = '';
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('attach') !== '1') {
+        var url = new URL(window.location.href);
+        url.searchParams.set('attach', '1');
+        window.history.replaceState(null, '', url.pathname + url.search);
+      }
+    } catch (e) {}
     var label = attachCtx.optionName || 'your estimate';
     if (saveHintEl) {
       saveHintEl.innerHTML = 'Draw your site sketch, finish each shape, then tap <strong>Attach to estimate</strong> to add it to <strong>'

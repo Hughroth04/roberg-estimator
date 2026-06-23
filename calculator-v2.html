@@ -3071,7 +3071,6 @@
     try { raw = sessionStorage.getItem(SKETCH_PENDING_KEY); } catch (e) { return; }
     if (!raw) return;
     try { sessionStorage.removeItem(SKETCH_PENDING_KEY); } catch (e2) {}
-    try { sessionStorage.removeItem(SKETCH_ATTACH_CTX_KEY); } catch (e3) {}
     var pending;
     try { pending = JSON.parse(raw); } catch (e4) { return; }
     if (!pending || !pending.dataUrl) return;
@@ -3106,7 +3105,8 @@
       sessionStorage.setItem(SKETCH_ATTACH_CTX_KEY, JSON.stringify({
         optionId: opt.id,
         optionName: opt.name || ('Option ' + opt.defaultNumber),
-        returnTo: 'calculator-v2.html'
+        returnTo: 'calculator-v2.html',
+        updatedAt: Date.now()
       }));
     } catch (err) {
       showToast('Could not open sketch — try again');
