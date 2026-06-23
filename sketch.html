@@ -208,6 +208,84 @@
       transform: translateX(-50%) translateY(0);
     }
 
+    #rb-sketch .rb-save-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 0, 0, 0.72);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+    }
+    #rb-sketch .rb-save-panel {
+      width: 100%;
+      max-width: 520px;
+      max-height: 94vh;
+      background: var(--rb-surface);
+      border-radius: var(--rb-radius-lg) var(--rb-radius-lg) 0 0;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+      overflow-y: auto;
+      box-shadow: var(--rb-shadow-lg);
+    }
+    #rb-sketch .rb-save-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    #rb-sketch .rb-save-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--rb-navy);
+    }
+    #rb-sketch .rb-save-close {
+      border: 1px solid var(--rb-border);
+      background: var(--rb-surface2);
+      color: var(--rb-text-muted);
+      border-radius: var(--rb-radius);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #rb-sketch .rb-save-instructions {
+      font-size: 12px;
+      color: var(--rb-text-muted);
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    #rb-sketch .rb-save-preview-wrap {
+      background: #fff;
+      border: 1px solid var(--rb-border);
+      border-radius: var(--rb-radius);
+      padding: 8px;
+      margin-bottom: 12px;
+    }
+    #rb-sketch .rb-save-preview {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+      -webkit-touch-callout: default;
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+    #rb-sketch .rb-save-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #rb-sketch .rb-save-actions .rb-btn { width: 100%; height: 44px; }
+
     @media (max-width: 720px) {
       #rb-sketch .rb-app { padding: 12px; }
       #rb-sketch .rb-logo-sub { display: none; }
@@ -219,7 +297,8 @@
       }
       #rb-sketch .rb-btn { flex: 1 1 calc(50% - 4px); min-width: 0; }
       #rb-sketch .rb-btn-finish,
-      #rb-sketch .rb-btn-save-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
+      #rb-sketch .rb-btn-save-jpg,
+      #rb-sketch .rb-btn-share-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
     }
   </style>
 </head>
@@ -241,13 +320,14 @@
       </p>
       <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish shape</button>
       <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
+      <button type="button" class="rb-btn rb-btn-ghost rb-btn-share-jpg" id="rb-btn-share-jpg">Share JPG</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo shape</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-clear">Clear all</button>
     </div>
 
     <p class="rb-hint rb-hint-save" id="rb-save-hint">
-      Tap <strong>Save JPG</strong> to attach in HouseCall Pro. On mobile, choose <strong>Save Image</strong> or pick the file when uploading photos in HCP.
+      <strong>Save JPG</strong> stores the file on your device. On iPhone, press and hold the preview image, then tap <strong>Save to Photos</strong>.
     </p>
 
     <div class="rb-canvas-wrap">
@@ -261,6 +341,25 @@
   </main>
 
   <div class="rb-toast" id="rb-toast"></div>
+
+  <div class="rb-save-overlay" id="rb-save-overlay" style="display:none">
+    <div class="rb-save-panel">
+      <div class="rb-save-header">
+        <span class="rb-save-title">Save JPG</span>
+        <button type="button" class="rb-save-close" id="rb-save-close">Done</button>
+      </div>
+      <p class="rb-save-instructions" id="rb-save-instructions">
+        Press and hold the image below, then tap <strong>Save to Photos</strong> or <strong>Add to Photos</strong>.
+      </p>
+      <div class="rb-save-preview-wrap">
+        <img class="rb-save-preview" id="rb-save-preview" alt="Ro-Berg site sketch">
+      </div>
+      <div class="rb-save-actions">
+        <button type="button" class="rb-btn rb-btn-secondary" id="rb-save-download">Download again</button>
+        <button type="button" class="rb-btn rb-btn-ghost" id="rb-save-share">Share to another app</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -274,11 +373,21 @@
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
+  var btnShareJpg = document.getElementById('rb-btn-share-jpg');
+  var saveOverlay = document.getElementById('rb-save-overlay');
+  var savePreview = document.getElementById('rb-save-preview');
+  var saveInstructions = document.getElementById('rb-save-instructions');
+  var saveCloseBtn = document.getElementById('rb-save-close');
+  var saveDownloadBtn = document.getElementById('rb-save-download');
+  var saveShareBtn = document.getElementById('rb-save-share');
 
   var completedShapes = [];
   var currentPoints = [];
   var cursorPoint = null;
   var toastTimer = null;
+  var pendingSaveBlob = null;
+  var pendingSaveFilename = '';
+  var pendingSaveUrl = null;
 
   var COLORS = {
     stroke: '#27235d',
@@ -532,23 +641,26 @@
       || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
-  function openBlobInNewTab(blob, label) {
-    var url = URL.createObjectURL(blob);
-    var tab = window.open(url, '_blank');
-    if (!tab) {
-      showToast('Allow pop-ups, then tap ' + label + ' again');
-      URL.revokeObjectURL(url);
-      return;
-    }
-    showToast('Opened — use the share icon to save');
-    setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+  function isIOSDevice() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
-  function triggerBlobDownload(blob, filename, isImage) {
-    if (isMobileDevice()) {
-      openBlobInNewTab(blob, 'Save JPG');
-      return;
+  function revokePendingSaveUrl() {
+    if (pendingSaveUrl) {
+      URL.revokeObjectURL(pendingSaveUrl);
+      pendingSaveUrl = null;
     }
+  }
+
+  function closeSaveOverlay() {
+    if (saveOverlay) saveOverlay.style.display = 'none';
+    revokePendingSaveUrl();
+    pendingSaveBlob = null;
+    pendingSaveFilename = '';
+  }
+
+  function triggerDirectDownload(blob, filename) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -560,46 +672,72 @@
     setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
   }
 
-  function saveBlobFile(blob, filename, opts) {
-    opts = opts || {};
-    var mime = opts.mime || blob.type || 'application/octet-stream';
-    var file = new File([blob], filename, { type: mime });
-    var savedToast = opts.savedToast || 'Saved';
-    var downloadToast = opts.downloadToast || 'Downloaded to your device';
-    var isImage = mime.indexOf('image/') === 0;
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      return navigator.share({
-        files: [file],
-        title: opts.shareTitle || 'Ro-Berg Site Sketch'
-      }).then(function() {
-        showToast(savedToast);
-      }).catch(function(err) {
-        if (err && err.name === 'AbortError') return;
-        triggerBlobDownload(blob, filename, isImage);
-        if (!isMobileDevice()) showToast(downloadToast);
-      });
+  function showSaveOverlay(blob, filename) {
+    revokePendingSaveUrl();
+    pendingSaveBlob = blob;
+    pendingSaveFilename = filename;
+    pendingSaveUrl = URL.createObjectURL(blob);
+    if (savePreview) savePreview.src = pendingSaveUrl;
+    if (saveInstructions) {
+      saveInstructions.innerHTML = isIOSDevice()
+        ? 'Press and hold the image below, then tap <strong>Save to Photos</strong> or <strong>Add to Photos</strong>.'
+        : 'Image saved — also available below. Press and hold to save, or tap <strong>Download again</strong>.';
     }
+    if (saveOverlay) saveOverlay.style.display = 'flex';
+  }
 
-    if (window.showSaveFilePicker && opts.pickerTypes) {
+  function saveJpgToDevice(blob, filename) {
+    if (window.showSaveFilePicker) {
       return window.showSaveFilePicker({
         suggestedName: filename,
-        types: opts.pickerTypes
+        types: [{ description: 'JPEG image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }]
       }).then(function(handle) {
         return handle.createWritable();
       }).then(function(writable) {
         return writable.write(blob).then(function() { return writable.close(); });
       }).then(function() {
-        showToast(savedToast);
+        showToast('JPG saved to your chosen folder');
       }).catch(function(err) {
         if (err && err.name === 'AbortError') return;
-        triggerBlobDownload(blob, filename, isImage);
-        if (!isMobileDevice()) showToast(downloadToast);
+        return saveJpgToDeviceFallback(blob, filename);
       });
     }
+    return saveJpgToDeviceFallback(blob, filename);
+  }
 
-    triggerBlobDownload(blob, filename, isImage);
-    if (!isMobileDevice()) showToast(downloadToast);
+  function saveJpgToDeviceFallback(blob, filename) {
+    triggerDirectDownload(blob, filename);
+
+    if (isIOSDevice()) {
+      showSaveOverlay(blob, filename);
+      showToast('Press and hold the image to save to Photos');
+      return Promise.resolve();
+    }
+
+    if (isMobileDevice()) {
+      showSaveOverlay(blob, filename);
+      showToast('Saved — check Downloads, or use the preview below');
+      return Promise.resolve();
+    }
+
+    showToast('JPG saved to Downloads');
+    return Promise.resolve();
+  }
+
+  function shareJpgFile(blob, filename) {
+    var file = new File([blob], filename, { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({
+        files: [file],
+        title: 'Ro-Berg Site Sketch'
+      }).then(function() {
+        showToast('Shared');
+      }).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        showToast('Could not share — use Save JPG instead');
+      });
+    }
+    showToast('Sharing is not available here — use Save JPG');
     return Promise.resolve();
   }
 
@@ -616,35 +754,43 @@
     };
   }
 
-  function exportJpg() {
+  function buildJpgExport() {
     if (!completedShapes.length) {
       showToast('Draw at least one finished shape first');
-      return;
+      return null;
     }
-
-    btnExportJpg.disabled = true;
     var restore = prepareExportCanvas();
-
     try {
       var exportImage = captureExportImage(true);
       var blob = buildJpegBlob(exportImage);
       var stamp = new Date().toISOString().slice(0, 10);
-      var filename = 'roberg-sketch-' + stamp + '.jpg';
-      saveBlobFile(blob, filename, {
-        mime: 'image/jpeg',
-        shareTitle: 'Ro-Berg Site Sketch',
-        savedToast: 'Saved — choose Save Image for Photos or attach in HCP',
-        downloadToast: 'JPG downloaded — ready to attach in HouseCall Pro',
-        pickerTypes: [{ description: 'JPEG image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }]
-      }).catch(function(err) {
-        showToast((err && err.message) ? err.message : 'Could not save JPG — try again');
-      });
+      return { blob: blob, filename: 'roberg-sketch-' + stamp + '.jpg' };
     } catch (err) {
-      showToast(err.message || 'Could not save JPG — try again');
+      showToast(err.message || 'Could not create JPG — try again');
+      return null;
     } finally {
       restore();
-      btnExportJpg.disabled = false;
     }
+  }
+
+  function exportJpg() {
+    btnExportJpg.disabled = true;
+    var result = buildJpgExport();
+    if (result) {
+      saveJpgToDevice(result.blob, result.filename).catch(function(err) {
+        showToast((err && err.message) ? err.message : 'Could not save JPG — try again');
+      });
+    }
+    btnExportJpg.disabled = false;
+  }
+
+  function shareJpg() {
+    btnShareJpg.disabled = true;
+    var result = buildJpgExport();
+    if (result) {
+      shareJpgFile(result.blob, result.filename);
+    }
+    btnShareJpg.disabled = false;
   }
 
   canvas.addEventListener('pointerdown', function(e) {
@@ -695,6 +841,20 @@
   btnUndoShape.addEventListener('click', undoShape);
   btnClear.addEventListener('click', clearAll);
   btnExportJpg.addEventListener('click', exportJpg);
+  btnShareJpg.addEventListener('click', shareJpg);
+  saveCloseBtn.addEventListener('click', closeSaveOverlay);
+  saveOverlay.addEventListener('click', function(e) {
+    if (e.target === saveOverlay) closeSaveOverlay();
+  });
+  saveDownloadBtn.addEventListener('click', function() {
+    if (!pendingSaveBlob || !pendingSaveFilename) return;
+    triggerDirectDownload(pendingSaveBlob, pendingSaveFilename);
+    showToast('Download started again');
+  });
+  saveShareBtn.addEventListener('click', function() {
+    if (!pendingSaveBlob || !pendingSaveFilename) return;
+    shareJpgFile(pendingSaveBlob, pendingSaveFilename);
+  });
 
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
