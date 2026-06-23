@@ -8,159 +8,16 @@
 </head>
 <body>
 <style>
-  /* Hide sidebar and Divi/WP remnants */
-  #sidebar,
-  #secondary,
-  aside#secondary,
-  .et_pb_widget_area,
-  .widget-area,
-  .sidebar,
-  .search-form,
-  .et_pb_search,
-  .widget_search,
-  .wp-block-search {
-    display: none !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #top-header,
-  #main-header,
-  #et-top-navigation,
-  #et_mobile_nav_menu,
-  .et-l--header,
-  header.et-l--header,
-  .et_pb_menu,
-  .et_pb_fullwidth_menu,
-  .et_pb_section_0_tb_header,
-  .et_pb_section_1_tb_header {
-    display: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    max-height: 0 !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #page-container,
-  .et_fixed_nav #page-container,
-  .et_non_fixed_nav.et_transparent_nav #page-container {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }
-
-  #content-area,
-  #left-area,
-  #main-content,
-  #main-content .container,
-  .container,
-  .et_pb_row,
-  .et_pb_column,
-  .et_pb_module,
-  .et_pb_code,
-  .et_pb_code_inner {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    float: none !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #content-area,
-  #left-area,
-  #main-content .container,
-  .container {
-    padding: 0 !important;
-  }
-
-  #left-area {
-    border: none !important;
-  }
-
-  #main-content,
-  .entry-content,
-  article,
-  .post,
-  .page,
-  .et_pb_post {
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #content-area::before, #content-area::after,
-  #left-area::before, #left-area::after,
-  #main-content::before, #main-content::after,
-  .container::before, .container::after,
-  .entry-content::before, .entry-content::after {
-    display: none !important;
-    content: none !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  body.page { overflow-x: clip; }
-
-  /* Prevent any child from widening the page on mobile */
   html, body {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
     margin: 0;
     padding: 0;
-  }
-
-  #rb-estimator {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin: 0 auto;
     overflow-x: clip;
-    position: relative;
-    left: 0;
-    right: 0;
   }
 
-  h1.entry-title,
-  .et_pb_title_container,
-  .et_pb_title_container h1,
-  .et_main_title h1 {
-    position: absolute !important;
-    width: 1px !important; height: 1px !important;
-    padding: 0 !important; margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0,0,0,0) !important;
-    clip-path: inset(50%) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-  }
-
-  footer .footer-links,
-  footer .footer-links a,
-  footer .footer-links a:visited,
-  footer .footer-links a:hover,
-  footer .footer-links a:focus,
-  .entry-content footer .footer-links a {
-    background: none !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+  body {
+    background: #f0f1f1;
   }
 </style>
 

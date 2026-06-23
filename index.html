@@ -1,134 +1,14 @@
 <style>
-  /* Hide sidebar and Divi/WP remnants */
-  #sidebar,
-  #secondary,
-  aside#secondary,
-  .et_pb_widget_area,
-  .widget-area,
-  .sidebar,
-  .search-form,
-  .et_pb_search,
-  .widget_search,
-  .wp-block-search {
-    display: none !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  /* Hide the existing WordPress/Divi header so only this page's custom header shows */
-  #top-header,
-  #main-header,
-  #et-top-navigation,
-  #et_mobile_nav_menu,
-  .et-l--header,
-  header.et-l--header,
-  .et_pb_menu,
-  .et_pb_fullwidth_menu,
-  .et_pb_section_0_tb_header,
-  .et_pb_section_1_tb_header {
-    display: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    max-height: 0 !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #page-container,
-  .et_fixed_nav #page-container,
-  .et_non_fixed_nav.et_transparent_nav #page-container {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }
-  
-  /* Force Divi's content area to full width */
-  #content-area,
-  #left-area,
-  #main-content .container,
-  .container {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-  
-  #left-area {
-    padding-right: 0 !important;
-    float: none !important;
-    border: none !important;
-  }
-  
-  #main-content,
-  .entry-content,
-  article,
-  .post,
-  .page,
-  .et_pb_post {
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-  
-  #content-area::before,
-  #content-area::after,
-  #left-area::before,
-  #left-area::after,
-  #main-content::before,
-  #main-content::after,
-  .container::before,
-  .container::after,
-  .entry-content::before,
-  .entry-content::after {
-    display: none !important;
-    content: none !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-  
-  body.page { 
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
     overflow-x: clip;
   }
 
-  /* Single H1: hide Divi/WordPress auto page title; hero title is the page H1 */
-  h1.entry-title,
-  .et_pb_title_container,
-  .et_pb_title_container h1,
-  .et_main_title h1 {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    clip-path: inset(50%) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-  }
-
-  /* Footer nav: strip Divi white link/button boxes */
-  footer .footer-links,
-  footer .footer-links a,
-  footer .footer-links a:visited,
-  footer .footer-links a:hover,
-  footer .footer-links a:focus,
-  .entry-content footer .footer-links a {
-    background: none !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+  body {
+    background: #f0f1f1;
   }
 </style>
 
@@ -140,10 +20,7 @@
 <title>Ro-Berg Estimator</title>
 </head>
 <body>
-<!-- ============================================================
-     RO-BERG ESTIMATOR — standalone file version
-     All styles/fonts self-contained for use outside WordPress
-     ============================================================ -->
+<!-- Ro-Berg Estimator — standalone HTML app -->
 <div id="rb-estimator">
 
   <div class="rb-header">
@@ -190,10 +67,9 @@
 </div>
 
 <style>
-/* Google Fonts loaded here so it works in both standalone and WP block */
+/* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;500;600&display=swap');
 
-/* ALL selectors scoped to #rb-estimator — zero bleed into WP theme */
 #rb-estimator {
   --rb-blue:       #72a5b7;
   --rb-blue-dark:  #5a8fa0;
@@ -373,7 +249,7 @@
   outline: none; width: 100%;
   -webkit-appearance: none; appearance: none;
   transition: border-color 0.15s;
-  /* override any WP theme input styles */
+  /* Scoped input resets */
   box-shadow: none !important;
   border-radius: var(--rb-radius) !important;
 }
@@ -541,7 +417,7 @@
 
 <script>
 (function() {
-  // Wrapped in IIFE — no global variable pollution in WordPress
+  // Wrapped in IIFE — no global variable pollution
   var RATE_SALE = 16, RATE_COST = 6, CONVERSION = 120, MINIMUM = 163;
   var CATEGORIES = ['Driveway','Sidewalk','Patio','Pool deck','Garage','Other'];
   var COPY_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-flex;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -584,9 +460,6 @@
   }
 
   function fmt(n) { return '$' + n.toLocaleString('en-US'); }
-  // NOTE: WordPress content filters encode `&` to `&#038;` inside <script> blocks,
-  // which corrupts `&&` into a JS syntax error. We avoid the `&` character entirely
-  // in this script by replacing logical-AND with ternary / if-cascade forms.
   function isReady(p) {
     if (!p.length) return false;
     if (!p.width)  return false;
