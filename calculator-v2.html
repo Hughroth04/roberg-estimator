@@ -299,6 +299,7 @@
             <button class="rb-btn-change-cust" id="rb-btn-change-cust">Change</button>
           </div>
 
+          <div class="rb-customer-step-error" id="rb-customer-step-error" style="display:none"></div>
           <button class="rb-btn-next" id="rb-btn-next-step">Next: Review Panels →</button>
         </div>
 
@@ -795,6 +796,28 @@
 #rb-estimator .rb-result-name { font-weight: 600; color: var(--rb-navy); }
 #rb-estimator .rb-result-detail { font-size: 11px; color: var(--rb-text-muted); margin-top: 2px; }
 #rb-estimator .rb-no-results { padding: 12px; font-size: 13px; color: var(--rb-text-muted); text-align: center; }
+#rb-estimator .rb-search-status {
+  padding: 14px 12px; font-size: 13px; color: var(--rb-text-muted); text-align: center;
+}
+#rb-estimator .rb-search-status.rb-search-loading {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+#rb-estimator .rb-search-mini-spinner {
+  width: 16px; height: 16px; border: 2px solid var(--rb-border);
+  border-top-color: var(--rb-blue); border-radius: 50%;
+  animation: rb-spin 0.8s linear infinite; flex-shrink: 0;
+}
+#rb-estimator .rb-search-status.rb-search-empty { color: var(--rb-text-hint); font-style: italic; }
+#rb-estimator .rb-search-status.rb-search-error { color: #b03030; }
+
+#rb-estimator .rb-modal-input.rb-input-error {
+  border-color: #d06060 !important;
+  box-shadow: 0 0 0 3px rgba(208,96,96,0.18) !important;
+}
+#rb-estimator .rb-customer-step-error {
+  background: #fef0f0; border: 1px solid #e8b0b0; border-radius: var(--rb-radius);
+  color: #a03030; font-size: 13px; padding: 10px 12px; margin-top: 4px; margin-bottom: 8px;
+}
 
 #rb-estimator .rb-divider-or {
   display: flex; align-items: center; gap: 10px;
@@ -2032,6 +2055,10 @@
   var actionSheetOptionId = null;
   var selectedCustomerId = null, selectedCustomerName = null;
   var isProcessingPhotos = false;
+  var custSearchDebounceTimer = null;
+  var custSearchSeq = 0;
+  var CUST_SEARCH_DEBOUNCE_MS = 300;
+  var CUSTOMER_FIELD_IDS = ['rb-first-name', 'rb-last-name', 'rb-phone', 'rb-email', 'rb-street', 'rb-city', 'rb-state', 'rb-zip'];
 
   function disclaimers(lbs) {
     return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
@@ -3067,6 +3094,103 @@
     return { ok: true };
   }
 
+  function cancelCustomerSearchDebounce() {
+    if (custSearchDebounceTimer) {
+      clearTimeout(custSearchDebounceTimer);
+      custSearchDebounceTimer = null;
+    }
+  }
+
+  function hideSearchResults() {
+    var resultsEl = document.getElementById('rb-search-results');
+    if (resultsEl) {
+      resultsEl.style.display = 'none';
+      resultsEl.innerHTML = '';
+    }
+  }
+
+  function renderSearchStatus(kind, message) {
+    var resultsEl = document.getElementById('rb-search-results');
+    if (!resultsEl) return;
+    resultsEl.style.display = 'block';
+    if (kind === 'loading') {
+      resultsEl.innerHTML = '<div class="rb-search-status rb-search-loading">'
+        + '<span class="rb-search-mini-spinner" aria-hidden="true"></span>'
+        + '<span>' + escapeHtml(message || 'Searching\u2026') + '</span>'
+        + '</div>';
+      return;
+    }
+    var cls = 'rb-search-status';
+    if (kind === 'empty') cls += ' rb-search-empty';
+    if (kind === 'error') cls += ' rb-search-error';
+    resultsEl.innerHTML = '<div class="' + cls + '">' + escapeHtml(message) + '</div>';
+  }
+
+  function clearCustomerFieldErrors() {
+    CUSTOMER_FIELD_IDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('rb-input-error');
+    });
+  }
+
+  function showCustomerStepError(msg) {
+    var el = document.getElementById('rb-customer-step-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideCustomerStepError() {
+    var el = document.getElementById('rb-customer-step-error');
+    if (el) {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+  }
+
+  function readNewCustomerForm() {
+    return {
+      first:  document.getElementById('rb-first-name').value.trim(),
+      last:   document.getElementById('rb-last-name').value.trim(),
+      phone:  document.getElementById('rb-phone').value.trim(),
+      email:  document.getElementById('rb-email').value.trim(),
+      street: document.getElementById('rb-street').value.trim(),
+      city:   document.getElementById('rb-city').value.trim(),
+      state:  document.getElementById('rb-state').value.trim().toUpperCase(),
+      zip:    document.getElementById('rb-zip').value.trim()
+    };
+  }
+
+  function validateCustomerStep() {
+    if (selectedCustomerId) return { ok: true };
+    var f = readNewCustomerForm();
+    var fieldIds = [];
+    if (!f.first) fieldIds.push('rb-first-name');
+    if (!f.last) fieldIds.push('rb-last-name');
+    if (!f.first || !f.last) {
+      return {
+        ok: false,
+        reason: 'First and last name are required.',
+        fieldIds: fieldIds,
+        focusId: fieldIds[0] || 'rb-first-name'
+      };
+    }
+    fieldIds = [];
+    if (!f.street) fieldIds.push('rb-street');
+    if (!f.city) fieldIds.push('rb-city');
+    if (!f.state) fieldIds.push('rb-state');
+    if (!f.zip) fieldIds.push('rb-zip');
+    if (fieldIds.length) {
+      return {
+        ok: false,
+        reason: 'Complete service address is required (street, city, state, and ZIP).',
+        fieldIds: fieldIds,
+        focusId: fieldIds[0]
+      };
+    }
+    return { ok: true };
+  }
+
   function openModal() {
     var check = validateEstimateReady();
     if (!check.ok) { showToast(check.reason); return; }
@@ -3075,7 +3199,11 @@
     document.getElementById('rb-selected-customer').style.display = 'none';
     document.getElementById('rb-new-cust-form').style.display = 'block';
     document.getElementById('rb-cust-search').value = '';
-    document.getElementById('rb-search-results').style.display = 'none';
+    cancelCustomerSearchDebounce();
+    custSearchSeq++;
+    hideSearchResults();
+    clearCustomerFieldErrors();
+    hideCustomerStepError();
     document.getElementById('rb-modal').style.display = 'flex';
     // Ping the server to wake it up (public endpoint, no auth)
     apiFetch('/health').catch(function(){});
@@ -3090,32 +3218,60 @@
     });
   }
 
-  function searchCustomers() {
-    var q = document.getElementById('rb-cust-search').value.trim();
-    if (!q) { showToast('Enter a name, phone, or email to search'); return; }
-    var resultsEl = document.getElementById('rb-search-results');
-    resultsEl.style.display = 'block';
-    resultsEl.innerHTML = '<div class="rb-no-results">Searching…</div>';
+  function searchCustomers(immediate) {
+    cancelCustomerSearchDebounce();
+    var input = document.getElementById('rb-cust-search');
+    var q = input ? input.value.trim() : '';
+    if (!q) {
+      custSearchSeq++;
+      hideSearchResults();
+      if (immediate) showToast('Enter a name, phone, or email to search');
+      return;
+    }
+    var seq = ++custSearchSeq;
+    renderSearchStatus('loading');
     apiFetch('/api/customers/search?q=' + encodeURIComponent(q))
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (seq !== custSearchSeq) return;
+        var currentQ = (document.getElementById('rb-cust-search') || {}).value;
+        if ((currentQ || '').trim() !== q) return;
         var customers = data.customers || data.data || [];
+        var resultsEl = document.getElementById('rb-search-results');
+        if (!resultsEl) return;
         if (!customers.length) {
-          resultsEl.innerHTML = '<div class="rb-no-results">No customers found — add as new below</div>';
+          renderSearchStatus('empty', 'No customers found \u2014 add as new below');
           return;
         }
+        resultsEl.style.display = 'block';
         resultsEl.innerHTML = customers.map(function(c) {
-          var name = (c.first_name||'') + ' ' + (c.last_name||'');
-          var detail = [c.email, c.mobile_number||c.home_number].filter(Boolean).join(' · ');
-          return '<div class="rb-search-result-item" data-id="'+c.id+'" data-name="'+name.trim()+'">'+
-            '<div class="rb-result-name">'+name.trim()+'</div>'+
-            (detail ? '<div class="rb-result-detail">'+detail+'</div>' : '')+
-            '</div>';
+          var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+          var detail = [c.email, c.mobile_number || c.home_number].filter(Boolean).join(' \u00b7 ');
+          return '<div class="rb-search-result-item" data-id="' + escapeAttr(c.id) + '" data-name="' + escapeAttr(name) + '">'
+            + '<div class="rb-result-name">' + escapeHtml(name) + '</div>'
+            + (detail ? '<div class="rb-result-detail">' + escapeHtml(detail) + '</div>' : '')
+            + '</div>';
         }).join('');
       })
-      .catch(function(e) {
-        resultsEl.innerHTML = '<div class="rb-no-results">Search failed — check your connection</div>';
+      .catch(function() {
+        if (seq !== custSearchSeq) return;
+        renderSearchStatus('error', 'Search failed \u2014 check your connection');
       });
+  }
+
+  function scheduleCustomerSearch() {
+    cancelCustomerSearchDebounce();
+    var input = document.getElementById('rb-cust-search');
+    var q = input ? input.value.trim() : '';
+    if (!q) {
+      custSearchSeq++;
+      hideSearchResults();
+      return;
+    }
+    custSearchDebounceTimer = setTimeout(function() {
+      custSearchDebounceTimer = null;
+      searchCustomers(false);
+    }, CUST_SEARCH_DEBOUNCE_MS);
   }
 
   function selectCustomer(id, name) {
@@ -3123,7 +3279,11 @@
     document.getElementById('rb-selected-name').textContent = name;
     document.getElementById('rb-selected-customer').style.display = 'flex';
     document.getElementById('rb-new-cust-form').style.display = 'none';
-    document.getElementById('rb-search-results').style.display = 'none';
+    cancelCustomerSearchDebounce();
+    custSearchSeq++;
+    hideSearchResults();
+    clearCustomerFieldErrors();
+    hideCustomerStepError();
     showToast(name + ' selected');
   }
 
@@ -3161,6 +3321,27 @@
   }
 
   function goToReview() {
+    clearCustomerFieldErrors();
+    hideCustomerStepError();
+    var custCheck = validateCustomerStep();
+    if (!custCheck.ok) {
+      showCustomerStepError(custCheck.reason);
+      if (custCheck.fieldIds) {
+        custCheck.fieldIds.forEach(function(fid) {
+          var el = document.getElementById(fid);
+          if (el) el.classList.add('rb-input-error');
+        });
+      }
+      if (custCheck.focusId) {
+        var focusEl = document.getElementById(custCheck.focusId);
+        if (focusEl) {
+          try { focusEl.focus(); } catch (_) {}
+          focusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
+      return;
+    }
+
     var reviewList = document.getElementById('rb-review-list');
     var grand = 0;
 
@@ -3229,26 +3410,23 @@
       return;
     }
 
-    // Create new customer first
-    var first  = document.getElementById('rb-first-name').value.trim();
-    var last   = document.getElementById('rb-last-name').value.trim();
-    var phone  = document.getElementById('rb-phone').value.trim();
-    var email  = document.getElementById('rb-email').value.trim();
-    var street = document.getElementById('rb-street').value.trim();
-    var city   = document.getElementById('rb-city').value.trim();
-    var state  = document.getElementById('rb-state').value.trim().toUpperCase();
-    var zip    = document.getElementById('rb-zip').value.trim();
-
-    if (!first || !last) {
-      showStep('review');
-      showToast('First and last name are required');
+    // Create new customer first (validated on step 1; re-check as safety net)
+    var custCheck = validateCustomerStep();
+    if (!custCheck.ok) {
+      showStep('customer');
+      showCustomerStepError(custCheck.reason);
+      if (custCheck.fieldIds) {
+        custCheck.fieldIds.forEach(function(fid) {
+          var el = document.getElementById(fid);
+          if (el) el.classList.add('rb-input-error');
+        });
+      }
+      showToast(custCheck.reason);
       return;
     }
-    if (!street || !city || !state || !zip) {
-      showStep('review');
-      showToast('Complete service address is required');
-      return;
-    }
+    var f = readNewCustomerForm();
+    var first = f.first, last = f.last, phone = f.phone, email = f.email;
+    var street = f.street, city = f.city, state = f.state, zip = f.zip;
 
     document.getElementById('rb-loading-msg').textContent = 'Creating customer\u2026';
 
@@ -3430,7 +3608,7 @@
       if (tid === 'rb-btn-reset')         { resetAll(); return; }
       if (tid === 'rb-btn-hcp')           { openModal(); return; }
       if (tid === 'rb-modal-close')       { closeModal(); return; }
-      if (tid === 'rb-btn-search-cust')   { searchCustomers(); return; }
+      if (tid === 'rb-btn-search-cust')   { searchCustomers(true); return; }
       if (tid === 'rb-btn-next-step')     { goToReview(); return; }
       if (tid === 'rb-btn-back-step')     { showStep('customer'); return; }
       if (tid === 'rb-btn-send')          { sendToHCP(); return; }
@@ -3449,6 +3627,8 @@
         selectedCustomerId = null; selectedCustomerName = null;
         document.getElementById('rb-selected-customer').style.display = 'none';
         document.getElementById('rb-new-cust-form').style.display = 'block';
+        clearCustomerFieldErrors();
+        hideCustomerStepError();
         return;
       }
       if (t.classList.contains('rb-btn-remove'))          { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
@@ -3457,11 +3637,26 @@
       if (t.classList.contains('rb-toast-undo-btn'))      { performUndo(); return; }
     });
 
-    // Search on Enter key
+    // Customer search: debounced as-you-type, immediate on Enter or Search button
     var searchInput = document.getElementById('rb-cust-search');
     if (searchInput) {
-      searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') searchCustomers(); });
+      searchInput.addEventListener('input', scheduleCustomerSearch);
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchCustomers(true);
+        }
+      });
     }
+
+    CUSTOMER_FIELD_IDS.forEach(function(fid) {
+      var el = document.getElementById(fid);
+      if (!el) return;
+      el.addEventListener('input', function() {
+        el.classList.remove('rb-input-error');
+        hideCustomerStepError();
+      });
+    });
 
     // Login form: submit via Enter key or Sign In button (also lets password managers save).
     var loginForm = document.getElementById('rb-login-form');
