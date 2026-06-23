@@ -31,7 +31,7 @@
       <div class="rb-logo-divider"></div>
       <span class="rb-logo-sub">Field Estimator</span>
     </div>
-    <a class="rb-nav-link" href="sketch.html">Site Sketch</a>
+    <a class="rb-nav-link" href="sketch.html" id="rb-nav-sketch">Site Sketch</a>
   </div>
 
   <div class="rb-total-bar" id="rb-total-bar">
@@ -1996,6 +1996,8 @@
 
   // ── Draft persistence (localStorage) ──
   var DRAFT_KEY = 'rb_estimate_draft';
+  var SKETCH_ATTACH_CTX_KEY = 'rb_sketch_attach_ctx';
+  var SKETCH_PENDING_KEY = 'rb_pending_sketch_attachment';
   var DRAFT_VERSION = 1;
   var DRAFT_SAVE_MS = 500;
   var draftSaveTimer = null;
@@ -2181,17 +2183,17 @@
   function initEstimateState() {
     if (loadDraft()) {
       draftRestoredOnLoad = true;
-      renderAll();
       if (draftPhotosOmitted) {
         showToast('Draft restored (photos were not saved — re-add if needed)');
       } else {
         showToast('Draft restored');
       }
-      return;
+    } else {
+      seedDefaultOptions();
+      addPanel();
     }
-    seedDefaultOptions();
-    addPanel();
     renderAll();
+    consumePendingSketchAttachment();
   }
 
   function disclaimers(lbs) {
@@ -3030,6 +3032,87 @@
     opt.photos = opt.photos.filter(function(p) { return p.id !== photoId; });
     renderPhotosStrip();
     scheduleDraftSave();
+  }
+
+  function addPhotoFromDataUrl(dataUrl, fileName, optionId) {
+    var opt = optionId != null
+      ? options.find(function(o) { return o.id === optionId; })
+      : getActiveOption();
+    if (!opt) return Promise.resolve(false);
+    if (opt.photos.length >= MAX_PHOTOS_PER_OPTION) {
+      showToast('Already at the ' + MAX_PHOTOS_PER_OPTION + '-photo limit for this option');
+      return Promise.resolve(false);
+    }
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var scaled = downscaleToJpegDataUrl(img);
+        opt.photos.push({
+          id: nextPhotoId++,
+          fileName: sanitizeFileName(fileName || 'site-sketch.jpg'),
+          dataUrl: scaled,
+          sizeBytes: approxDataUrlBytes(scaled)
+        });
+        activeOptionId = opt.id;
+        renderAll();
+        scheduleDraftSave();
+        resolve(true);
+      };
+      img.onerror = function() {
+        showToast('Could not attach sketch image');
+        resolve(false);
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  function consumePendingSketchAttachment() {
+    var raw;
+    try { raw = sessionStorage.getItem(SKETCH_PENDING_KEY); } catch (e) { return; }
+    if (!raw) return;
+    try { sessionStorage.removeItem(SKETCH_PENDING_KEY); } catch (e2) {}
+    try { sessionStorage.removeItem(SKETCH_ATTACH_CTX_KEY); } catch (e3) {}
+    var pending;
+    try { pending = JSON.parse(raw); } catch (e4) { return; }
+    if (!pending || !pending.dataUrl) return;
+
+    var opt = pending.optionId != null
+      ? options.find(function(o) { return o.id === pending.optionId; })
+      : getActiveOption();
+    if (!opt) {
+      showToast('Could not attach sketch — option not found');
+      return;
+    }
+    addPhotoFromDataUrl(pending.dataUrl, pending.fileName, opt.id).then(function(ok) {
+      if (ok) {
+        var label = pending.optionName || opt.name || 'this option';
+        showToast('Site sketch attached to ' + label);
+      }
+    });
+  }
+
+  function openSketchForAttach(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    var opt = getActiveOption();
+    if (!opt) {
+      showToast('Start an estimate first');
+      return;
+    }
+    saveDraftNow();
+    try {
+      sessionStorage.setItem(SKETCH_ATTACH_CTX_KEY, JSON.stringify({
+        optionId: opt.id,
+        optionName: opt.name || ('Option ' + opt.defaultNumber),
+        returnTo: 'calculator-v2.html'
+      }));
+    } catch (err) {
+      showToast('Could not open sketch — try again');
+      return;
+    }
+    window.location.href = 'sketch.html?attach=1';
   }
 
   function renderPhotosStrip() {
@@ -3910,6 +3993,9 @@
     }
 
     window.addEventListener('pagehide', saveDraftNow);
+
+    var sketchNav = document.getElementById('rb-nav-sketch');
+    if (sketchNav) sketchNav.addEventListener('click', openSketchForAttach);
 
     // Login form: submit via Enter key or Sign In button (also lets password managers save).
     var loginForm = document.getElementById('rb-login-form');

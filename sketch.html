@@ -306,6 +306,7 @@
       }
       #rb-sketch .rb-btn { flex: 1 1 calc(50% - 4px); min-width: 0; }
       #rb-sketch .rb-btn-finish,
+      #rb-sketch .rb-btn-attach,
       #rb-sketch .rb-btn-save-jpg,
       #rb-sketch .rb-btn-share-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
     }
@@ -328,6 +329,7 @@
         8.5″ × 11″ page — draw inside the grid below the header.
       </p>
       <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish shape</button>
+      <button type="button" class="rb-btn rb-btn-primary rb-btn-attach" id="rb-btn-attach" style="display:none" disabled>Attach to estimate</button>
       <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
       <button type="button" class="rb-btn rb-btn-ghost rb-btn-share-jpg" id="rb-btn-share-jpg">Share JPG</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
@@ -380,8 +382,10 @@
   var btnFinish = document.getElementById('rb-btn-finish');
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
+  var btnAttach = document.getElementById('rb-btn-attach');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
   var btnShareJpg = document.getElementById('rb-btn-share-jpg');
+  var saveHintEl = document.getElementById('rb-save-hint');
   var saveOverlay = document.getElementById('rb-save-overlay');
   var savePreview = document.getElementById('rb-save-preview');
   var saveInstructions = document.getElementById('rb-save-instructions');
@@ -417,6 +421,12 @@
   var HEADER_HEIGHT_RATIO = 0.036;
   var JPEG_QUALITY = 0.97;
   var GRID_STEP = Math.round(LETTER_WIDTH / 30);
+  var ATTACH_CTX_KEY = 'rb_sketch_attach_ctx';
+  var PENDING_ATTACH_KEY = 'rb_pending_sketch_attachment';
+  var ATTACH_MAX_DIM = 1920;
+  var ATTACH_JPEG_QUALITY = 0.75;
+  var attachCtx = null;
+  var isAttachMode = false;
   var STROKE_WIDTH = 5;
   var VERTEX_RADIUS = 10;
   var MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.014);
@@ -565,13 +575,44 @@
     };
   }
 
+  function readAttachContext() {
+    try {
+      var raw = sessionStorage.getItem(ATTACH_CTX_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  function initAttachMode() {
+    var params = new URLSearchParams(window.location.search);
+    attachCtx = readAttachContext();
+    isAttachMode = params.get('attach') === '1' && attachCtx && attachCtx.optionId != null;
+    if (!isAttachMode || !btnAttach) return;
+    btnAttach.style.display = '';
+    var label = attachCtx.optionName || 'your estimate';
+    if (saveHintEl) {
+      saveHintEl.innerHTML = 'Draw your site sketch, finish each shape, then tap <strong>Attach to estimate</strong> to add it to <strong>'
+        + String(label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        + '</strong>.';
+    }
+  }
+
   function updateUi() {
     var n = currentPoints.length;
     btnUndo.disabled = n === 0;
     btnFinish.disabled = n < 2;
     btnUndoShape.disabled = completedShapes.length === 0;
+    if (btnAttach) {
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0;
+    }
     if (n === 0) {
-      statusEl.innerHTML = 'Tap the first corner. Next lines snap horizontal, vertical, or diagonal.';
+      if (isAttachMode && completedShapes.length) {
+        statusEl.innerHTML = 'Sketch ready — tap <strong>Attach to estimate</strong> to return to the estimator.';
+      } else if (isAttachMode) {
+        statusEl.innerHTML = 'Draw on the grid, finish each shape, then attach to your open estimate.';
+      } else {
+        statusEl.innerHTML = 'Tap the first corner. Next lines snap horizontal, vertical, or diagonal.';
+      }
     } else if (n === 1) {
       statusEl.innerHTML = '<strong>1</strong> corner placed — add at least one more, then finish.';
     } else {
@@ -939,6 +980,83 @@
     btnShareJpg.disabled = false;
   }
 
+  function approxDataUrlBytes(dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    if (comma < 0) return 0;
+    var b64 = dataUrl.slice(comma + 1);
+    var padding = (b64.indexOf('=') >= 0) ? b64.length - b64.indexOf('=') : 0;
+    return Math.floor(b64.length * 0.75) - padding;
+  }
+
+  function downscaleDataUrlForAttach(dataUrl) {
+    return new Promise(function(resolve, reject) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        var scale = Math.min(1, ATTACH_MAX_DIM / Math.max(w, h));
+        var tw = Math.max(1, Math.round(w * scale));
+        var th = Math.max(1, Math.round(h * scale));
+        var c = document.createElement('canvas');
+        c.width = tw;
+        c.height = th;
+        c.getContext('2d').drawImage(img, 0, 0, tw, th);
+        resolve(c.toDataURL('image/jpeg', ATTACH_JPEG_QUALITY));
+      };
+      img.onerror = function() { reject(new Error('Could not prepare sketch')); };
+      img.src = dataUrl;
+    });
+  }
+
+  function attachToEstimate() {
+    if (!isAttachMode || !attachCtx) {
+      showToast('Open the sketch from the estimator to attach');
+      return;
+    }
+    if (!completedShapes.length) {
+      showToast('Draw at least one finished shape first');
+      return;
+    }
+    if (currentPoints.length) {
+      showToast('Finish or cancel the current shape first');
+      return;
+    }
+    btnAttach.disabled = true;
+    var restore = prepareExportCanvas();
+    var exportImage;
+    try {
+      exportImage = captureExportImage(true);
+    } catch (err) {
+      restore();
+      btnAttach.disabled = false;
+      showToast(err.message || 'Could not export sketch');
+      return;
+    }
+    restore();
+
+    downscaleDataUrlForAttach(exportImage.dataUrl).then(function(dataUrl) {
+      var stamp = new Date().toISOString().slice(0, 10);
+      var fileName = 'roberg-sketch-' + stamp + '.jpg';
+      try {
+        sessionStorage.setItem(PENDING_ATTACH_KEY, JSON.stringify({
+          optionId: attachCtx.optionId,
+          optionName: attachCtx.optionName,
+          dataUrl: dataUrl,
+          fileName: fileName,
+          sizeBytes: approxDataUrlBytes(dataUrl)
+        }));
+      } catch (e) {
+        showToast('Sketch too large — use Save JPG and add manually');
+        btnAttach.disabled = false;
+        return;
+      }
+      window.location.href = attachCtx.returnTo || 'calculator-v2.html';
+    }).catch(function(err) {
+      btnAttach.disabled = false;
+      showToast((err && err.message) ? err.message : 'Could not attach sketch');
+    });
+  }
+
   canvas.addEventListener('pointerdown', function(e) {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     canvas.setPointerCapture(e.pointerId);
@@ -989,6 +1107,7 @@
   btnClear.addEventListener('click', clearAll);
   btnExportJpg.addEventListener('click', exportJpg);
   btnShareJpg.addEventListener('click', shareJpg);
+  if (btnAttach) btnAttach.addEventListener('click', attachToEstimate);
   saveCloseBtn.addEventListener('click', closeSaveOverlay);
   saveOverlay.addEventListener('click', function(e) {
     if (e.target === saveOverlay) closeSaveOverlay();
@@ -1004,6 +1123,7 @@
   });
 
   window.addEventListener('resize', resizeCanvas);
+  initAttachMode();
   resizeCanvas();
   updateUi();
 })();
