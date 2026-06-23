@@ -263,7 +263,6 @@
   <div class="rb-toast" id="rb-toast"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script>
 (function() {
   var canvas = document.getElementById('rb-canvas');
@@ -462,13 +461,7 @@
     draw();
   }
 
-  function getJsPdfConstructor() {
-    if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
-    if (window.jsPDF) return window.jsPDF;
-    return null;
-  }
-
-  function captureExportImageDataUrl() {
+  function captureExportImage() {
     var w = canvas.clientWidth;
     var h = canvas.clientHeight;
     if (!w || !h) throw new Error('Sketch area is not ready — try again');
@@ -486,50 +479,128 @@
     ectx.drawImage(canvas, 0, 0, outW, outH);
 
     try {
-      return exportCanvas.toDataURL('image/jpeg', 0.9);
+      return { dataUrl: exportCanvas.toDataURL('image/jpeg', 0.9), width: outW, height: outH };
     } catch (e1) {
       try {
-        return exportCanvas.toDataURL('image/png');
+        return { dataUrl: exportCanvas.toDataURL('image/png'), width: outW, height: outH, isPng: true };
       } catch (e2) {
         throw new Error('Sketch is too large to export — try clearing and redrawing');
       }
     }
   }
 
-  function buildPdfBlob(imgDataUrl) {
-    var JsPDF = getJsPdfConstructor();
-    if (!JsPDF) throw new Error('PDF library failed to load — check your connection');
+  function pdfEscapeText(value) {
+    return String(value)
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+  }
 
-    var pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
-    var pageW = pdf.internal.pageSize.getWidth();
-    var pageH = pdf.internal.pageSize.getHeight();
+  function concatBytes(parts) {
+    var total = 0;
+    parts.forEach(function(part) { total += part.length; });
+    var out = new Uint8Array(total);
+    var offset = 0;
+    parts.forEach(function(part) {
+      out.set(part, offset);
+      offset += part.length;
+    });
+    return out;
+  }
+
+  function asciiBytes(text) {
+    var out = new Uint8Array(text.length);
+    for (var i = 0; i < text.length; i++) out[i] = text.charCodeAt(i);
+    return out;
+  }
+
+  function dataUrlToBytes(dataUrl) {
+    var comma = dataUrl.indexOf(',');
+    if (comma < 0) throw new Error('Invalid image data');
+    var base64 = dataUrl.slice(comma + 1);
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  // Built-in PDF writer — no CDN required (works offline and from local files).
+  function buildPdfBlob(exportImage) {
+    if (exportImage.isPng) {
+      throw new Error('Could not compress sketch — try finishing fewer shapes');
+    }
+
+    var jpegBytes = dataUrlToBytes(exportImage.dataUrl);
+    var imgW = exportImage.width;
+    var imgH = exportImage.height;
+    var pageW = 792;
+    var pageH = 612;
     var margin = 36;
     var headerH = 28;
     var drawW = pageW - margin * 2;
     var drawH = pageH - margin * 2 - headerH;
+    var fitScale = Math.min(drawW / imgW, drawH / imgH);
+    var drawImgW = imgW * fitScale;
+    var drawImgH = imgH * fitScale;
+    var imgX = margin + (drawW - drawImgW) / 2;
+    var imgY = pageH - margin - headerH - (drawH - drawImgH) / 2 - drawImgH;
+    var title = pdfEscapeText('Ro-Berg Site Sketch');
+    var dateStr = pdfEscapeText(new Date().toLocaleDateString(undefined, {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }));
 
-    var srcW = canvas.clientWidth;
-    var srcH = canvas.clientHeight;
-    var scale = Math.min(drawW / srcW, drawH / srcH);
-    var imgW = srcW * scale;
-    var imgH = srcH * scale;
-    var offsetX = margin + (drawW - imgW) / 2;
-    var offsetY = margin + headerH + (drawH - imgH) / 2;
-    var imgFormat = imgDataUrl.indexOf('data:image/png') === 0 ? 'PNG' : 'JPEG';
+    var contentStream = ''
+      + 'BT /F1 14 Tf ' + margin + ' ' + (pageH - margin - 14) + ' Td (' + title + ') Tj ET\n'
+      + 'BT /F2 9 Tf ' + margin + ' ' + (pageH - margin - 26) + ' Td (' + dateStr + ') Tj ET\n'
+      + 'q ' + drawImgW + ' 0 0 ' + drawImgH + ' ' + imgX + ' ' + imgY + ' cm /Im0 Do Q\n';
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(14);
-    pdf.setTextColor(39, 35, 93);
-    pdf.text('Ro-Berg Site Sketch', margin, margin + 12);
+    var parts = [];
+    var offsets = [];
+    function position() {
+      var n = 0;
+      parts.forEach(function(part) { n += part.length; });
+      return n;
+    }
+    function write(text) { parts.push(asciiBytes(text)); }
+    function writeRaw(bytes) { parts.push(bytes); }
 
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(128, 130, 129);
-    pdf.text(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), margin, margin + 24);
+    write('%PDF-1.4\n');
 
-    pdf.addImage(imgDataUrl, imgFormat, offsetX, offsetY, imgW, imgH, undefined, 'FAST');
+    offsets[1] = position();
+    write('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
-    return pdf.output('blob');
+    offsets[2] = position();
+    write('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+    offsets[3] = position();
+    write('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pageW + ' ' + pageH
+      + '] /Resources << /Font << /F1 4 0 R /F2 7 0 R >> /XObject << /Im0 5 0 R >> >> /Contents 6 0 R >>\nendobj\n');
+
+    offsets[4] = position();
+    write('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
+
+    offsets[5] = position();
+    write('5 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + imgW + ' /Height ' + imgH
+      + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '
+      + jpegBytes.length + ' >>\nstream\n');
+    writeRaw(jpegBytes);
+    write('\nendstream\nendobj\n');
+
+    offsets[6] = position();
+    write('6 0 obj\n<< /Length ' + contentStream.length + ' >>\nstream\n' + contentStream + 'endstream\nendobj\n');
+
+    offsets[7] = position();
+    write('7 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+    var xrefPos = position();
+    write('xref\n0 8\n');
+    write('0000000000 65535 f \n');
+    for (var i = 1; i <= 7; i++) {
+      write(('0000000000' + offsets[i]).slice(-10) + ' 00000 n \n');
+    }
+    write('trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF\n');
+
+    return new Blob([concatBytes(parts)], { type: 'application/pdf' });
   }
 
   function isMobileDevice() {
@@ -608,10 +679,6 @@
       showToast('Draw at least one finished shape first');
       return;
     }
-    if (!getJsPdfConstructor()) {
-      showToast('PDF library failed to load — check your connection');
-      return;
-    }
 
     btnExport.disabled = true;
     var savedPoints = currentPoints;
@@ -621,8 +688,8 @@
     draw();
 
     try {
-      var imgData = captureExportImageDataUrl();
-      var blob = buildPdfBlob(imgData);
+      var exportImage = captureExportImage();
+      var blob = buildPdfBlob(exportImage);
       var stamp = new Date().toISOString().slice(0, 10);
       var filename = 'roberg-sketch-' + stamp + '.pdf';
       savePdfFile(blob, filename).catch(function(err) {
