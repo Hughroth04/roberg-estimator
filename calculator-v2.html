@@ -2061,6 +2061,207 @@
   var CUST_SEARCH_DEBOUNCE_MS = 300;
   var CUSTOMER_FIELD_IDS = ['rb-first-name', 'rb-last-name', 'rb-phone', 'rb-email', 'rb-street', 'rb-city', 'rb-state', 'rb-zip'];
 
+  // ── Draft persistence (localStorage) ──
+  var DRAFT_KEY = 'rb_estimate_draft';
+  var DRAFT_VERSION = 1;
+  var DRAFT_SAVE_MS = 500;
+  var draftSaveTimer = null;
+  var isRestoringDraft = false;
+  var draftPhotosOmitted = false;
+  var draftRestoredOnLoad = false;
+  var draftSaveWarnedPhotos = false;
+
+  function panelHasDraftableData(p) {
+    if (!p) return false;
+    if (isReady(p) || p.notes || p.isCustomName) return true;
+    if (p.length || p.width) return true;
+    if (p.sides && p.sides !== 1) return true;
+    if (p.depth && p.depth !== 1) return true;
+    if (p.category && p.category !== 'Driveway') return true;
+    return false;
+  }
+
+  function estimateHasDraftableContent() {
+    if (selectedCustomerId || selectedCustomerName) return true;
+    var form = readNewCustomerForm();
+    if (form.first || form.last || form.phone || form.email || form.street || form.city || form.state || form.zip) {
+      return true;
+    }
+    var searchEl = document.getElementById('rb-cust-search');
+    if (searchEl && searchEl.value.trim()) return true;
+    if (options.length !== 2) return true;
+    for (var i = 0; i < options.length; i++) {
+      var o = options[i];
+      if (o.photos && o.photos.length) return true;
+      if (isSealantOption(o)) {
+        if (isSealantReady(o.sealant)) return true;
+        continue;
+      }
+      for (var j = 0; j < o.panels.length; j++) {
+        if (panelHasDraftableData(o.panels[j])) return true;
+      }
+    }
+    return false;
+  }
+  function buildDraftPayload(includePhotos) {
+    if (includePhotos === undefined) includePhotos = true;
+    var custSearchEl = document.getElementById('rb-cust-search');
+    return {
+      v: DRAFT_VERSION,
+      savedAt: Date.now(),
+      nextPanelId: nextPanelId,
+      nextOptionId: nextOptionId,
+      nextOptionNumber: nextOptionNumber,
+      nextPhotoId: nextPhotoId,
+      activeOptionId: activeOptionId,
+      options: options.map(function(opt) {
+        var copy = cloneOptionData(opt);
+        if (!includePhotos) copy.photos = [];
+        return copy;
+      }),
+      customer: {
+        selectedCustomerId: selectedCustomerId,
+        selectedCustomerName: selectedCustomerName,
+        search: custSearchEl ? custSearchEl.value : '',
+        form: readNewCustomerForm()
+      }
+    };
+  }
+
+  function applyCustomerDraftToDom(customer) {
+    if (!customer) return;
+    selectedCustomerId = customer.selectedCustomerId || null;
+    selectedCustomerName = customer.selectedCustomerName || null;
+    var form = customer.form || {};
+    var setVal = function(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.value = val == null ? '' : String(val);
+    };
+    setVal('rb-first-name', form.first);
+    setVal('rb-last-name', form.last);
+    setVal('rb-phone', form.phone);
+    setVal('rb-email', form.email);
+    setVal('rb-street', form.street);
+    setVal('rb-city', form.city);
+    setVal('rb-state', form.state);
+    setVal('rb-zip', form.zip);
+    setVal('rb-cust-search', customer.search);
+  }
+
+  function applyCustomerUiFromState() {
+    var selEl = document.getElementById('rb-selected-customer');
+    var formEl = document.getElementById('rb-new-cust-form');
+    var nameEl = document.getElementById('rb-selected-name');
+    if (!selEl || !formEl) return;
+    if (selectedCustomerId) {
+      if (nameEl) nameEl.textContent = selectedCustomerName || '';
+      selEl.style.display = 'flex';
+      formEl.style.display = 'none';
+    } else {
+      selEl.style.display = 'none';
+      formEl.style.display = 'block';
+    }
+  }
+
+  function applyDraft(draft) {
+    if (!draft || draft.v !== DRAFT_VERSION || !Array.isArray(draft.options) || !draft.options.length) {
+      return false;
+    }
+    options = draft.options.map(function(opt) {
+      var copy = cloneOptionData(opt);
+      if (!copy.panels) copy.panels = [];
+      if (!copy.photos) copy.photos = [];
+      if (isSealantOption(copy) && !copy.sealant) {
+        copy.sealant = { feet: 0, unitPrice: SEALANT_DEFAULT_UNIT_PRICE };
+      }
+      return copy;
+    });
+    nextPanelId = Math.max(1, parseInt(draft.nextPanelId, 10) || 1);
+    nextOptionId = Math.max(1, parseInt(draft.nextOptionId, 10) || 1);
+    nextOptionNumber = Math.max(1, parseInt(draft.nextOptionNumber, 10) || 1);
+    nextPhotoId = Math.max(1, parseInt(draft.nextPhotoId, 10) || 1);
+    activeOptionId = draft.activeOptionId;
+    if (!options.some(function(o) { return o.id === activeOptionId; })) {
+      activeOptionId = options[0] ? options[0].id : null;
+    }
+    applyCustomerDraftToDom(draft.customer);
+    regenerateAutoNames();
+    draftPhotosOmitted = !!draft.photosOmitted;
+    return true;
+  }
+
+  function saveDraftNow() {
+    if (isRestoringDraft) return;
+    if (draftSaveTimer) {
+      clearTimeout(draftSaveTimer);
+      draftSaveTimer = null;
+    }
+    if (!estimateHasDraftableContent()) {
+      clearDraft();
+      return;
+    }
+    var payload = buildDraftPayload(true);
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      draftPhotosOmitted = false;
+      return;
+    } catch (e1) {
+      payload = buildDraftPayload(false);
+      payload.photosOmitted = true;
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+        draftPhotosOmitted = true;
+        if (!draftSaveWarnedPhotos) {
+          showToast('Draft saved without photos (browser storage limit)');
+          draftSaveWarnedPhotos = true;
+        }
+      } catch (e2) { /* storage unavailable or full */ }
+    }
+  }
+
+  function scheduleDraftSave() {
+    if (isRestoringDraft) return;
+    if (draftSaveTimer) clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(saveDraftNow, DRAFT_SAVE_MS);
+  }
+
+  function clearDraft() {
+    if (draftSaveTimer) {
+      clearTimeout(draftSaveTimer);
+      draftSaveTimer = null;
+    }
+    draftPhotosOmitted = false;
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  }
+
+  function loadDraft() {
+    var raw;
+    try { raw = localStorage.getItem(DRAFT_KEY); } catch (e) { return false; }
+    if (!raw) return false;
+    var draft;
+    try { draft = JSON.parse(raw); } catch (e) { return false; }
+    isRestoringDraft = true;
+    var ok = applyDraft(draft);
+    isRestoringDraft = false;
+    return ok;
+  }
+
+  function initEstimateState() {
+    if (loadDraft()) {
+      draftRestoredOnLoad = true;
+      renderAll();
+      if (draftPhotosOmitted) {
+        showToast('Draft restored (photos were not saved — re-add if needed)');
+      } else {
+        showToast('Draft restored');
+      }
+      return;
+    }
+    seedDefaultOptions();
+    addPanel();
+    renderAll();
+  }
+
   function disclaimers(lbs) {
     return '*Lifting within 1/4" - 3/8" accuracy.\n*Unforeseen conditions could prevent lift to 100% accuracy.\n*High areas in the concrete are not guaranteed to lower during lift.\n*Unforeseen voids that will require over ' + lbs + ' LBS of material will require an approved change order to proceed.\n*Concrete at corners may not match with 100% accuracy.\n*Concrete may crack during lifting process.\n*Ro-Berg is not responsible for damages to landscaping\n*Please remove all vehicles from driveway.\n*Parking of lift trailer will need to be at curb in front of driveway.';
   }
@@ -2494,9 +2695,13 @@
       return o.panels.length > 0;
     });
     if (hasAnyContent && !confirm('Clear all and start over?')) return;
+    clearDraft();
     options = [];
-    nextPanelId = 1; nextOptionId = 1; nextOptionNumber = 1;
+    nextPanelId = 1; nextOptionId = 1; nextOptionNumber = 1; nextPhotoId = 1;
     activeOptionId = null;
+    selectedCustomerId = null;
+    selectedCustomerName = null;
+    applyCustomerDraftToDom({ form: {}, search: '' });
     seedDefaultOptions();
     addPanel();
     renderAll();
@@ -2811,6 +3016,7 @@
               msg += ' (capped at ' + MAX_PHOTOS_PER_OPTION + ')';
             }
             showToast(msg);
+            if (added > 0) scheduleDraftSave();
           }
         });
     });
@@ -2821,6 +3027,7 @@
     if (!opt) return;
     opt.photos = opt.photos.filter(function(p) { return p.id !== photoId; });
     renderPhotosStrip();
+    scheduleDraftSave();
   }
 
   function renderPhotosStrip() {
@@ -2893,6 +3100,7 @@
     renderActiveOptionPanels();
     renderAddOptionInlineButton();
     renderSummary();
+    scheduleDraftSave();
   }
 
   // Inline "+ Option" button shown only in single-option mode (when the tab
@@ -3226,15 +3434,12 @@
   function openModal() {
     var check = validateEstimateReady();
     if (!check.ok) { showToast(check.reason); return; }
-    selectedCustomerId = null; selectedCustomerName = null;
-    document.getElementById('rb-selected-customer').style.display = 'none';
-    document.getElementById('rb-new-cust-form').style.display = 'block';
-    document.getElementById('rb-cust-search').value = '';
     cancelCustomerSearchDebounce();
     custSearchSeq++;
     hideSearchResults();
     clearCustomerFieldErrors();
     hideCustomerStepError();
+    applyCustomerUiFromState();
     renderReviewContent();
     showStep('review');
     document.getElementById('rb-modal').style.display = 'flex';
@@ -3318,6 +3523,7 @@
     clearCustomerFieldErrors();
     hideCustomerStepError();
     showToast(name + ' selected');
+    scheduleDraftSave();
   }
 
   function panelReviewItemHTML(p, calc) {
@@ -3567,6 +3773,7 @@
       }
 
       showStep('success');
+      clearDraft();
     })
     .catch(function(e) {
       document.getElementById('rb-error-msg').textContent = e.message;
@@ -3664,6 +3871,7 @@
         document.getElementById('rb-new-cust-form').style.display = 'block';
         clearCustomerFieldErrors();
         hideCustomerStepError();
+        scheduleDraftSave();
         return;
       }
       if (t.classList.contains('rb-btn-remove'))          { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
@@ -3690,8 +3898,16 @@
       el.addEventListener('input', function() {
         el.classList.remove('rb-input-error');
         hideCustomerStepError();
+        scheduleDraftSave();
       });
     });
+
+    var custSearchEl = document.getElementById('rb-cust-search');
+    if (custSearchEl) {
+      custSearchEl.addEventListener('input', scheduleDraftSave);
+    }
+
+    window.addEventListener('pagehide', saveDraftNow);
 
     // Login form: submit via Enter key or Sign In button (also lets password managers save).
     var loginForm = document.getElementById('rb-login-form');
@@ -3870,8 +4086,7 @@
     setInterval(function() { apiFetch('/health').catch(function(){}); }, 600000);
   }
 
-  seedDefaultOptions();
-  addPanel();
+  initEstimateState();
   bootAuth();
 })();
 </script>
