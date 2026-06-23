@@ -218,9 +218,8 @@
         margin-bottom: 2px;
       }
       #rb-sketch .rb-btn { flex: 1 1 calc(50% - 4px); min-width: 0; }
-      #rb-sketch .rb-btn-finish { flex-basis: 100%; height: 48px; font-size: 11px; }
-      #rb-sketch .rb-btn-export-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
-      #rb-sketch .rb-btn-export-pdf { flex-basis: 100%; height: 40px; font-size: 10px; }
+      #rb-sketch .rb-btn-finish,
+      #rb-sketch .rb-btn-save-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
     }
   </style>
 </head>
@@ -240,16 +239,15 @@
       <p class="rb-status" id="rb-status">
         Tap each corner to draw. Press <strong>Enter</strong> or <strong>Finish shape</strong> when done.
       </p>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
       <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish shape</button>
+      <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
+      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo shape</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-clear">Clear all</button>
-      <button type="button" class="rb-btn rb-btn-secondary rb-btn-export rb-btn-export-jpg" id="rb-btn-export-jpg">Save JPG</button>
-      <button type="button" class="rb-btn rb-btn-ghost rb-btn-export-pdf" id="rb-btn-export-pdf">Save PDF</button>
     </div>
 
     <p class="rb-hint rb-hint-save" id="rb-save-hint">
-      Tap <strong>Save JPG</strong> to attach in HouseCall Pro. On mobile, choose <strong>Save Image</strong> or <strong>Save to Files</strong> from the share menu.
+      Tap <strong>Save JPG</strong> to attach in HouseCall Pro. On mobile, choose <strong>Save Image</strong> or pick the file when uploading photos in HCP.
     </p>
 
     <div class="rb-canvas-wrap">
@@ -276,7 +274,6 @@
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
-  var btnExportPdf = document.getElementById('rb-btn-export-pdf');
 
   var completedShapes = [];
   var currentPoints = [];
@@ -520,31 +517,6 @@
     return new Blob([dataUrlToBytes(exportImage.dataUrl)], { type: 'image/jpeg' });
   }
 
-  function pdfEscapeText(value) {
-    return String(value)
-      .replace(/\\/g, '\\\\')
-      .replace(/\(/g, '\\(')
-      .replace(/\)/g, '\\)');
-  }
-
-  function concatBytes(parts) {
-    var total = 0;
-    parts.forEach(function(part) { total += part.length; });
-    var out = new Uint8Array(total);
-    var offset = 0;
-    parts.forEach(function(part) {
-      out.set(part, offset);
-      offset += part.length;
-    });
-    return out;
-  }
-
-  function asciiBytes(text) {
-    var out = new Uint8Array(text.length);
-    for (var i = 0; i < text.length; i++) out[i] = text.charCodeAt(i);
-    return out;
-  }
-
   function dataUrlToBytes(dataUrl) {
     var comma = dataUrl.indexOf(',');
     if (comma < 0) throw new Error('Invalid image data');
@@ -553,85 +525,6 @@
     var bytes = new Uint8Array(binary.length);
     for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return bytes;
-  }
-
-  // Built-in PDF writer — no CDN required (works offline and from local files).
-  function buildPdfBlob(exportImage) {
-    if (exportImage.isPng) {
-      throw new Error('Could not compress sketch — try finishing fewer shapes');
-    }
-
-    var jpegBytes = dataUrlToBytes(exportImage.dataUrl);
-    var imgW = exportImage.width;
-    var imgH = exportImage.height;
-    var pageW = 792;
-    var pageH = 612;
-    var margin = 36;
-    var headerH = 28;
-    var drawW = pageW - margin * 2;
-    var drawH = pageH - margin * 2 - headerH;
-    var fitScale = Math.min(drawW / imgW, drawH / imgH);
-    var drawImgW = imgW * fitScale;
-    var drawImgH = imgH * fitScale;
-    var imgX = margin + (drawW - drawImgW) / 2;
-    var imgY = pageH - margin - headerH - (drawH - drawImgH) / 2 - drawImgH;
-    var title = pdfEscapeText('Ro-Berg Site Sketch');
-    var dateStr = pdfEscapeText(new Date().toLocaleDateString(undefined, {
-      year: 'numeric', month: 'long', day: 'numeric'
-    }));
-
-    var contentStream = ''
-      + 'BT /F1 14 Tf ' + margin + ' ' + (pageH - margin - 14) + ' Td (' + title + ') Tj ET\n'
-      + 'BT /F2 9 Tf ' + margin + ' ' + (pageH - margin - 26) + ' Td (' + dateStr + ') Tj ET\n'
-      + 'q ' + drawImgW + ' 0 0 ' + drawImgH + ' ' + imgX + ' ' + imgY + ' cm /Im0 Do Q\n';
-
-    var parts = [];
-    var offsets = [];
-    function position() {
-      var n = 0;
-      parts.forEach(function(part) { n += part.length; });
-      return n;
-    }
-    function write(text) { parts.push(asciiBytes(text)); }
-    function writeRaw(bytes) { parts.push(bytes); }
-
-    write('%PDF-1.4\n');
-
-    offsets[1] = position();
-    write('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
-
-    offsets[2] = position();
-    write('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
-
-    offsets[3] = position();
-    write('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pageW + ' ' + pageH
-      + '] /Resources << /Font << /F1 4 0 R /F2 7 0 R >> /XObject << /Im0 5 0 R >> >> /Contents 6 0 R >>\nendobj\n');
-
-    offsets[4] = position();
-    write('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
-
-    offsets[5] = position();
-    write('5 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + imgW + ' /Height ' + imgH
-      + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '
-      + jpegBytes.length + ' >>\nstream\n');
-    writeRaw(jpegBytes);
-    write('\nendstream\nendobj\n');
-
-    offsets[6] = position();
-    write('6 0 obj\n<< /Length ' + contentStream.length + ' >>\nstream\n' + contentStream + 'endstream\nendobj\n');
-
-    offsets[7] = position();
-    write('7 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
-
-    var xrefPos = position();
-    write('xref\n0 8\n');
-    write('0000000000 65535 f \n');
-    for (var i = 1; i <= 7; i++) {
-      write(('0000000000' + offsets[i]).slice(-10) + ' 00000 n \n');
-    }
-    write('trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF\n');
-
-    return new Blob([concatBytes(parts)], { type: 'application/pdf' });
   }
 
   function isMobileDevice() {
@@ -653,7 +546,7 @@
 
   function triggerBlobDownload(blob, filename, isImage) {
     if (isMobileDevice()) {
-      openBlobInNewTab(blob, isImage ? 'Save JPG' : 'Save PDF');
+      openBlobInNewTab(blob, 'Save JPG');
       return;
     }
     var url = URL.createObjectURL(blob);
@@ -754,37 +647,6 @@
     }
   }
 
-  function exportPdf() {
-    if (!completedShapes.length) {
-      showToast('Draw at least one finished shape first');
-      return;
-    }
-
-    btnExportPdf.disabled = true;
-    var restore = prepareExportCanvas();
-
-    try {
-      var exportImage = captureExportImage(false);
-      var blob = buildPdfBlob(exportImage);
-      var stamp = new Date().toISOString().slice(0, 10);
-      var filename = 'roberg-sketch-' + stamp + '.pdf';
-      saveBlobFile(blob, filename, {
-        mime: 'application/pdf',
-        shareTitle: 'Ro-Berg Site Sketch',
-        savedToast: 'Saved — choose Save to Files in the share menu',
-        downloadToast: 'PDF downloaded to your device',
-        pickerTypes: [{ description: 'PDF document', accept: { 'application/pdf': ['.pdf'] } }]
-      }).catch(function(err) {
-        showToast((err && err.message) ? err.message : 'Could not save PDF — try again');
-      });
-    } catch (err) {
-      showToast(err.message || 'Could not save PDF — try again');
-    } finally {
-      restore();
-      btnExportPdf.disabled = false;
-    }
-  }
-
   canvas.addEventListener('pointerdown', function(e) {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     canvas.setPointerCapture(e.pointerId);
@@ -833,7 +695,6 @@
   btnUndoShape.addEventListener('click', undoShape);
   btnClear.addEventListener('click', clearAll);
   btnExportJpg.addEventListener('click', exportJpg);
-  btnExportPdf.addEventListener('click', exportPdf);
 
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
