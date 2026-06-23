@@ -238,9 +238,21 @@
 
       <div class="rb-modal-body" id="rb-modal-body">
 
-        <!-- Step 1: Customer -->
-        <div id="rb-step-customer">
-          <div class="rb-step-label">Step 1 of 2 — Customer</div>
+        <!-- Step 1: Review panels -->
+        <div id="rb-step-review">
+          <div class="rb-step-label">Step 1 of 2 — Review Panels</div>
+          <p class="rb-step-desc">Confirm line items and totals before adding the customer.</p>
+          <div id="rb-review-list" class="rb-review-list"></div>
+          <div class="rb-review-total">
+            <span>Estimate Total</span>
+            <span id="rb-review-total-val" class="rb-review-total-val"></span>
+          </div>
+          <button class="rb-btn-next" id="rb-btn-next-step">Next: Customer →</button>
+        </div>
+
+        <!-- Step 2: Customer -->
+        <div id="rb-step-customer" style="display:none">
+          <div class="rb-step-label">Step 2 of 2 — Customer</div>
           <p class="rb-step-desc">Search for an existing customer or add a new one.</p>
 
           <div class="rb-search-row">
@@ -300,25 +312,14 @@
           </div>
 
           <div class="rb-customer-step-error" id="rb-customer-step-error" style="display:none"></div>
-          <button class="rb-btn-next" id="rb-btn-next-step">Next: Review Panels →</button>
-        </div>
-
-        <!-- Step 2: Review & Send -->
-        <div id="rb-step-review" style="display:none">
-          <div class="rb-step-label">Step 2 of 2 — Review & Send</div>
-          <div id="rb-review-list" class="rb-review-list"></div>
-          <div class="rb-review-total">
-            <span>Estimate Total</span>
-            <span id="rb-review-total-val" class="rb-review-total-val"></span>
-          </div>
           <button class="rb-btn-send" id="rb-btn-send">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
             Create Estimate in HCP
           </button>
-          <button class="rb-btn-back" id="rb-btn-back-step">← Back</button>
+          <button class="rb-btn-back" id="rb-btn-back-step">← Back to Review</button>
         </div>
 
-        <!-- Step 3: Success -->
+        <!-- Success -->
         <div id="rb-step-success" style="display:none">
           <div class="rb-success-icon">✓</div>
           <div class="rb-success-title">Estimate Created!</div>
@@ -3194,7 +3195,6 @@
   function openModal() {
     var check = validateEstimateReady();
     if (!check.ok) { showToast(check.reason); return; }
-    showStep('customer');
     selectedCustomerId = null; selectedCustomerName = null;
     document.getElementById('rb-selected-customer').style.display = 'none';
     document.getElementById('rb-new-cust-form').style.display = 'block';
@@ -3204,6 +3204,8 @@
     hideSearchResults();
     clearCustomerFieldErrors();
     hideCustomerStepError();
+    renderReviewContent();
+    showStep('review');
     document.getElementById('rb-modal').style.display = 'flex';
     // Ping the server to wake it up (public endpoint, no auth)
     apiFetch('/health').catch(function(){});
@@ -3320,28 +3322,7 @@
     return { html: inner, sub: sub };
   }
 
-  function goToReview() {
-    clearCustomerFieldErrors();
-    hideCustomerStepError();
-    var custCheck = validateCustomerStep();
-    if (!custCheck.ok) {
-      showCustomerStepError(custCheck.reason);
-      if (custCheck.fieldIds) {
-        custCheck.fieldIds.forEach(function(fid) {
-          var el = document.getElementById(fid);
-          if (el) el.classList.add('rb-input-error');
-        });
-      }
-      if (custCheck.focusId) {
-        var focusEl = document.getElementById(custCheck.focusId);
-        if (focusEl) {
-          try { focusEl.focus(); } catch (_) {}
-          focusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }
-      }
-      return;
-    }
-
+  function renderReviewContent() {
     var reviewList = document.getElementById('rb-review-list');
     var grand = 0;
 
@@ -3364,7 +3345,35 @@
       }).join('');
     }
     document.getElementById('rb-review-total-val').textContent = fmt(grand);
-    showStep('review');
+  }
+
+  function goToCustomer() {
+    var check = validateEstimateReady();
+    if (!check.ok) {
+      showToast(check.reason);
+      return;
+    }
+    renderReviewContent();
+    clearCustomerFieldErrors();
+    hideCustomerStepError();
+    showStep('customer');
+  }
+
+  function showCustomerValidationErrors(custCheck) {
+    showCustomerStepError(custCheck.reason);
+    if (custCheck.fieldIds) {
+      custCheck.fieldIds.forEach(function(fid) {
+        var el = document.getElementById(fid);
+        if (el) el.classList.add('rb-input-error');
+      });
+    }
+    if (custCheck.focusId) {
+      var focusEl = document.getElementById(custCheck.focusId);
+      if (focusEl) {
+        try { focusEl.focus(); } catch (_) {}
+        focusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
   }
 
   // Strip the "data:image/jpeg;base64," prefix so the backend can forward
@@ -3395,9 +3404,18 @@
   function sendToHCP() {
     var check = validateEstimateReady();
     if (!check.ok) {
+      renderReviewContent();
       showStep('review');
       showToast(check.reason);
       return;
+    }
+
+    if (!selectedCustomerId) {
+      var custCheck = validateCustomerStep();
+      if (!custCheck.ok) {
+        showCustomerValidationErrors(custCheck);
+        return;
+      }
     }
 
     var optionsPayload = buildOptionsPayload();
@@ -3410,20 +3428,6 @@
       return;
     }
 
-    // Create new customer first (validated on step 1; re-check as safety net)
-    var custCheck = validateCustomerStep();
-    if (!custCheck.ok) {
-      showStep('customer');
-      showCustomerStepError(custCheck.reason);
-      if (custCheck.fieldIds) {
-        custCheck.fieldIds.forEach(function(fid) {
-          var el = document.getElementById(fid);
-          if (el) el.classList.add('rb-input-error');
-        });
-      }
-      showToast(custCheck.reason);
-      return;
-    }
     var f = readNewCustomerForm();
     var first = f.first, last = f.last, phone = f.phone, email = f.email;
     var street = f.street, city = f.city, state = f.state, zip = f.zip;
@@ -3609,11 +3613,11 @@
       if (tid === 'rb-btn-hcp')           { openModal(); return; }
       if (tid === 'rb-modal-close')       { closeModal(); return; }
       if (tid === 'rb-btn-search-cust')   { searchCustomers(true); return; }
-      if (tid === 'rb-btn-next-step')     { goToReview(); return; }
-      if (tid === 'rb-btn-back-step')     { showStep('customer'); return; }
+      if (tid === 'rb-btn-next-step')     { goToCustomer(); return; }
+      if (tid === 'rb-btn-back-step')     { renderReviewContent(); showStep('review'); return; }
       if (tid === 'rb-btn-send')          { sendToHCP(); return; }
       if (tid === 'rb-btn-done')          { closeModal(); return; }
-      if (tid === 'rb-btn-retry')         { showStep('review'); return; }
+      if (tid === 'rb-btn-retry')         { showStep('customer'); return; }
       if (tid === 'rb-btn-signout')       { signOut(); return; }
       if (tid === 'rb-add-option-inline') { addOption(); return; }
       if (tid === 'rb-tab-add-btn')       { addOption(); return; }
