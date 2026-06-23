@@ -3028,6 +3028,23 @@
     if (options.length <= 1) {
       var html = '', total = 0;
       var opt = options[0];
+      if (opt && isSealantOption(opt)) {
+        if (isSealantReady(opt.sealant)) {
+          var sc = calcSealant(opt.sealant);
+          total = sc.sale;
+          html = '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml(SEALANT_LINE_NAME)
+            + ' \u2014 ' + sc.feet + ' ft</span><span class="rb-sval">' + fmt(sc.sale) + '</span></div>';
+        }
+        if (totalLabelEl) totalLabelEl.textContent = 'Total';
+        if (!html) {
+          rows.innerHTML = '<div class="rb-empty">Enter linear feet above</div>';
+          totalEl.style.display = 'none'; if (barV) barV.textContent = '\u2014';
+        } else {
+          rows.innerHTML = html; totalEl.style.display = 'flex';
+          totalV.textContent = fmt(total); if (barV) barV.textContent = fmt(total);
+        }
+        return;
+      }
       (opt ? opt.panels : []).forEach(function(p) {
         if (isReady(p)) {
           var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
