@@ -185,7 +185,7 @@
     <div class="rb-main">
       <div class="rb-section-header">
         <div class="rb-section-label" id="rb-section-label">Job Panels</div>
-        <button class="rb-btn-add-option-inline" id="rb-add-option-inline" type="button" style="display:none">+ Option</button>
+        <button class="rb-btn-add-option-inline" id="rb-add-option-inline" type="button" style="display:none">+ Add</button>
       </div>
       <div class="rb-tab-strip" id="rb-tab-strip"></div>
       <div class="rb-photos-section" id="rb-photos-section">
@@ -391,6 +391,16 @@
       <button class="rb-action-sheet-btn" id="rb-action-duplicate" type="button">Duplicate option</button>
       <button class="rb-action-sheet-btn rb-action-sheet-danger" id="rb-action-delete" type="button">Delete option</button>
       <button class="rb-action-sheet-btn rb-action-sheet-cancel" id="rb-action-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Action sheet: choose option type when adding -->
+  <div class="rb-action-sheet-overlay" id="rb-add-option-sheet" style="display:none">
+    <div class="rb-action-sheet">
+      <div class="rb-action-sheet-title">Add option</div>
+      <button class="rb-action-sheet-btn" id="rb-add-panels-option" type="button">Lifting Panels</button>
+      <button class="rb-action-sheet-btn" id="rb-add-sealant-option" type="button">Joint Sealant</button>
+      <button class="rb-action-sheet-btn rb-action-sheet-cancel" id="rb-add-option-cancel" type="button">Cancel</button>
     </div>
   </div>
 
@@ -2524,7 +2534,11 @@
   }
 
   function getSealantOptionDefaultName(opt) {
-    return DEFAULT_SEALANT_OPTION_NAME;
+    var sealants = options.filter(isSealantOption);
+    if (sealants.length <= 1) return DEFAULT_SEALANT_OPTION_NAME;
+    var idx = sealants.findIndex(function(o) { return o.id === opt.id; });
+    if (idx <= 0) return DEFAULT_SEALANT_OPTION_NAME;
+    return DEFAULT_SEALANT_OPTION_NAME + ' ' + (idx + 1);
   }
 
   // Default panel name format: "<Category> Lift and Level (Panel N)" where N is
@@ -2770,6 +2784,10 @@
   }
 
   function createDefaultSealantOption() {
+    return createSealantOption(true);
+  }
+
+  function createSealantOption(isDefault) {
     var num = nextOptionNumber++;
     return {
       id: nextOptionId++,
@@ -2777,7 +2795,7 @@
       name: DEFAULT_SEALANT_OPTION_NAME,
       isCustomName: false,
       kind: 'sealant',
-      isDefaultSealant: true,
+      isDefaultSealant: !!isDefault,
       panels: [],
       photos: [],
       _defaultName: DEFAULT_SEALANT_OPTION_NAME,
@@ -2797,24 +2815,49 @@
     activeOptionId = opt1.id;
   }
 
+  function scrollActiveTabIntoView() {
+    setTimeout(function() {
+      var strip = document.getElementById('rb-tab-strip');
+      if (!strip) return;
+      var tab = strip.querySelector('.rb-tab[data-option-id="' + activeOptionId + '"]');
+      if (tab && tab.scrollIntoView) {
+        tab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      } else {
+        strip.scrollLeft = strip.scrollWidth;
+      }
+    }, 30);
+  }
+
   // ── Option management ──
   // Per HCP behavior: option numbers monotonically increase and don't recycle
   // after a delete. Default name "Option N" tracks the per-estimate creation
   // counter, not the array index.
-  function addOption() {
+  function addOption(kind) {
     if (options.length >= MAX_OPTIONS) {
       showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
       return;
     }
-    var newOpt = createPanelsOption();
+    var newOpt = (kind === 'sealant') ? createSealantOption(false) : createPanelsOption();
     options.push(newOpt);
     activeOptionId = newOpt.id;
+    regenerateAutoNames();
     renderAll();
-    // Scroll the new tab into view in case the strip overflows.
-    setTimeout(function() {
-      var strip = document.getElementById('rb-tab-strip');
-      if (strip) strip.scrollLeft = strip.scrollWidth;
-    }, 30);
+    scrollActiveTabIntoView();
+    showToast((kind === 'sealant') ? 'Joint sealant option added' : 'Lifting panels option added');
+  }
+
+  function openAddOptionSheet() {
+    if (options.length >= MAX_OPTIONS) {
+      showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
+      return;
+    }
+    var sheet = document.getElementById('rb-add-option-sheet');
+    if (sheet) sheet.style.display = 'flex';
+  }
+
+  function closeAddOptionSheet() {
+    var sheet = document.getElementById('rb-add-option-sheet');
+    if (sheet) sheet.style.display = 'none';
   }
 
   // (a) "keep original names verbatim" — duplicated panels copy the source
@@ -2828,71 +2871,48 @@
     var srcIdx = options.findIndex(function(o) { return o.id === id; });
     if (srcIdx < 0) return;
     var src = options[srcIdx];
-    var num = nextOptionNumber++;
-    var newId = nextOptionId++;
     var newOpt;
     if (isSealantOption(src)) {
-      newOpt = {
-        id: newId,
-        defaultNumber: num,
-        name: 'Option ' + num,
-        isCustomName: false,
-        kind: 'sealant',
-        isDefaultSealant: false,
-        panels: [],
-        photos: src.photos.map(function(ph) {
-          return {
-            id: nextPhotoId++,
-            fileName: ph.fileName,
-            dataUrl: ph.dataUrl,
-            sizeBytes: ph.sizeBytes
-          };
-        }),
-        sealant: {
-          feet: src.sealant.feet,
-          unitPrice: src.sealant.unitPrice
-        }
+      newOpt = createSealantOption(false);
+      newOpt.photos = src.photos.map(function(ph) {
+        return {
+          id: nextPhotoId++,
+          fileName: ph.fileName,
+          dataUrl: ph.dataUrl,
+          sizeBytes: ph.sizeBytes
+        };
+      });
+      newOpt.sealant = {
+        feet: src.sealant.feet,
+        unitPrice: src.sealant.unitPrice
       };
     } else {
-      newOpt = {
-        id: newId,
-        defaultNumber: num,
-        name: 'Option ' + num,
-        isCustomName: false,
-        kind: 'panels',
-        panels: src.panels.map(function(p) {
-          return {
-            id: nextPanelId++,
-            name: p.name,
-            isCustomName: true,
-            length: p.length, width: p.width,
-            sides: p.sides, depth: p.depth,
-            category: p.category, notes: p.notes,
-            _defaultName: p._defaultName
-          };
-        }),
-        // Photos are duplicated too — same data URL (cheap, JS strings are
-        // immutable) but a fresh photo id so the user can delete one from the
-        // duplicate without affecting the source.
-        photos: src.photos.map(function(ph) {
-          return {
-            id: nextPhotoId++,
-            fileName: ph.fileName,
-            dataUrl: ph.dataUrl,
-            sizeBytes: ph.sizeBytes
-          };
-        })
-      };
+      newOpt = createPanelsOption();
+      newOpt.panels = src.panels.map(function(p) {
+        return {
+          id: nextPanelId++,
+          name: p.name,
+          isCustomName: true,
+          length: p.length, width: p.width,
+          sides: p.sides, depth: p.depth,
+          category: p.category, notes: p.notes,
+          _defaultName: p._defaultName
+        };
+      });
+      newOpt.photos = src.photos.map(function(ph) {
+        return {
+          id: nextPhotoId++,
+          fileName: ph.fileName,
+          dataUrl: ph.dataUrl,
+          sizeBytes: ph.sizeBytes
+        };
+      });
     }
     options.splice(srcIdx + 1, 0, newOpt);
-    activeOptionId = newId;
+    activeOptionId = newOpt.id;
     regenerateAutoNames();
     renderAll();
-    setTimeout(function() {
-      var strip = document.getElementById('rb-tab-strip');
-      var newTab = strip && strip.querySelector('.rb-tab[data-option-id="' + newId + '"]');
-      if (newTab && newTab.scrollIntoView) newTab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-    }, 30);
+    scrollActiveTabIntoView();
   }
 
   function removeOption(id) {
@@ -2912,6 +2932,7 @@
       var nextActive = options[Math.max(0, idx - 1)];
       activeOptionId = nextActive ? nextActive.id : null;
     }
+    regenerateAutoNames();
     renderAll();
 
     showUndoToast('Option removed', { index: idx, option: snapshot, prevActive: prevActive, deletedId: deletedId }, function(state) {
@@ -2920,6 +2941,7 @@
       if (state.prevActive === state.deletedId) {
         activeOptionId = state.deletedId;
       }
+      regenerateAutoNames();
       renderAll();
       showToast('Option restored');
     });
@@ -3194,7 +3216,7 @@
            + '</div>';
     });
     if (options.length < MAX_OPTIONS) {
-      html += '<button class="rb-tab rb-tab-add" id="rb-tab-add-btn" type="button" aria-label="Add option"><span class="rb-tab-add-short">+</span><span class="rb-tab-add-long">+ Option</span></button>';
+      html += '<button class="rb-tab rb-tab-add" id="rb-tab-add-btn" type="button" aria-label="Add option"><span class="rb-tab-add-short">+</span><span class="rb-tab-add-long">+ Add</span></button>';
     }
     strip.innerHTML = html;
   }
@@ -3908,8 +3930,8 @@
       if (tid === 'rb-btn-done')          { closeModal(); return; }
       if (tid === 'rb-btn-retry')         { showStep('customer'); return; }
       if (tid === 'rb-btn-signout')       { signOut(); return; }
-      if (tid === 'rb-add-option-inline') { addOption(); return; }
-      if (tid === 'rb-tab-add-btn')       { addOption(); return; }
+      if (tid === 'rb-add-option-inline') { openAddOptionSheet(); return; }
+      if (tid === 'rb-tab-add-btn')       { openAddOptionSheet(); return; }
       if (tid === 'rb-btn-add-photo') {
         var input = document.getElementById('rb-photo-input');
         if (input) input.click();
@@ -4106,6 +4128,26 @@
       var id = actionSheetOptionId;
       closeTabActionSheet();
       if (id != null) removeOption(id);
+    });
+
+    // ── Add option type picker ──
+    var addSheetOverlay = document.getElementById('rb-add-option-sheet');
+    if (addSheetOverlay) {
+      addSheetOverlay.addEventListener('click', function(e) {
+        if (e.target === addSheetOverlay) closeAddOptionSheet();
+      });
+    }
+    var addOptCancel = document.getElementById('rb-add-option-cancel');
+    if (addOptCancel) addOptCancel.addEventListener('click', closeAddOptionSheet);
+    var addPanelsBtn = document.getElementById('rb-add-panels-option');
+    if (addPanelsBtn) addPanelsBtn.addEventListener('click', function() {
+      closeAddOptionSheet();
+      addOption('panels');
+    });
+    var addSealantBtn = document.getElementById('rb-add-sealant-option');
+    if (addSealantBtn) addSealantBtn.addEventListener('click', function() {
+      closeAddOptionSheet();
+      addOption('sealant');
     });
 
     // Panel field input/change — data-id + data-field. Tab name inputs only
