@@ -2272,6 +2272,33 @@
     return total;
   }
 
+  function getOptionSummaryDetailLines(opt) {
+    if (!opt) return [];
+    if (isSealantOption(opt)) {
+      if (!isSealantReady(opt.sealant)) return [];
+      var sc = calcSealant(opt.sealant);
+      return [{
+        label: SEALANT_LINE_NAME + ' \u2014 ' + sc.feet + ' ft',
+        sale: sc.sale
+      }];
+    }
+    var lines = [];
+    opt.panels.forEach(function(p) {
+      if (!isReady(p)) return;
+      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      lines.push({
+        label: p.name + ' \u2014 ' + p.length + '\xd7' + p.width + ', ' + p.sides + 's ' + p.depth + '"',
+        sale: calc.sale
+      });
+    });
+    return lines;
+  }
+
+  function singleOptionEmptyMessage(opt) {
+    if (opt && isSealantOption(opt)) return 'Enter linear feet above';
+    return 'Add panels above';
+  }
+
   // Default panel name format: "<Category> Lift and Level (Panel N)" where N is
   // the panel's ordinal position WITHIN its category and WITHIN its option.
   // Custom names (isCustomName === true) still count toward the category's
@@ -3026,49 +3053,36 @@
     if (!rows) return;
 
     if (options.length <= 1) {
-      var html = '', total = 0;
       var opt = options[0];
-      if (opt && isSealantOption(opt)) {
-        if (isSealantReady(opt.sealant)) {
-          var sc = calcSealant(opt.sealant);
-          total = sc.sale;
-          html = '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml(SEALANT_LINE_NAME)
-            + ' \u2014 ' + sc.feet + ' ft</span><span class="rb-sval">' + fmt(sc.sale) + '</span></div>';
-        }
-        if (totalLabelEl) totalLabelEl.textContent = 'Total';
-        if (!html) {
-          rows.innerHTML = '<div class="rb-empty">Enter linear feet above</div>';
-          totalEl.style.display = 'none'; if (barV) barV.textContent = '\u2014';
-        } else {
-          rows.innerHTML = html; totalEl.style.display = 'flex';
-          totalV.textContent = fmt(total); if (barV) barV.textContent = fmt(total);
-        }
-        return;
-      }
-      (opt ? opt.panels : []).forEach(function(p) {
-        if (isReady(p)) {
-          var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-          total += calc.sale;
-          html += '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml(p.name) + ' \u2014 ' + p.length + '\xd7' + p.width + ', ' + p.sides + 's ' + p.depth + '"</span><span class="rb-sval">' + fmt(calc.sale) + '</span></div>';
-        }
-      });
+      var total = opt ? optionSubtotal(opt) : 0;
+      var detailLines = getOptionSummaryDetailLines(opt);
+      var html = detailLines.map(function(line) {
+        return '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml(line.label)
+          + '</span><span class="rb-sval">' + fmt(line.sale) + '</span></div>';
+      }).join('');
       if (totalLabelEl) totalLabelEl.textContent = 'Total';
-      if (!html) {
-        rows.innerHTML = '<div class="rb-empty">Add panels above</div>';
-        totalEl.style.display = 'none'; if (barV) barV.textContent = '\u2014';
+      if (total <= 0) {
+        rows.innerHTML = '<div class="rb-empty">' + singleOptionEmptyMessage(opt) + '</div>';
+        if (totalEl) totalEl.style.display = 'none';
+        if (barV) barV.textContent = '\u2014';
       } else {
-        rows.innerHTML = html; totalEl.style.display = 'flex';
-        totalV.textContent = fmt(total); if (barV) barV.textContent = fmt(total);
+        if (!html) {
+          html = '<div class="rb-summary-line"><span class="rb-sname">' + escapeHtml((opt && opt.name) || 'Estimate')
+            + '</span><span class="rb-sval">' + fmt(total) + '</span></div>';
+        }
+        rows.innerHTML = html;
+        if (totalEl) totalEl.style.display = 'flex';
+        if (totalV) totalV.textContent = fmt(total);
+        if (barV) barV.textContent = fmt(total);
       }
       return;
     }
 
-    var grand = 0, anyValue = false;
+    var grand = 0;
     var html2 = '';
     options.forEach(function(opt) {
       var sub = optionSubtotal(opt);
       grand += sub;
-      if (sub > 0) anyValue = true;
       html2 += '<div class="rb-summary-line rb-summary-option">'
             +    '<span class="rb-sname">' + escapeHtml(opt.name) + '</span>'
             +    '<span class="rb-sval">' + (sub > 0 ? fmt(sub) : '\u2014') + '</span>'
@@ -3076,12 +3090,12 @@
     });
     rows.innerHTML = html2;
     if (totalLabelEl) totalLabelEl.textContent = 'Sum of all';
-    if (anyValue) {
-      totalEl.style.display = 'flex';
-      totalV.textContent = fmt(grand);
+    if (grand > 0) {
+      if (totalEl) totalEl.style.display = 'flex';
+      if (totalV) totalV.textContent = fmt(grand);
       if (barV) barV.textContent = fmt(grand);
     } else {
-      totalEl.style.display = 'none';
+      if (totalEl) totalEl.style.display = 'none';
       if (barV) barV.textContent = '\u2014';
     }
   }
