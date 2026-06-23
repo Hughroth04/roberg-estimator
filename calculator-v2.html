@@ -2062,7 +2062,7 @@
   var PHOTO_JPEG_QUALITY = 0.75;
 
   var options = [], activeOptionId = null;
-  var nextPanelId = 1, nextOptionId = 1, nextOptionNumber = 1, nextPhotoId = 1;
+  var nextPanelId = 1, nextOptionId = 1, nextPhotoId = 1;
   var actionSheetOptionId = null;
   var selectedCustomerId = null, selectedCustomerName = null;
   var isProcessingPhotos = false;
@@ -2121,7 +2121,6 @@
       savedAt: Date.now(),
       nextPanelId: nextPanelId,
       nextOptionId: nextOptionId,
-      nextOptionNumber: nextOptionNumber,
       nextPhotoId: nextPhotoId,
       activeOptionId: activeOptionId,
       options: options.map(function(opt) {
@@ -2188,13 +2187,13 @@
     });
     nextPanelId = Math.max(1, parseInt(draft.nextPanelId, 10) || 1);
     nextOptionId = Math.max(1, parseInt(draft.nextOptionId, 10) || 1);
-    nextOptionNumber = Math.max(1, parseInt(draft.nextOptionNumber, 10) || 1);
     nextPhotoId = Math.max(1, parseInt(draft.nextPhotoId, 10) || 1);
     activeOptionId = draft.activeOptionId;
     if (!options.some(function(o) { return o.id === activeOptionId; })) {
       activeOptionId = options[0] ? options[0].id : null;
     }
     applyCustomerDraftToDom(draft.customer);
+    renumberOptions();
     regenerateAutoNames();
     draftPhotosOmitted = !!draft.photosOmitted;
     return true;
@@ -2759,7 +2758,7 @@
     if (hasAnyContent && !confirm('Clear all and start over?')) return;
     clearDraft();
     options = [];
-    nextPanelId = 1; nextOptionId = 1; nextOptionNumber = 1; nextPhotoId = 1;
+    nextPanelId = 1; nextOptionId = 1; nextPhotoId = 1;
     activeOptionId = null;
     selectedCustomerId = null;
     selectedCustomerName = null;
@@ -2770,16 +2769,15 @@
   }
 
   function createPanelsOption() {
-    var num = nextOptionNumber++;
     return {
       id: nextOptionId++,
-      defaultNumber: num,
-      name: 'Option ' + num,
+      defaultNumber: 0,
+      name: '',
       isCustomName: false,
       kind: 'panels',
       panels: [],
       photos: [],
-      _defaultName: 'Option ' + num
+      _defaultName: ''
     };
   }
 
@@ -2788,10 +2786,9 @@
   }
 
   function createSealantOption(isDefault) {
-    var num = nextOptionNumber++;
     return {
       id: nextOptionId++,
-      defaultNumber: num,
+      defaultNumber: 0,
       name: DEFAULT_SEALANT_OPTION_NAME,
       isCustomName: false,
       kind: 'sealant',
@@ -2806,13 +2803,21 @@
     };
   }
 
+  // Option tabs show 1…N based on current position in the list.
+  function renumberOptions() {
+    options.forEach(function(opt, i) {
+      opt.defaultNumber = i + 1;
+    });
+  }
+
   // Option 1 is always concrete lifting panels; Option 2 is always joint sealant.
   function seedDefaultOptions() {
     if (options.length) return;
-    var opt1 = createPanelsOption();
-    options.push(opt1);
+    options.push(createPanelsOption());
     options.push(createDefaultSealantOption());
-    activeOptionId = opt1.id;
+    activeOptionId = options[0].id;
+    renumberOptions();
+    regenerateAutoNames();
   }
 
   function scrollActiveTabIntoView() {
@@ -2829,9 +2834,6 @@
   }
 
   // ── Option management ──
-  // Per HCP behavior: option numbers monotonically increase and don't recycle
-  // after a delete. Default name "Option N" tracks the per-estimate creation
-  // counter, not the array index.
   function addOption(kind) {
     if (options.length >= MAX_OPTIONS) {
       showToast('Maximum ' + MAX_OPTIONS + ' options per estimate');
@@ -2840,6 +2842,7 @@
     var newOpt = (kind === 'sealant') ? createSealantOption(false) : createPanelsOption();
     options.push(newOpt);
     activeOptionId = newOpt.id;
+    renumberOptions();
     regenerateAutoNames();
     renderAll();
     scrollActiveTabIntoView();
@@ -2910,6 +2913,7 @@
     }
     options.splice(srcIdx + 1, 0, newOpt);
     activeOptionId = newOpt.id;
+    renumberOptions();
     regenerateAutoNames();
     renderAll();
     scrollActiveTabIntoView();
@@ -2932,6 +2936,7 @@
       var nextActive = options[Math.max(0, idx - 1)];
       activeOptionId = nextActive ? nextActive.id : null;
     }
+    renumberOptions();
     regenerateAutoNames();
     renderAll();
 
@@ -2941,6 +2946,7 @@
       if (state.prevActive === state.deletedId) {
         activeOptionId = state.deletedId;
       }
+      renumberOptions();
       regenerateAutoNames();
       renderAll();
       showToast('Option restored');
