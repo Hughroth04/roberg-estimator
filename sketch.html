@@ -103,6 +103,21 @@
       max-width: 1100px;
       margin: 0 auto;
     }
+    #rb-sketch .rb-canvas-wrap {
+      position: relative;
+      background: var(--rb-bg);
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      min-height: min(92vh, 1200px);
+      max-height: calc(100vh - 120px);
+    }
     #rb-sketch .rb-toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -153,23 +168,17 @@
     }
     #rb-sketch .rb-btn-ghost:active { background: #fafafa; }
 
-    #rb-sketch .rb-canvas-wrap {
-      position: relative;
-      background: var(--rb-surface);
-      border: 1px solid var(--rb-border);
-      border-radius: var(--rb-radius-lg);
-      box-shadow: var(--rb-shadow);
-      overflow: hidden;
-      touch-action: none;
-    }
     #rb-sketch canvas {
       display: block;
-      width: 100%;
-      height: auto;
+      flex-shrink: 0;
       cursor: crosshair;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
+      border: 1px solid var(--rb-border);
+      border-radius: var(--rb-radius-lg);
+      box-shadow: var(--rb-shadow-lg);
+      background: #fff;
     }
     #rb-sketch .rb-hint {
       margin-top: 10px;
@@ -287,7 +296,7 @@
     #rb-sketch .rb-save-actions .rb-btn { width: 100%; height: 44px; }
 
     @media (max-width: 720px) {
-      #rb-sketch .rb-app { padding: 12px; }
+      #rb-sketch .rb-app { padding: 8px; }
       #rb-sketch .rb-logo-sub { display: none; }
       #rb-sketch .rb-toolbar { gap: 6px; }
       #rb-sketch .rb-status {
@@ -316,7 +325,7 @@
   <main class="rb-app">
     <div class="rb-toolbar">
       <p class="rb-status" id="rb-status">
-        Tap each corner to draw. Press <strong>Enter</strong> or <strong>Finish shape</strong> when done.
+        8.5″ × 11″ page — draw inside the grid below the header.
       </p>
       <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish shape</button>
       <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
@@ -327,7 +336,7 @@
     </div>
 
     <p class="rb-hint rb-hint-save" id="rb-save-hint">
-      <strong>Save JPG</strong> stores the file on your device. On iPhone, press and hold the preview image, then tap <strong>Save to Photos</strong>.
+      <strong>Save JPG</strong> exports a sharp 300 DPI letter page (2550 × 3300). Scroll the artboard if needed.
     </p>
 
     <div class="rb-canvas-wrap">
@@ -335,8 +344,7 @@
     </div>
 
     <p class="rb-hint">
-      Draw panels, driveways, and work areas by placing corners in order.
-      Lines connect automatically. On mobile, use <strong>Finish shape</strong> instead of Enter.
+      Draw on the 8.5″ × 11″ page below — what you see is what saves as the JPG.
     </p>
   </main>
 
@@ -398,6 +406,122 @@
     grid: 'rgba(0, 0, 0, 0.06)'
   };
 
+  // Lines snap to horizontal, vertical, or 45° diagonal only.
+  var SNAP_ANGLE = Math.PI / 4;
+
+  // US Letter @ 300 DPI — fixed artboard resolution (crisp JPG export)
+  var LETTER_WIDTH = 2550;
+  var LETTER_HEIGHT = 3300;
+  var LETTER_ASPECT = 8.5 / 11;
+  var PAGE_MARGIN_RATIO = 0.028;
+  var HEADER_HEIGHT_RATIO = 0.036;
+  var JPEG_QUALITY = 0.97;
+  var GRID_STEP = Math.round(LETTER_WIDTH / 30);
+  var STROKE_WIDTH = 5;
+  var VERTEX_RADIUS = 10;
+  var MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.014);
+  var displayCssW = 0;
+  var displayCssH = 0;
+  var canvasDpr = 1;
+
+  function snapPointFromAnchor(anchor, x, y) {
+    var dx = x - anchor.x;
+    var dy = y - anchor.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < MIN_SEGMENT_PX) return null;
+
+    var angle = Math.atan2(dy, dx);
+    var snappedAngle = Math.round(angle / SNAP_ANGLE) * SNAP_ANGLE;
+    return {
+      x: Math.round((anchor.x + dist * Math.cos(snappedAngle)) * 10) / 10,
+      y: Math.round((anchor.y + dist * Math.sin(snappedAngle)) * 10) / 10
+    };
+  }
+
+  function resolveDrawPoint(x, y) {
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    if (!currentPoints.length) {
+      return clampToContent(Math.round(x * 10) / 10, Math.round(y * 10) / 10, layout);
+    }
+    var anchor = currentPoints[currentPoints.length - 1];
+    var snapped = snapPointFromAnchor(anchor, x, y);
+    var point;
+    if (snapped) {
+      point = snapped;
+    } else {
+      var dx = x - anchor.x;
+      var dy = y - anchor.y;
+      if (!dx && !dy) return { x: anchor.x, y: anchor.y };
+      var snappedAngle = Math.round(Math.atan2(dy, dx) / SNAP_ANGLE) * SNAP_ANGLE;
+      point = {
+        x: Math.round((anchor.x + MIN_SEGMENT_PX * Math.cos(snappedAngle)) * 10) / 10,
+        y: Math.round((anchor.y + MIN_SEGMENT_PX * Math.sin(snappedAngle)) * 10) / 10
+      };
+    }
+    return clampToContent(point.x, point.y, layout);
+  }
+
+  function getPageLayout(w, h) {
+    var margin = w * PAGE_MARGIN_RATIO;
+    var headerH = h * HEADER_HEIGHT_RATIO;
+    var contentY = headerH + margin;
+    return {
+      pageW: w,
+      pageH: h,
+      margin: margin,
+      headerH: headerH,
+      contentX: margin,
+      contentY: contentY,
+      contentW: w - margin * 2,
+      contentH: h - contentY - margin
+    };
+  }
+
+  function clampToContent(x, y, layout) {
+    return {
+      x: Math.max(layout.contentX, Math.min(layout.contentX + layout.contentW, x)),
+      y: Math.max(layout.contentY, Math.min(layout.contentY + layout.contentH, y))
+    };
+  }
+
+  function isInContentArea(x, y, layout) {
+    return x >= layout.contentX && x <= layout.contentX + layout.contentW
+      && y >= layout.contentY && y <= layout.contentY + layout.contentH;
+  }
+
+  function drawPageChrome(layout) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, layout.pageW, layout.pageH);
+
+    ctx.fillStyle = '#27235d';
+    ctx.fillRect(0, 0, layout.pageW, layout.headerH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 72px Montserrat, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('Ro-Berg Site Sketch', layout.margin, layout.headerH / 2);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.font = '500 52px "Open Sans", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+      layout.pageW - layout.margin,
+      layout.headerH / 2
+    );
+    ctx.textAlign = 'left';
+
+    ctx.strokeStyle = 'rgba(114, 165, 183, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+      layout.contentX + 1,
+      layout.contentY + 1,
+      layout.contentW - 2,
+      layout.contentH - 2
+    );
+  }
+
   function showToast(msg) {
     if (toastTimer) clearTimeout(toastTimer);
     toastEl.textContent = msg;
@@ -407,21 +531,37 @@
 
   function resizeCanvas() {
     var wrap = canvas.parentElement;
-    var cssW = wrap.clientWidth;
-    var cssH = Math.max(420, Math.min(640, Math.round(window.innerHeight * 0.55)));
-    var dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    canvas.style.height = cssH + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var maxW = wrap.clientWidth;
+    var maxH = Math.max(560, window.innerHeight - 130);
+
+    var cssW = maxW;
+    var cssH = cssW / LETTER_ASPECT;
+    if (cssH > maxH) {
+      cssH = maxH;
+      cssW = cssH * LETTER_ASPECT;
+    }
+    displayCssW = Math.max(1, Math.round(cssW));
+    displayCssH = Math.max(1, Math.round(cssH));
+
+    canvasDpr = Math.min(window.devicePixelRatio || 1, 2);
+    var bitmapW = Math.round(LETTER_WIDTH * canvasDpr);
+    var bitmapH = Math.round(LETTER_HEIGHT * canvasDpr);
+    if (canvas.width !== bitmapW || canvas.height !== bitmapH) {
+      canvas.width = bitmapW;
+      canvas.height = bitmapH;
+    }
+    ctx.setTransform(canvasDpr, 0, 0, canvasDpr, 0, 0);
+
+    canvas.style.width = displayCssW + 'px';
+    canvas.style.height = displayCssH + 'px';
     draw();
   }
 
   function getPointerPos(e) {
     var rect = canvas.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: (e.clientX - rect.left) * (LETTER_WIDTH / rect.width),
+      y: (e.clientY - rect.top) * (LETTER_HEIGHT / rect.height)
     };
   }
 
@@ -431,7 +571,7 @@
     btnFinish.disabled = n < 2;
     btnUndoShape.disabled = completedShapes.length === 0;
     if (n === 0) {
-      statusEl.innerHTML = 'Tap each corner to draw. Press <strong>Enter</strong> or <strong>Finish shape</strong> when done.';
+      statusEl.innerHTML = 'Tap the first corner. Next lines snap horizontal, vertical, or diagonal.';
     } else if (n === 1) {
       statusEl.innerHTML = '<strong>1</strong> corner placed — add at least one more, then finish.';
     } else {
@@ -439,21 +579,27 @@
     }
   }
 
-  function drawGrid(w, h) {
-    var step = 24;
+  function drawGrid(layout) {
     ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.contentX, layout.contentY, layout.contentW, layout.contentH);
+    ctx.clip();
     ctx.strokeStyle = COLORS.grid;
-    ctx.lineWidth = 1;
-    for (var x = 0; x <= w; x += step) {
+    ctx.lineWidth = 1.5;
+    var xStart = layout.contentX;
+    var yStart = layout.contentY;
+    var xEnd = layout.contentX + layout.contentW;
+    var yEnd = layout.contentY + layout.contentH;
+    for (var x = xStart; x <= xEnd; x += GRID_STEP) {
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, h);
+      ctx.moveTo(x + 0.5, yStart);
+      ctx.lineTo(x + 0.5, yEnd);
       ctx.stroke();
     }
-    for (var y = 0; y <= h; y += step) {
+    for (var y = yStart; y <= yEnd; y += GRID_STEP) {
       ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(w, y + 0.5);
+      ctx.moveTo(xStart, y + 0.5);
+      ctx.lineTo(xEnd, y + 0.5);
       ctx.stroke();
     }
     ctx.restore();
@@ -461,8 +607,6 @@
 
   function drawShape(points, closed, previewTo) {
     if (!points.length) return;
-    var w = canvas.clientWidth;
-    var h = canvas.clientHeight;
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -481,26 +625,37 @@
     ctx.moveTo(points[0].x, points[0].y);
     for (var j = 1; j < points.length; j++) ctx.lineTo(points[j].x, points[j].y);
     if (closed && points.length >= 2) ctx.closePath();
-    else if (previewTo) ctx.lineTo(previewTo.x, previewTo.y);
     ctx.strokeStyle = COLORS.stroke;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = STROKE_WIDTH;
     ctx.stroke();
+
+    if (!closed && previewTo && points.length) {
+      var lastPt = points[points.length - 1];
+      ctx.beginPath();
+      ctx.moveTo(lastPt.x, lastPt.y);
+      ctx.lineTo(previewTo.x, previewTo.y);
+      ctx.setLineDash([18, 12]);
+      ctx.strokeStyle = COLORS.preview;
+      ctx.lineWidth = STROKE_WIDTH;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     points.forEach(function(pt, idx) {
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, closed ? 5 : 6, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, closed ? VERTEX_RADIUS - 2 : VERTEX_RADIUS, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.vertex;
       ctx.fill();
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.strokeStyle = COLORS.vertexBorder;
       ctx.stroke();
 
       if (!closed || idx === 0) {
         ctx.fillStyle = COLORS.stroke;
-        ctx.font = '600 10px Open Sans, sans-serif';
+        ctx.font = '600 36px Open Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(String(idx + 1), pt.x, pt.y - 14);
+        ctx.fillText(String(idx + 1), pt.x, pt.y - 42);
       }
     });
 
@@ -508,12 +663,15 @@
   }
 
   function draw() {
-    var w = canvas.clientWidth;
-    var h = canvas.clientHeight;
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, w, h);
-    drawGrid(w, h);
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    ctx.clearRect(0, 0, LETTER_WIDTH, LETTER_HEIGHT);
+    drawPageChrome(layout);
+    drawGrid(layout);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.contentX, layout.contentY, layout.contentW, layout.contentH);
+    ctx.clip();
 
     completedShapes.forEach(function(shape) {
       drawShape(shape.points, shape.closed);
@@ -522,10 +680,27 @@
     if (currentPoints.length) {
       drawShape(currentPoints, false, cursorPoint);
     }
+    ctx.restore();
   }
 
   function addPoint(x, y) {
-    currentPoints.push({ x: x, y: y });
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    if (!isInContentArea(x, y, layout)) {
+      showToast('Draw inside the page area below the header');
+      return;
+    }
+
+    if (currentPoints.length) {
+      var anchor = currentPoints[currentPoints.length - 1];
+      var snapped = snapPointFromAnchor(anchor, x, y);
+      if (!snapped) {
+        showToast('Move farther from the last corner');
+        return;
+      }
+      currentPoints.push(clampToContent(snapped.x, snapped.y, layout));
+    } else {
+      currentPoints.push(clampToContent(Math.round(x * 10) / 10, Math.round(y * 10) / 10, layout));
+    }
     updateUi();
     draw();
   }
@@ -571,48 +746,19 @@
   }
 
   function captureExportImage(forJpg) {
-    var w = canvas.clientWidth;
-    var h = canvas.clientHeight;
-    if (!w || !h) throw new Error('Sketch area is not ready — try again');
-
-    var maxWidth = 1400;
-    var scale = Math.min(1, maxWidth / w);
-    var outW = Math.max(1, Math.round(w * scale));
-    var sketchH = Math.max(1, Math.round(h * scale));
-    var headerH = forJpg ? Math.max(48, Math.round(52 * scale)) : 0;
-    var outH = sketchH + headerH;
-
     var exportCanvas = document.createElement('canvas');
-    exportCanvas.width = outW;
-    exportCanvas.height = outH;
+    exportCanvas.width = LETTER_WIDTH;
+    exportCanvas.height = LETTER_HEIGHT;
     var ectx = exportCanvas.getContext('2d');
-    ectx.fillStyle = '#ffffff';
-    ectx.fillRect(0, 0, outW, outH);
-
-    if (forJpg) {
-      ectx.fillStyle = '#27235d';
-      ectx.fillRect(0, 0, outW, headerH);
-      ectx.fillStyle = '#ffffff';
-      ectx.font = '700 ' + Math.max(14, Math.round(16 * scale)) + 'px Montserrat, sans-serif';
-      ectx.textBaseline = 'middle';
-      ectx.fillText('Ro-Berg Site Sketch', Math.round(16 * scale), headerH / 2);
-      ectx.fillStyle = 'rgba(255,255,255,0.65)';
-      ectx.font = '500 ' + Math.max(10, Math.round(11 * scale)) + 'px "Open Sans", sans-serif';
-      var dateLabel = new Date().toLocaleDateString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric'
-      });
-      ectx.textAlign = 'right';
-      ectx.fillText(dateLabel, outW - Math.round(16 * scale), headerH / 2);
-      ectx.textAlign = 'left';
-    }
-
-    ectx.drawImage(canvas, 0, 0, outW, sketchH, 0, headerH, outW, sketchH);
+    ectx.imageSmoothingEnabled = true;
+    ectx.imageSmoothingQuality = 'high';
+    ectx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, LETTER_WIDTH, LETTER_HEIGHT);
 
     try {
-      return { dataUrl: exportCanvas.toDataURL('image/jpeg', 0.92), width: outW, height: outH };
+      return { dataUrl: exportCanvas.toDataURL('image/jpeg', JPEG_QUALITY), width: LETTER_WIDTH, height: LETTER_HEIGHT };
     } catch (e1) {
       try {
-        return { dataUrl: exportCanvas.toDataURL('image/png'), width: outW, height: outH, isPng: true };
+        return { dataUrl: exportCanvas.toDataURL('image/png'), width: LETTER_WIDTH, height: LETTER_HEIGHT, isPng: true };
       } catch (e2) {
         throw new Error('Sketch is too large to export — try clearing and redrawing');
       }
@@ -803,7 +949,8 @@
 
   canvas.addEventListener('pointermove', function(e) {
     if (!currentPoints.length) return;
-    cursorPoint = getPointerPos(e);
+    var raw = getPointerPos(e);
+    cursorPoint = resolveDrawPoint(raw.x, raw.y);
     draw();
   });
 
