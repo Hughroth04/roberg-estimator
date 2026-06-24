@@ -352,7 +352,7 @@
     </div>
 
     <p class="rb-hint">
-      Connect <strong>4 corners</strong> for the outer outline, then <strong>draw the last side</strong> back to the first corner. Panels inside are one tap each.
+      Connect <strong>4 corners</strong> for the outer outline, then <strong>draw the last side</strong> back to the first corner. Drag <strong>across</strong> or <strong>up/down</strong> inside to split panels.
     </p>
   </main>
 
@@ -409,6 +409,7 @@
   var actionHistory = [];
   var toolMode = 'draw';
   var dragState = null;
+  var dividerDrag = null;
   var selectedShapeIndex = null;
   var toastTimer = null;
   var pendingSaveBlob = null;
@@ -450,6 +451,8 @@
   var CLOSE_SNAP_PX = Math.round(LETTER_WIDTH * 0.028);
   var RECTIFY_EDGE_SKEW_RATIO = 0.2;
   var RECTIFY_MAX_DEV_RATIO = 0.14;
+  var DIVIDER_DRAG_THRESHOLD = Math.round(LETTER_WIDTH * 0.02);
+  var DIVIDER_AXIS_DOMINANCE = 1.2;
   var DRAG_THRESHOLD = 8;
   var displayCssW = 0;
   var displayCssH = 0;
@@ -1067,6 +1070,7 @@
     dividerPreview = null;
     activeDrawMode = 'outline';
     dividerTargetIndex = null;
+    dividerDrag = null;
   }
 
   function setToolMode(mode) {
@@ -1083,37 +1087,97 @@
     draw();
   }
 
-  function getDividerPreviewAt(shape, p) {
-    var xBounds = getShapeXBounds(shape.points);
-    var yBounds = getShapeYBounds(shape.points);
-    var width = xBounds.maxX - xBounds.minX;
-    var height = yBounds.maxY - yBounds.minY;
-    var snap = snapVerticalX(shape, p.x);
-    if (snap.snapped) {
-      return verticalSliceAtX(shape.points, snap.x);
-    }
-    var relX = width > 0 ? (p.x - xBounds.minX) / width : 0.5;
-    if (relX < 0.22 || relX > 0.78) {
-      var vOff = verticalSliceAtX(shape.points, p.x);
-      if (vOff) return vOff;
-    }
-    return horizontalSliceAtY(shape.points, p.y);
+  function resolveDividerAxisFromDrag(dx, dy) {
+    var adx = Math.abs(dx);
+    var ady = Math.abs(dy);
+    if (Math.max(adx, ady) < DIVIDER_DRAG_THRESHOLD) return null;
+    if (adx > ady * DIVIDER_AXIS_DOMINANCE) return 'h';
+    if (ady > adx * DIVIDER_AXIS_DOMINANCE) return 'v';
+    return null;
   }
 
-  function placeDividerFromPoint(shapeIndex, point) {
-    var shape = completedShapes[shapeIndex];
-    if (!shape) return;
-    var preview = getDividerPreviewAt(shape, point);
-    if (!preview) {
-      showToast('Could not place divider here');
+  function startDividerDrag(shapeIndex, x, y) {
+    dividerDrag = {
+      shapeIndex: shapeIndex,
+      startX: x,
+      startY: y,
+      currentX: x,
+      currentY: y,
+      axis: null
+    };
+    dividerPreview = null;
+  }
+
+  function updateDividerDrag(p) {
+    if (!dividerDrag) return;
+    dividerDrag.currentX = p.x;
+    dividerDrag.currentY = p.y;
+    if (!dividerDrag.axis) {
+      dividerDrag.axis = resolveDividerAxisFromDrag(
+        p.x - dividerDrag.startX,
+        p.y - dividerDrag.startY
+      );
+    }
+    var shape = completedShapes[dividerDrag.shapeIndex];
+    if (!shape || !dividerDrag.axis) {
+      dividerPreview = null;
       return;
     }
-    if (preview.axis === 'v') {
-      var snap = snapVerticalX(shape, preview.x);
-      addDivider(shapeIndex, 'v', snap.x, snap.snapped);
+    if (dividerDrag.axis === 'h') {
+      dividerPreview = horizontalSliceAtY(shape.points, dividerDrag.startY);
     } else {
-      addDivider(shapeIndex, 'h', preview.y, false);
+      var snap = snapVerticalX(shape, dividerDrag.startX);
+      dividerPreview = verticalSliceAtX(shape.points, snap.x);
     }
+  }
+
+  function cancelDividerDrag() {
+    dividerDrag = null;
+    dividerPreview = null;
+  }
+
+  function commitDividerDrag() {
+    if (!dividerDrag) return;
+    if (!dividerDrag.axis) {
+      var dx = dividerDrag.currentX - dividerDrag.startX;
+      var dy = dividerDrag.currentY - dividerDrag.startY;
+      if (dx * dx + dy * dy > DIVIDER_DRAG_THRESHOLD * DIVIDER_DRAG_THRESHOLD * 0.25) {
+        showToast('Drag more horizontally or vertically to place a divider');
+      }
+      cancelDividerDrag();
+      draw();
+      return;
+    }
+    var shapeIndex = dividerDrag.shapeIndex;
+    if (dividerDrag.axis === 'h') {
+      addDivider(shapeIndex, 'h', dividerDrag.startY, false);
+    } else {
+      var shape = completedShapes[shapeIndex];
+      var snap = snapVerticalX(shape, dividerDrag.startX);
+      addDivider(shapeIndex, 'v', snap.x, snap.snapped);
+    }
+    cancelDividerDrag();
+    updateUi();
+    draw();
+  }
+
+  function drawDividerDragStem() {
+    if (!dividerDrag || !dividerDrag.axis) return;
+    var x1 = dividerDrag.startX;
+    var y1 = dividerDrag.startY;
+    var x2 = dividerDrag.currentX;
+    var y2 = dividerDrag.currentY;
+    if (dividerDrag.axis === 'h') y2 = y1;
+    else x2 = x1;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.setLineDash([14, 10]);
+    ctx.strokeStyle = COLORS.preview;
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   function hasRootOutline() {
@@ -1261,7 +1325,7 @@
       } else if (isAttachMode) {
         statusEl.innerHTML = 'Draw the outer driveway with 4 corners, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
-        statusEl.innerHTML = 'Tap <strong>inside</strong> to place a divider (one tap). Tap <strong>outside</strong> for another full outline.';
+        statusEl.innerHTML = 'Drag <strong>horizontally</strong> or <strong>vertically</strong> inside a shape to add a panel divider.';
       } else {
         statusEl.innerHTML = 'Tap <strong>4 corners</strong> to draw the outer driveway outline.';
       }
@@ -1386,6 +1450,7 @@
     drawPanelLabels(panelLabels);
 
     if (dividerPreview) drawDividerSlice(dividerPreview, true);
+    drawDividerDragStem();
 
     if (currentPoints.length && activeDrawMode === 'outline') {
       drawShape(currentPoints, false, cursorPoint, true);
@@ -1408,14 +1473,6 @@
     );
 
     if (!currentPoints.length) {
-      var containerIdx = findRootContainerAt(clamped.x, clamped.y);
-      if (containerIdx !== null) {
-        placeDividerFromPoint(containerIdx, clamped);
-        dividerPreview = null;
-        updateUi();
-        draw();
-        return;
-      }
       activeDrawMode = 'outline';
       dividerTargetIndex = null;
       currentPoints.push(clamped);
@@ -1433,7 +1490,7 @@
         return;
       }
       if (findRootContainerAt(clamped.x, clamped.y) !== null) {
-        showToast('Panel dividers are one tap inside — only the outer outline uses 4 corners');
+        showToast('Drag inside the shape to add dividers — only the outer outline uses corners');
         return;
       }
       var anchor = currentPoints[currentPoints.length - 1];
@@ -1537,9 +1594,9 @@
     updateUi();
     draw();
     if (rectified.leveled) {
-      showToast('Outline leveled — tap inside once to add each panel divider');
+      showToast('Outline leveled — drag inside to add panel dividers');
     } else {
-      showToast('Outer outline saved — tap inside once to add each panel divider');
+      showToast('Outer outline saved — drag inside to add panel dividers');
     }
   }
 
@@ -1579,6 +1636,7 @@
     toolMode = 'draw';
     selectedShapeIndex = null;
     dragState = null;
+    dividerDrag = null;
     actionHistory = [];
     if (btnMove) btnMove.classList.remove('rb-btn-active');
     canvas.style.cursor = 'crosshair';
@@ -1736,6 +1794,7 @@
     var savedTarget = dividerTargetIndex;
     var savedTool = toolMode;
     var savedDrag = dragState;
+    var savedDividerDrag = dividerDrag;
     var savedSelected = selectedShapeIndex;
     cancelCurrentDrawing();
     toolMode = 'draw';
@@ -1750,6 +1809,7 @@
       dividerTargetIndex = savedTarget;
       toolMode = savedTool;
       dragState = savedDrag;
+      dividerDrag = savedDividerDrag;
       selectedShapeIndex = savedSelected;
       if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
       canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
@@ -1881,10 +1941,19 @@
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     canvas.setPointerCapture(e.pointerId);
     var p = getPointerPos(e);
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    var clamped = clampToContent(p.x, p.y, layout);
     if (toolMode === 'move') {
       handleMovePointerDown(e, p);
-    } else {
+    } else if (currentPoints.length) {
       addPoint(p.x, p.y);
+    } else {
+      var containerIdx = findRootContainerAt(clamped.x, clamped.y);
+      if (containerIdx !== null) {
+        startDividerDrag(containerIdx, clamped.x, clamped.y);
+      } else {
+        addPoint(p.x, p.y);
+      }
     }
     e.preventDefault();
   });
@@ -1899,6 +1968,12 @@
       return;
     }
 
+    if (dividerDrag) {
+      updateDividerDrag(p);
+      draw();
+      return;
+    }
+
     if (currentPoints.length && activeDrawMode === 'outline') {
       cursorPoint = resolveDrawPoint(raw.x, raw.y);
       draw();
@@ -1907,24 +1982,23 @@
 
     dividerPreview = null;
     cursorPoint = null;
-    if (!currentPoints.length) {
-      var containerIdx = findRootContainerAt(p.x, p.y);
-      if (containerIdx !== null) {
-        dividerPreview = getDividerPreviewAt(completedShapes[containerIdx], p);
-      }
-    }
     draw();
   });
 
   canvas.addEventListener('pointerleave', function() {
     cursorPoint = null;
-    dividerPreview = null;
+    if (dividerDrag) cancelDividerDrag();
+    else dividerPreview = null;
     if (toolMode === 'move' && dragState) return;
     draw();
   });
 
   canvas.addEventListener('pointerup', function(e) {
-    if (toolMode === 'move') handleMovePointerUp();
+    if (toolMode === 'move') {
+      handleMovePointerUp();
+    } else if (dividerDrag) {
+      commitDividerDrag();
+    }
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   });
 
@@ -1940,7 +2014,11 @@
       e.preventDefault();
       undoPoint();
     } else if (e.key === 'Escape') {
-      if (currentPoints.length) {
+      if (dividerDrag) {
+        cancelDividerDrag();
+        draw();
+        showToast('Divider cancelled');
+      } else if (currentPoints.length) {
         cancelCurrentDrawing();
         updateUi();
         draw();
