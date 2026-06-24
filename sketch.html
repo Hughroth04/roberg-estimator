@@ -167,6 +167,11 @@
       border: 1px solid var(--rb-border);
     }
     #rb-sketch .rb-btn-ghost:active { background: #fafafa; }
+    #rb-sketch .rb-btn-active {
+      background: var(--rb-navy);
+      color: #fff;
+      border-color: var(--rb-navy);
+    }
 
     #rb-sketch canvas {
       display: block;
@@ -328,12 +333,13 @@
       <p class="rb-status" id="rb-status">
         8.5″ × 11″ page — draw inside the grid below the header.
       </p>
-      <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish shape</button>
+      <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish panel</button>
       <button type="button" class="rb-btn rb-btn-primary rb-btn-attach" id="rb-btn-attach" style="display:none" disabled>Attach to estimate</button>
       <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
       <button type="button" class="rb-btn rb-btn-ghost rb-btn-share-jpg" id="rb-btn-share-jpg">Share JPG</button>
+      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-move">Move shape</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo shape</button>
+      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo panel</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-clear">Clear all</button>
     </div>
 
@@ -346,7 +352,7 @@
     </div>
 
     <p class="rb-hint">
-      Draw on the 8.5″ × 11″ page below — what you see is what saves as the JPG.
+      Connect <strong>4 corners</strong> for the outer outline, then <strong>draw the last side</strong> back to the first corner. Panels inside are one tap each.
     </p>
   </main>
 
@@ -382,6 +388,7 @@
   var btnFinish = document.getElementById('rb-btn-finish');
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
+  var btnMove = document.getElementById('rb-btn-move');
   var btnAttach = document.getElementById('rb-btn-attach');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
   var btnShareJpg = document.getElementById('rb-btn-share-jpg');
@@ -396,6 +403,13 @@
   var completedShapes = [];
   var currentPoints = [];
   var cursorPoint = null;
+  var dividerPreview = null;
+  var activeDrawMode = 'outline';
+  var dividerTargetIndex = null;
+  var actionHistory = [];
+  var toolMode = 'draw';
+  var dragState = null;
+  var selectedShapeIndex = null;
   var toastTimer = null;
   var pendingSaveBlob = null;
   var pendingSaveFilename = '';
@@ -430,6 +444,13 @@
   var STROKE_WIDTH = 5;
   var VERTEX_RADIUS = 10;
   var MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.014);
+  var DIVIDER_EDGE_PAD = 14;
+  var DIVIDER_MIN_GAP = 20;
+  var CENTER_SNAP_RATIO = 0.07;
+  var CLOSE_SNAP_PX = Math.round(LETTER_WIDTH * 0.028);
+  var RECTIFY_EDGE_SKEW_RATIO = 0.2;
+  var RECTIFY_MAX_DEV_RATIO = 0.14;
+  var DRAG_THRESHOLD = 8;
   var displayCssW = 0;
   var displayCssH = 0;
   var canvasDpr = 1;
@@ -604,26 +625,652 @@
     }
   }
 
+  function pointInPolygon(px, py, polygon) {
+    var inside = false;
+    for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      var xi = polygon[i].x;
+      var yi = polygon[i].y;
+      var xj = polygon[j].x;
+      var yj = polygon[j].y;
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function pointOnSegment(px, py, x1, y1, x2, y2, eps) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var lenSq = dx * dx + dy * dy;
+    if (lenSq < 1) {
+      return Math.abs(px - x1) <= eps && Math.abs(py - y1) <= eps;
+    }
+    var t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    if (t < -0.001 || t > 1.001) return false;
+    var projX = x1 + t * dx;
+    var projY = y1 + t * dy;
+    return Math.abs(px - projX) <= eps && Math.abs(py - projY) <= eps;
+  }
+
+  function pointInOrOnPolygon(px, py, polygon) {
+    if (pointInPolygon(px, py, polygon)) return true;
+    var eps = 6;
+    for (var i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      if (pointOnSegment(px, py, polygon[i].x, polygon[i].y, polygon[j].x, polygon[j].y, eps)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function polygonCentroid(points) {
+    var x = 0;
+    var y = 0;
+    for (var i = 0; i < points.length; i++) {
+      x += points[i].x;
+      y += points[i].y;
+    }
+    return { x: x / points.length, y: y / points.length };
+  }
+
+  function polygonArea(points) {
+    var area = 0;
+    for (var i = 0; i < points.length; i++) {
+      var j = (i + 1) % points.length;
+      area += points[i].x * points[j].y - points[j].x * points[i].y;
+    }
+    return Math.abs(area / 2);
+  }
+
+  function shapeContainsShape(outer, inner) {
+    if (!outer.closed || !inner.closed) return false;
+    if (outer.points.length < 3 || inner.points.length < 3) return false;
+    if (polygonArea(inner.points) >= polygonArea(outer.points) * 0.98) return false;
+    for (var i = 0; i < inner.points.length; i++) {
+      var pt = inner.points[i];
+      if (!pointInOrOnPolygon(pt.x, pt.y, outer.points)) return false;
+    }
+    return true;
+  }
+
+  function isRootShape(index) {
+    var shape = completedShapes[index];
+    if (!shape) return false;
+    for (var j = 0; j < completedShapes.length; j++) {
+      if (j === index) continue;
+      if (shapeContainsShape(completedShapes[j], shape)) return false;
+    }
+    return true;
+  }
+
+  function findRootContainerAt(x, y) {
+    var best = null;
+    var bestArea = Infinity;
+    for (var i = 0; i < completedShapes.length; i++) {
+      if (!isRootShape(i)) continue;
+      var shape = completedShapes[i];
+      if (!shape.closed || shape.points.length !== 4) continue;
+      if (pointInOrOnPolygon(x, y, shape.points)) {
+        var area = polygonArea(shape.points);
+        if (area < bestArea) {
+          bestArea = area;
+          best = i;
+        }
+      }
+    }
+    return best;
+  }
+
+  function getShapeYBounds(points) {
+    var minY = Infinity;
+    var maxY = -Infinity;
+    for (var i = 0; i < points.length; i++) {
+      minY = Math.min(minY, points[i].y);
+      maxY = Math.max(maxY, points[i].y);
+    }
+    return { minY: minY, maxY: maxY };
+  }
+
+  function getShapeXBounds(points) {
+    var minX = Infinity;
+    var maxX = -Infinity;
+    for (var i = 0; i < points.length; i++) {
+      minX = Math.min(minX, points[i].x);
+      maxX = Math.max(maxX, points[i].x);
+    }
+    return { minX: minX, maxX: maxX };
+  }
+
+  function horizontalSliceAtY(polygon, y) {
+    var xs = [];
+    for (var i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      var x1 = polygon[i].x;
+      var y1 = polygon[i].y;
+      var x2 = polygon[j].x;
+      var y2 = polygon[j].y;
+      if (Math.abs(y1 - y2) < 0.5) {
+        if (Math.abs(y1 - y) < 1.5) {
+          xs.push(x1, x2);
+        }
+        continue;
+      }
+      if (y < Math.min(y1, y2) - 0.5 || y > Math.max(y1, y2) + 0.5) continue;
+      var t = (y - y1) / (y2 - y1);
+      if (t < -0.001 || t > 1.001) continue;
+      xs.push(x1 + t * (x2 - x1));
+    }
+    if (xs.length < 2) return null;
+    xs.sort(function(a, b) { return a - b; });
+    return { axis: 'h', x1: xs[0], x2: xs[xs.length - 1], y: y };
+  }
+
+  function verticalSliceAtX(polygon, x) {
+    var ys = [];
+    for (var i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      var x1 = polygon[i].x;
+      var y1 = polygon[i].y;
+      var x2 = polygon[j].x;
+      var y2 = polygon[j].y;
+      if (Math.abs(x1 - x2) < 0.5) {
+        if (Math.abs(x1 - x) < 1.5) {
+          ys.push(y1, y2);
+        }
+        continue;
+      }
+      if (x < Math.min(x1, x2) - 0.5 || x > Math.max(x1, x2) + 0.5) continue;
+      var t = (x - x1) / (x2 - x1);
+      if (t < -0.001 || t > 1.001) continue;
+      ys.push(y1 + t * (y2 - y1));
+    }
+    if (ys.length < 2) return null;
+    ys.sort(function(a, b) { return a - b; });
+    return { axis: 'v', x: x, y1: ys[0], y2: ys[ys.length - 1] };
+  }
+
+  function normalizeDivider(div) {
+    if (!div.axis) div.axis = 'h';
+    return div;
+  }
+
+  function ensureShapeDividers(shape) {
+    if (!shape.dividers) shape.dividers = [];
+    shape.dividers.forEach(normalizeDivider);
+  }
+
+  function snapVerticalX(shape, x) {
+    var xBounds = getShapeXBounds(shape.points);
+    var centerX = (xBounds.minX + xBounds.maxX) / 2;
+    var width = xBounds.maxX - xBounds.minX;
+    if (width > 0 && Math.abs(x - centerX) <= width * CENTER_SNAP_RATIO) {
+      return { x: centerX, snapped: true };
+    }
+    return { x: x, snapped: false };
+  }
+
+  function addDivider(shapeIndex, axis, pos, snappedCenter) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.closed) return false;
+    ensureShapeDividers(shape);
+
+    if (axis === 'v') {
+      var xBounds = getShapeXBounds(shape.points);
+      if (pos <= xBounds.minX + DIVIDER_EDGE_PAD || pos >= xBounds.maxX - DIVIDER_EDGE_PAD) {
+        showToast('Place the divider between the left and right edges');
+        return false;
+      }
+      var vSlice = verticalSliceAtX(shape.points, pos);
+      if (!vSlice || vSlice.y2 - vSlice.y1 < MIN_SEGMENT_PX) {
+        showToast('Could not place divider here');
+        return false;
+      }
+      for (var vi = 0; vi < shape.dividers.length; vi++) {
+        var vd = shape.dividers[vi];
+        if (vd.axis === 'v' && Math.abs(vd.x - pos) < DIVIDER_MIN_GAP) {
+          showToast('A divider is already near this position');
+          return false;
+        }
+      }
+      shape.dividers.push({
+        axis: 'v',
+        x: Math.round(pos * 10) / 10,
+        y1: vSlice.y1,
+        y2: vSlice.y2
+      });
+      shape.dividers.sort(function(a, b) {
+        if (a.axis !== b.axis) return a.axis === 'h' ? -1 : 1;
+        return (a.axis === 'h' ? a.y : a.x) - (b.axis === 'h' ? b.y : b.x);
+      });
+      actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: 'v' });
+      var vMsg = 'Vertical divider added';
+      if (snappedCenter) vMsg += ' (snapped to center)';
+      showToast(vMsg + ' — ' + getDerivedPanels().length + ' panels');
+      return true;
+    }
+
+    var yBounds = getShapeYBounds(shape.points);
+    if (pos <= yBounds.minY + DIVIDER_EDGE_PAD || pos >= yBounds.maxY - DIVIDER_EDGE_PAD) {
+      showToast('Place the divider between the top and bottom edges');
+      return false;
+    }
+    var hSlice = horizontalSliceAtY(shape.points, pos);
+    if (!hSlice || hSlice.x2 - hSlice.x1 < MIN_SEGMENT_PX) {
+      showToast('Could not place divider here');
+      return false;
+    }
+    for (var hi = 0; hi < shape.dividers.length; hi++) {
+      var hd = shape.dividers[hi];
+      if (hd.axis === 'h' && Math.abs(hd.y - pos) < DIVIDER_MIN_GAP) {
+        showToast('A divider is already near this height');
+        return false;
+      }
+    }
+    shape.dividers.push({
+      axis: 'h',
+      y: Math.round(pos * 10) / 10,
+      x1: hSlice.x1,
+      x2: hSlice.x2
+    });
+    shape.dividers.sort(function(a, b) {
+      if (a.axis !== b.axis) return a.axis === 'h' ? -1 : 1;
+      return (a.axis === 'h' ? a.y : a.x) - (b.axis === 'h' ? b.y : b.x);
+    });
+    actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: 'h' });
+    showToast('Horizontal divider added — ' + getDerivedPanels().length + ' panels');
+    return true;
+  }
+
+  function dedupeCuts(cuts) {
+    cuts.sort(function(a, b) { return a - b; });
+    var unique = [cuts[0]];
+    for (var c = 1; c < cuts.length; c++) {
+      if (cuts[c] - unique[unique.length - 1] > DIVIDER_MIN_GAP) unique.push(cuts[c]);
+    }
+    return unique;
+  }
+
+  function sortPanelsByPosition(panels) {
+    panels.sort(function(a, b) {
+      var dy = a.centroid.y - b.centroid.y;
+      if (Math.abs(dy) > 24) return dy;
+      return a.centroid.x - b.centroid.x;
+    });
+    return panels;
+  }
+
+  function getDerivedPanels() {
+    var panels = [];
+    for (var i = 0; i < completedShapes.length; i++) {
+      if (!isRootShape(i)) continue;
+      var shape = completedShapes[i];
+      if (!shape.closed || shape.points.length !== 4) continue;
+      ensureShapeDividers(shape);
+      var xBounds = getShapeXBounds(shape.points);
+      var yBounds = getShapeYBounds(shape.points);
+      var xCuts = [xBounds.minX];
+      var yCuts = [yBounds.minY];
+      for (var d = 0; d < shape.dividers.length; d++) {
+        var div = shape.dividers[d];
+        if (div.axis === 'v') xCuts.push(div.x);
+        else yCuts.push(div.y);
+      }
+      xCuts.push(xBounds.maxX);
+      yCuts.push(yBounds.maxY);
+      xCuts = dedupeCuts(xCuts);
+      yCuts = dedupeCuts(yCuts);
+      var shapePanels = [];
+      for (var yi = 0; yi < yCuts.length - 1; yi++) {
+        for (var xi = 0; xi < xCuts.length - 1; xi++) {
+          var xMid = (xCuts[xi] + xCuts[xi + 1]) / 2;
+          var yMid = (yCuts[yi] + yCuts[yi + 1]) / 2;
+          if (xCuts[xi + 1] - xCuts[xi] < DIVIDER_MIN_GAP) continue;
+          if (yCuts[yi + 1] - yCuts[yi] < DIVIDER_MIN_GAP) continue;
+          if (!pointInPolygon(xMid, yMid, shape.points)) continue;
+          shapePanels.push({
+            id: i + ':' + yi + ':' + xi,
+            shapeIndex: i,
+            centroid: { x: xMid, y: yMid }
+          });
+        }
+      }
+      sortPanelsByPosition(shapePanels);
+      for (var p = 0; p < shapePanels.length; p++) panels.push(shapePanels[p]);
+    }
+    return panels;
+  }
+
+  // Number panels per driveway outline in creation order (shape 1: 1–n, shape 2: n+1…).
+  function getPanelLabelMap() {
+    var panels = getDerivedPanels();
+    var labels = {};
+    panels.forEach(function(panel, idx) {
+      labels[panel.id] = idx + 1;
+    });
+    return labels;
+  }
+
+  function drawDividerLine(x1, y, x2, dashed) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(x2, y);
+    ctx.lineCap = 'round';
+    if (dashed) {
+      ctx.setLineDash([18, 12]);
+      ctx.strokeStyle = COLORS.preview;
+    } else {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = COLORS.stroke;
+    }
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawDividerLineV(x, y1, y2, dashed) {
+    ctx.beginPath();
+    ctx.moveTo(x, y1);
+    ctx.lineTo(x, y2);
+    ctx.lineCap = 'round';
+    if (dashed) {
+      ctx.setLineDash([18, 12]);
+      ctx.strokeStyle = COLORS.preview;
+    } else {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = COLORS.stroke;
+    }
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawDividerSlice(slice, dashed) {
+    if (!slice) return;
+    if (slice.axis === 'v') drawDividerLineV(slice.x, slice.y1, slice.y2, dashed);
+    else drawDividerLine(slice.x1, slice.y, slice.x2, dashed);
+  }
+
+  function cloneShapeGeometry(shape) {
+    return {
+      points: shape.points.map(function(p) { return { x: p.x, y: p.y }; }),
+      dividers: (shape.dividers || []).map(function(d) {
+        var copy = { axis: d.axis || 'h' };
+        if (copy.axis === 'v') {
+          copy.x = d.x;
+          copy.y1 = d.y1;
+          copy.y2 = d.y2;
+        } else {
+          copy.y = d.y;
+          copy.x1 = d.x1;
+          copy.x2 = d.x2;
+        }
+        return copy;
+      })
+    };
+  }
+
+  function translateShape(shape, dx, dy) {
+    shape.points.forEach(function(p) {
+      p.x += dx;
+      p.y += dy;
+    });
+    ensureShapeDividers(shape);
+    shape.dividers.forEach(function(d) {
+      if (d.axis === 'v') {
+        d.x += dx;
+        d.y1 += dy;
+        d.y2 += dy;
+      } else {
+        d.y += dy;
+        d.x1 += dx;
+        d.x2 += dx;
+      }
+    });
+  }
+
+  function getShapeBBox(shape) {
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+    shape.points.forEach(function(p) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    });
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+  }
+
+  function clampShapeInContent(shapeIndex, layout) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape) return;
+    var box = getShapeBBox(shape);
+    var dx = 0;
+    var dy = 0;
+    if (box.minX < layout.contentX) dx = layout.contentX - box.minX;
+    else if (box.maxX > layout.contentX + layout.contentW) {
+      dx = layout.contentX + layout.contentW - box.maxX;
+    }
+    if (box.minY < layout.contentY) dy = layout.contentY - box.minY;
+    else if (box.maxY > layout.contentY + layout.contentH) {
+      dy = layout.contentY + layout.contentH - box.maxY;
+    }
+    if (dx || dy) translateShape(shape, dx, dy);
+  }
+
+  function cancelCurrentDrawing() {
+    currentPoints = [];
+    cursorPoint = null;
+    dividerPreview = null;
+    activeDrawMode = 'outline';
+    dividerTargetIndex = null;
+  }
+
+  function setToolMode(mode) {
+    toolMode = mode;
+    if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
+    canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
+    if (toolMode === 'draw') {
+      selectedShapeIndex = null;
+      dragState = null;
+    } else {
+      cancelCurrentDrawing();
+    }
+    updateUi();
+    draw();
+  }
+
+  function getDividerPreviewAt(shape, p) {
+    var xBounds = getShapeXBounds(shape.points);
+    var yBounds = getShapeYBounds(shape.points);
+    var width = xBounds.maxX - xBounds.minX;
+    var height = yBounds.maxY - yBounds.minY;
+    var snap = snapVerticalX(shape, p.x);
+    if (snap.snapped) {
+      return verticalSliceAtX(shape.points, snap.x);
+    }
+    var relX = width > 0 ? (p.x - xBounds.minX) / width : 0.5;
+    if (relX < 0.22 || relX > 0.78) {
+      var vOff = verticalSliceAtX(shape.points, p.x);
+      if (vOff) return vOff;
+    }
+    return horizontalSliceAtY(shape.points, p.y);
+  }
+
+  function placeDividerFromPoint(shapeIndex, point) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape) return;
+    var preview = getDividerPreviewAt(shape, point);
+    if (!preview) {
+      showToast('Could not place divider here');
+      return;
+    }
+    if (preview.axis === 'v') {
+      var snap = snapVerticalX(shape, preview.x);
+      addDivider(shapeIndex, 'v', snap.x, snap.snapped);
+    } else {
+      addDivider(shapeIndex, 'h', preview.y, false);
+    }
+  }
+
+  function hasRootOutline() {
+    for (var i = 0; i < completedShapes.length; i++) {
+      if (isRootShape(i)) return true;
+    }
+    return false;
+  }
+
+  function isNearPoint(a, b, radius) {
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    return dx * dx + dy * dy <= radius * radius;
+  }
+
+  function pointDist(a, b) {
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function isEdgeNearlyAxisAligned(p1, p2, maxSkewRatio) {
+    var dx = Math.abs(p2.x - p1.x);
+    var dy = Math.abs(p2.y - p1.y);
+    var len = Math.max(dx, dy);
+    if (len < MIN_SEGMENT_PX) return false;
+    return Math.min(dx, dy) / len <= maxSkewRatio;
+  }
+
+  function rectifyOutlinePoints(points) {
+    if (points.length !== 4) {
+      return { points: points.map(function(p) { return { x: p.x, y: p.y }; }), leveled: false };
+    }
+    var raw = points.map(function(p) { return { x: p.x, y: p.y }; });
+    var i;
+    for (i = 0; i < 4; i++) {
+      if (!isEdgeNearlyAxisAligned(raw[i], raw[(i + 1) % 4], RECTIFY_EDGE_SKEW_RATIO)) {
+        return { points: raw, leveled: false };
+      }
+    }
+    var minX = Infinity;
+    var maxX = -Infinity;
+    var minY = Infinity;
+    var maxY = -Infinity;
+    for (i = 0; i < 4; i++) {
+      minX = Math.min(minX, raw[i].x);
+      maxX = Math.max(maxX, raw[i].x);
+      minY = Math.min(minY, raw[i].y);
+      maxY = Math.max(maxY, raw[i].y);
+    }
+    var w = maxX - minX;
+    var h = maxY - minY;
+    if (w < MIN_SEGMENT_PX || h < MIN_SEGMENT_PX) return { points: raw, leveled: false };
+    var targets = [
+      { x: minX, y: minY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY }
+    ];
+    var bestRot = 0;
+    var bestScore = Infinity;
+    var rot;
+    for (rot = 0; rot < 4; rot++) {
+      var score = 0;
+      for (i = 0; i < 4; i++) score += pointDist(raw[i], targets[(i + rot) % 4]);
+      if (score < bestScore) {
+        bestScore = score;
+        bestRot = rot;
+      }
+    }
+    var avgDev = bestScore / 4;
+    var devLimit = Math.max(LETTER_WIDTH * 0.025, Math.min(w, h) * RECTIFY_MAX_DEV_RATIO);
+    if (avgDev > devLimit) return { points: raw, leveled: false };
+    var leveled = [];
+    for (i = 0; i < 4; i++) {
+      var c = targets[(i + bestRot) % 4];
+      leveled.push({ x: Math.round(c.x * 10) / 10, y: Math.round(c.y * 10) / 10 });
+    }
+    var changed = false;
+    for (i = 0; i < 4; i++) {
+      if (Math.abs(leveled[i].x - raw[i].x) > 0.5 || Math.abs(leveled[i].y - raw[i].y) > 0.5) {
+        changed = true;
+        break;
+      }
+    }
+    return { points: leveled, leveled: changed };
+  }
+
+  function tryCloseOutlineAt(clamped) {
+    if (currentPoints.length !== 4 || activeDrawMode !== 'outline') return false;
+    if (!isNearPoint(clamped, currentPoints[0], CLOSE_SNAP_PX)) return false;
+    finishShape();
+    return true;
+  }
+
+  function drawClosingCornerHint() {
+    if (currentPoints.length !== 4 || activeDrawMode !== 'outline') return;
+    var first = currentPoints[0];
+    var nearFirst = cursorPoint && isNearPoint(cursorPoint, first, CLOSE_SNAP_PX * 1.4);
+    ctx.beginPath();
+    ctx.arc(first.x, first.y, nearFirst ? VERTEX_RADIUS + 8 : VERTEX_RADIUS + 4, 0, Math.PI * 2);
+    ctx.fillStyle = nearFirst ? 'rgba(42, 122, 74, 0.35)' : 'rgba(114, 165, 183, 0.25)';
+    ctx.fill();
+    ctx.lineWidth = nearFirst ? 4 : 3;
+    ctx.strokeStyle = nearFirst ? '#2a7a4a' : COLORS.vertex;
+    ctx.stroke();
+  }
+
+  function drawPanelLabels(labelMap) {
+    var panels = getDerivedPanels();
+    ctx.save();
+    ctx.font = '700 56px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    panels.forEach(function(panel) {
+      var num = labelMap[panel.id];
+      if (!num) return;
+      var text = 'Panel ' + num;
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeText(text, panel.centroid.x, panel.centroid.y);
+      ctx.fillStyle = COLORS.stroke;
+      ctx.fillText(text, panel.centroid.x, panel.centroid.y);
+    });
+    ctx.restore();
+  }
+
   function updateUi() {
     var n = currentPoints.length;
-    btnUndo.disabled = n === 0;
-    btnFinish.disabled = n < 2;
-    btnUndoShape.disabled = completedShapes.length === 0;
+    btnUndo.disabled = n === 0 || toolMode === 'move';
+    btnFinish.disabled = toolMode === 'move' || activeDrawMode !== 'outline' || n < 4 || n === 4;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move';
+    }
+    if (toolMode === 'move') {
+      statusEl.innerHTML = dragState
+        ? 'Dragging — release to place the shape.'
+        : 'Tap and drag a driveway to move it. Tap <strong>Move shape</strong> again to draw.';
+      return;
     }
     if (n === 0) {
       if (isAttachMode && completedShapes.length) {
         statusEl.innerHTML = 'Sketch ready — tap <strong>Attach to estimate</strong> to return to the estimator.';
       } else if (isAttachMode) {
-        statusEl.innerHTML = 'Draw on the grid, finish each shape, then attach to your open estimate.';
+        statusEl.innerHTML = 'Draw the outer driveway with 4 corners, then tap inside to add panel dividers.';
+      } else if (hasRootOutline()) {
+        statusEl.innerHTML = 'Tap <strong>inside</strong> to place a divider (one tap). Tap <strong>outside</strong> for another full outline.';
       } else {
-        statusEl.innerHTML = 'Tap the first corner. Next lines snap horizontal, vertical, or diagonal.';
+        statusEl.innerHTML = 'Tap <strong>4 corners</strong> to draw the outer driveway outline.';
       }
     } else if (n === 1) {
-      statusEl.innerHTML = '<strong>1</strong> corner placed — add at least one more, then finish.';
-    } else {
-      statusEl.innerHTML = '<strong>' + n + '</strong> corners placed — press <strong>Enter</strong> or <strong>Finish shape</strong> to close.';
+      statusEl.innerHTML = '<strong>1</strong> corner — place <strong>3</strong> more to close the outer outline.';
+    } else if (n < 4) {
+      statusEl.innerHTML = '<strong>' + n + '</strong> corners — place <strong>' + (4 - n) + '</strong> more, then draw the last side to the first corner.';
+    } else if (n === 4) {
+      statusEl.innerHTML = 'Draw the <strong>last side</strong> — tap the <strong>first corner</strong> (highlighted) to close the outline.';
     }
   }
 
@@ -653,8 +1300,9 @@
     ctx.restore();
   }
 
-  function drawShape(points, closed, previewTo) {
+  function drawShape(points, closed, previewTo, showVertices) {
     if (!points.length) return;
+    if (showVertices === undefined) showVertices = !closed;
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -689,29 +1337,24 @@
       ctx.setLineDash([]);
     }
 
-    points.forEach(function(pt, idx) {
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, closed ? VERTEX_RADIUS - 2 : VERTEX_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = COLORS.vertex;
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = COLORS.vertexBorder;
-      ctx.stroke();
-
-      if (!closed || idx === 0) {
-        ctx.fillStyle = COLORS.stroke;
-        ctx.font = '600 36px Open Sans, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(idx + 1), pt.x, pt.y - 42);
-      }
-    });
+    if (showVertices) {
+      points.forEach(function(pt) {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, VERTEX_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = COLORS.vertex;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = COLORS.vertexBorder;
+        ctx.stroke();
+      });
+    }
 
     ctx.restore();
   }
 
   function draw() {
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    var panelLabels = getPanelLabelMap();
     ctx.clearRect(0, 0, LETTER_WIDTH, LETTER_HEIGHT);
     drawPageChrome(layout);
     drawGrid(layout);
@@ -721,34 +1364,145 @@
     ctx.rect(layout.contentX, layout.contentY, layout.contentW, layout.contentH);
     ctx.clip();
 
-    completedShapes.forEach(function(shape) {
-      drawShape(shape.points, shape.closed);
+    completedShapes.forEach(function(shape, idx) {
+      drawShape(shape.points, shape.closed, null, false);
+      ensureShapeDividers(shape);
+      shape.dividers.forEach(function(div) {
+        if (div.axis === 'v') drawDividerLineV(div.x, div.y1, div.y2, false);
+        else drawDividerLine(div.x1, div.y, div.x2, false);
+      });
+      if (toolMode === 'move' && selectedShapeIndex === idx) {
+        var box = getShapeBBox(shape);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(114, 165, 183, 0.85)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([16, 10]);
+        ctx.strokeRect(box.minX - 6, box.minY - 6, box.maxX - box.minX + 12, box.maxY - box.minY + 12);
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
     });
 
-    if (currentPoints.length) {
-      drawShape(currentPoints, false, cursorPoint);
+    drawPanelLabels(panelLabels);
+
+    if (dividerPreview) drawDividerSlice(dividerPreview, true);
+
+    if (currentPoints.length && activeDrawMode === 'outline') {
+      drawShape(currentPoints, false, cursorPoint, true);
+      drawClosingCornerHint();
     }
     ctx.restore();
   }
 
   function addPoint(x, y) {
+    if (toolMode === 'move') return;
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     if (!isInContentArea(x, y, layout)) {
       showToast('Draw inside the page area below the header');
       return;
     }
+    var clamped = clampToContent(
+      Math.round(x * 10) / 10,
+      Math.round(y * 10) / 10,
+      layout
+    );
 
-    if (currentPoints.length) {
+    if (!currentPoints.length) {
+      var containerIdx = findRootContainerAt(clamped.x, clamped.y);
+      if (containerIdx !== null) {
+        placeDividerFromPoint(containerIdx, clamped);
+        dividerPreview = null;
+        updateUi();
+        draw();
+        return;
+      }
+      activeDrawMode = 'outline';
+      dividerTargetIndex = null;
+      currentPoints.push(clamped);
+      updateUi();
+      draw();
+      return;
+    }
+
+    if (activeDrawMode === 'outline') {
+      if (currentPoints.length === 4) {
+        if (tryCloseOutlineAt(clamped)) return;
+        showToast('Draw the last side — tap the first corner to close');
+        updateUi();
+        draw();
+        return;
+      }
+      if (findRootContainerAt(clamped.x, clamped.y) !== null) {
+        showToast('Panel dividers are one tap inside — only the outer outline uses 4 corners');
+        return;
+      }
       var anchor = currentPoints[currentPoints.length - 1];
-      var snapped = snapPointFromAnchor(anchor, x, y);
+      var snapped = snapPointFromAnchor(anchor, clamped.x, clamped.y);
       if (!snapped) {
         showToast('Move farther from the last corner');
         return;
       }
       currentPoints.push(clampToContent(snapped.x, snapped.y, layout));
-    } else {
-      currentPoints.push(clampToContent(Math.round(x * 10) / 10, Math.round(y * 10) / 10, layout));
     }
+
+    updateUi();
+    draw();
+  }
+
+  function handleMovePointerDown(e, p) {
+    var hit = findRootContainerAt(p.x, p.y);
+    if (hit === null) {
+      selectedShapeIndex = null;
+      draw();
+      return;
+    }
+    selectedShapeIndex = hit;
+    var shape = completedShapes[hit];
+    dragState = {
+      shapeIndex: hit,
+      startX: p.x,
+      startY: p.y,
+      moved: false,
+      snapshot: cloneShapeGeometry(shape)
+    };
+    canvas.style.cursor = 'grabbing';
+    draw();
+  }
+
+  function handleMovePointerMove(p) {
+    if (!dragState) return;
+    var dx = p.x - dragState.startX;
+    var dy = p.y - dragState.startY;
+    if (!dragState.moved && (dx * dx + dy * dy) < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+    dragState.moved = true;
+    var shape = completedShapes[dragState.shapeIndex];
+    if (!shape) return;
+    shape.points = dragState.snapshot.points.map(function(pt) {
+      return { x: pt.x + dx, y: pt.y + dy };
+    });
+    shape.dividers = dragState.snapshot.dividers.map(function(d) {
+      if (d.axis === 'v') {
+        return { axis: 'v', x: d.x + dx, y1: d.y1 + dy, y2: d.y2 + dy };
+      }
+      return { axis: 'h', y: d.y + dy, x1: d.x1 + dx, x2: d.x2 + dx };
+    });
+    draw();
+  }
+
+  function handleMovePointerUp() {
+    if (!dragState) return;
+    canvas.style.cursor = 'grab';
+    if (dragState.moved) {
+      var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+      clampShapeInContent(dragState.shapeIndex, layout);
+      actionHistory.push({
+        type: 'move',
+        shapeIndex: dragState.shapeIndex,
+        snapshot: dragState.snapshot
+      });
+      showToast('Shape moved');
+    }
+    dragState = null;
     updateUi();
     draw();
   }
@@ -756,29 +1510,63 @@
   function undoPoint() {
     if (!currentPoints.length) return;
     currentPoints.pop();
+    if (!currentPoints.length) {
+      activeDrawMode = 'outline';
+      dividerTargetIndex = null;
+    }
     updateUi();
     draw();
   }
 
   function finishShape() {
-    if (currentPoints.length < 2) {
-      showToast('Add at least 2 corners before finishing');
+    if (currentPoints.length !== 4) {
+      showToast('The driveway outline needs exactly 4 corners');
       return;
     }
+    var rectified = rectifyOutlinePoints(currentPoints);
     completedShapes.push({
-      points: currentPoints.map(function(p) { return { x: p.x, y: p.y }; }),
-      closed: currentPoints.length >= 3
+      points: rectified.points,
+      closed: true,
+      dividers: []
     });
+    actionHistory.push({ type: 'shape' });
     currentPoints = [];
     cursorPoint = null;
+    activeDrawMode = 'outline';
+    dividerTargetIndex = null;
     updateUi();
     draw();
-    showToast('Shape saved — tap to start another');
+    if (rectified.leveled) {
+      showToast('Outline leveled — tap inside once to add each panel divider');
+    } else {
+      showToast('Outer outline saved — tap inside once to add each panel divider');
+    }
   }
 
   function undoShape() {
-    if (!completedShapes.length) return;
-    completedShapes.pop();
+    if (!actionHistory.length) return;
+    var action = actionHistory.pop();
+    if (action.type === 'divider') {
+      var divShape = completedShapes[action.shapeIndex];
+      if (divShape && divShape.dividers && divShape.dividers.length) divShape.dividers.pop();
+    } else if (action.type === 'shape') {
+      completedShapes.pop();
+      selectedShapeIndex = null;
+    } else if (action.type === 'move') {
+      var moved = completedShapes[action.shapeIndex];
+      if (moved && action.snapshot) {
+        moved.points = action.snapshot.points.map(function(p) { return { x: p.x, y: p.y }; });
+        moved.dividers = action.snapshot.dividers.map(function(d) {
+          var copy = { axis: d.axis };
+          if (copy.axis === 'v') {
+            copy.x = d.x; copy.y1 = d.y1; copy.y2 = d.y2;
+          } else {
+            copy.y = d.y; copy.x1 = d.x1; copy.x2 = d.x2;
+          }
+          return copy;
+        });
+      }
+    }
     updateUi();
     draw();
   }
@@ -787,8 +1575,13 @@
     if (!completedShapes.length && !currentPoints.length) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
-    currentPoints = [];
-    cursorPoint = null;
+    cancelCurrentDrawing();
+    toolMode = 'draw';
+    selectedShapeIndex = null;
+    dragState = null;
+    actionHistory = [];
+    if (btnMove) btnMove.classList.remove('rb-btn-active');
+    canvas.style.cursor = 'crosshair';
     updateUi();
     draw();
   }
@@ -938,12 +1731,28 @@
   function prepareExportCanvas() {
     var savedPoints = currentPoints;
     var savedCursor = cursorPoint;
-    currentPoints = [];
-    cursorPoint = null;
+    var savedPreview = dividerPreview;
+    var savedMode = activeDrawMode;
+    var savedTarget = dividerTargetIndex;
+    var savedTool = toolMode;
+    var savedDrag = dragState;
+    var savedSelected = selectedShapeIndex;
+    cancelCurrentDrawing();
+    toolMode = 'draw';
+    dragState = null;
+    selectedShapeIndex = null;
     draw();
     return function restore() {
       currentPoints = savedPoints;
       cursorPoint = savedCursor;
+      dividerPreview = savedPreview;
+      activeDrawMode = savedMode;
+      dividerTargetIndex = savedTarget;
+      toolMode = savedTool;
+      dragState = savedDrag;
+      selectedShapeIndex = savedSelected;
+      if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
+      canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
       draw();
     };
   }
@@ -1028,6 +1837,10 @@
       showToast('Finish or cancel the current shape first');
       return;
     }
+    if (toolMode === 'move' || dragState) {
+      showToast('Exit move mode before attaching');
+      return;
+    }
     btnAttach.disabled = true;
     var restore = prepareExportCanvas();
     var exportImage;
@@ -1068,23 +1881,50 @@
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     canvas.setPointerCapture(e.pointerId);
     var p = getPointerPos(e);
-    addPoint(p.x, p.y);
+    if (toolMode === 'move') {
+      handleMovePointerDown(e, p);
+    } else {
+      addPoint(p.x, p.y);
+    }
     e.preventDefault();
   });
 
   canvas.addEventListener('pointermove', function(e) {
-    if (!currentPoints.length) return;
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     var raw = getPointerPos(e);
-    cursorPoint = resolveDrawPoint(raw.x, raw.y);
+    var p = clampToContent(raw.x, raw.y, layout);
+
+    if (toolMode === 'move') {
+      handleMovePointerMove(p);
+      return;
+    }
+
+    if (currentPoints.length && activeDrawMode === 'outline') {
+      cursorPoint = resolveDrawPoint(raw.x, raw.y);
+      draw();
+      return;
+    }
+
+    dividerPreview = null;
+    cursorPoint = null;
+    if (!currentPoints.length) {
+      var containerIdx = findRootContainerAt(p.x, p.y);
+      if (containerIdx !== null) {
+        dividerPreview = getDividerPreviewAt(completedShapes[containerIdx], p);
+      }
+    }
     draw();
   });
 
   canvas.addEventListener('pointerleave', function() {
     cursorPoint = null;
-    if (currentPoints.length) draw();
+    dividerPreview = null;
+    if (toolMode === 'move' && dragState) return;
+    draw();
   });
 
   canvas.addEventListener('pointerup', function(e) {
+    if (toolMode === 'move') handleMovePointerUp();
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   });
 
@@ -1092,18 +1932,22 @@
     if (e.key === 'Enter') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
-      finishShape();
+      if (currentPoints.length === 4) {
+        showToast('Tap the first corner to close the outline');
+      }
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
       undoPoint();
     } else if (e.key === 'Escape') {
       if (currentPoints.length) {
-        currentPoints = [];
-        cursorPoint = null;
+        cancelCurrentDrawing();
         updateUi();
         draw();
-        showToast('Current shape cancelled');
+        showToast('Cancelled');
+      } else if (toolMode === 'move') {
+        setToolMode('draw');
+        showToast('Move mode off');
       }
     }
   });
@@ -1112,6 +1956,12 @@
   btnFinish.addEventListener('click', finishShape);
   btnUndoShape.addEventListener('click', undoShape);
   btnClear.addEventListener('click', clearAll);
+  if (btnMove) {
+    btnMove.addEventListener('click', function() {
+      setToolMode(toolMode === 'move' ? 'draw' : 'move');
+      if (toolMode === 'move') showToast('Move mode — drag a shape to reposition');
+    });
+  }
   btnExportJpg.addEventListener('click', exportJpg);
   btnShareJpg.addEventListener('click', shareJpg);
   if (btnAttach) btnAttach.addEventListener('click', attachToEstimate);
