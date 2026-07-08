@@ -352,7 +352,7 @@
     </div>
 
     <p class="rb-hint">
-      Connect <strong>4 corners</strong> for the outer outline, then <strong>draw the last side</strong> back to the first corner. Drag <strong>across</strong> or <strong>up/down</strong> inside to split panels.
+      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag <strong>across</strong> or <strong>up/down</strong> inside to split panels.
     </p>
   </main>
 
@@ -449,6 +449,7 @@
   var DIVIDER_MIN_GAP = 20;
   var CENTER_SNAP_RATIO = 0.07;
   var CLOSE_SNAP_PX = Math.round(LETTER_WIDTH * 0.028);
+  var MIN_POLYGON_POINTS = 3;
   var RECTIFY_EDGE_SKEW_RATIO = 0.2;
   var RECTIFY_MAX_DEV_RATIO = 0.14;
   var DIVIDER_DRAG_THRESHOLD = Math.round(LETTER_WIDTH * 0.02);
@@ -714,7 +715,7 @@
     for (var i = 0; i < completedShapes.length; i++) {
       if (!isRootShape(i)) continue;
       var shape = completedShapes[i];
-      if (!shape.closed || shape.points.length !== 4) continue;
+      if (!shape.closed || shape.points.length < MIN_POLYGON_POINTS) continue;
       if (pointInOrOnPolygon(x, y, shape.points)) {
         var area = polygonArea(shape.points);
         if (area < bestArea) {
@@ -909,7 +910,7 @@
     for (var i = 0; i < completedShapes.length; i++) {
       if (!isRootShape(i)) continue;
       var shape = completedShapes[i];
-      if (!shape.closed || shape.points.length !== 4) continue;
+      if (!shape.closed || shape.points.length < MIN_POLYGON_POINTS) continue;
       ensureShapeDividers(shape);
       var xBounds = getShapeXBounds(shape.points);
       var yBounds = getShapeYBounds(shape.points);
@@ -1267,14 +1268,14 @@
   }
 
   function tryCloseOutlineAt(clamped) {
-    if (currentPoints.length !== 4 || activeDrawMode !== 'outline') return false;
+    if (currentPoints.length < MIN_POLYGON_POINTS || activeDrawMode !== 'outline') return false;
     if (!isNearPoint(clamped, currentPoints[0], CLOSE_SNAP_PX)) return false;
     finishShape();
     return true;
   }
 
   function drawClosingCornerHint() {
-    if (currentPoints.length !== 4 || activeDrawMode !== 'outline') return;
+    if (currentPoints.length < MIN_POLYGON_POINTS || activeDrawMode !== 'outline') return;
     var first = currentPoints[0];
     var nearFirst = cursorPoint && isNearPoint(cursorPoint, first, CLOSE_SNAP_PX * 1.4);
     ctx.beginPath();
@@ -1308,7 +1309,7 @@
   function updateUi() {
     var n = currentPoints.length;
     btnUndo.disabled = n === 0 || toolMode === 'move';
-    btnFinish.disabled = toolMode === 'move' || activeDrawMode !== 'outline' || n < 4 || n === 4;
+    btnFinish.disabled = toolMode === 'move' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
     btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0;
     if (btnAttach) {
       btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move';
@@ -1323,18 +1324,16 @@
       if (isAttachMode && completedShapes.length) {
         statusEl.innerHTML = 'Sketch ready — tap <strong>Attach to estimate</strong> to return to the estimator.';
       } else if (isAttachMode) {
-        statusEl.innerHTML = 'Draw the outer driveway with 4 corners, then tap inside to add panel dividers.';
+        statusEl.innerHTML = 'Draw the outer outline with as many corners as you need, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
         statusEl.innerHTML = 'Drag <strong>horizontally</strong> or <strong>vertically</strong> inside a shape to add a panel divider.';
       } else {
-        statusEl.innerHTML = 'Tap <strong>4 corners</strong> to draw the outer driveway outline.';
+        statusEl.innerHTML = 'Tap corners to draw the outline — add as many straight sides as you need.';
       }
-    } else if (n === 1) {
-      statusEl.innerHTML = '<strong>1</strong> corner — place <strong>3</strong> more to close the outer outline.';
-    } else if (n < 4) {
-      statusEl.innerHTML = '<strong>' + n + '</strong> corners — place <strong>' + (4 - n) + '</strong> more, then draw the last side to the first corner.';
-    } else if (n === 4) {
-      statusEl.innerHTML = 'Draw the <strong>last side</strong> — tap the <strong>first corner</strong> (highlighted) to close the outline.';
+    } else if (n < MIN_POLYGON_POINTS) {
+      statusEl.innerHTML = '<strong>' + n + '</strong> corner' + (n === 1 ? '' : 's') + ' — place <strong>' + (MIN_POLYGON_POINTS - n) + '</strong> more to close the shape.';
+    } else {
+      statusEl.innerHTML = '<strong>' + n + '</strong> corners — tap to add another side, or tap the <strong>first corner</strong> (highlighted) to close.';
     }
   }
 
@@ -1482,13 +1481,7 @@
     }
 
     if (activeDrawMode === 'outline') {
-      if (currentPoints.length === 4) {
-        if (tryCloseOutlineAt(clamped)) return;
-        showToast('Draw the last side — tap the first corner to close');
-        updateUi();
-        draw();
-        return;
-      }
+      if (currentPoints.length >= MIN_POLYGON_POINTS && tryCloseOutlineAt(clamped)) return;
       if (findRootContainerAt(clamped.x, clamped.y) !== null) {
         showToast('Drag inside the shape to add dividers — only the outer outline uses corners');
         return;
@@ -1576,8 +1569,8 @@
   }
 
   function finishShape() {
-    if (currentPoints.length !== 4) {
-      showToast('The driveway outline needs exactly 4 corners');
+    if (currentPoints.length < MIN_POLYGON_POINTS) {
+      showToast('Need at least ' + MIN_POLYGON_POINTS + ' corners to close the shape');
       return;
     }
     var rectified = rectifyOutlinePoints(currentPoints);
@@ -2006,8 +1999,8 @@
     if (e.key === 'Enter') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
-      if (currentPoints.length === 4) {
-        showToast('Tap the first corner to close the outline');
+      if (currentPoints.length >= MIN_POLYGON_POINTS) {
+        finishShape();
       }
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
