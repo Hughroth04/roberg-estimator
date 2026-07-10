@@ -352,7 +352,7 @@
     </div>
 
     <p class="rb-hint">
-      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag <strong>across</strong> or <strong>up/down</strong> inside to split panels.
+      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag inside a shape to split panels — dividers snap to the shape and can run horizontally, vertically, or diagonally.
     </p>
   </main>
 
@@ -679,6 +679,55 @@
     return { x: x / points.length, y: y / points.length };
   }
 
+  function findInteriorLabelPoint(polygon) {
+    if (polygon.length < 3) return polygonCentroid(polygon);
+
+    var centroid = polygonCentroid(polygon);
+    if (pointInPolygon(centroid.x, centroid.y, polygon)) return centroid;
+
+    var xBounds = getShapeXBounds(polygon);
+    var yBounds = getShapeYBounds(polygon);
+    var bboxCenter = {
+      x: (xBounds.minX + xBounds.maxX) / 2,
+      y: (yBounds.minY + yBounds.maxY) / 2
+    };
+    if (pointInPolygon(bboxCenter.x, bboxCenter.y, polygon)) return bboxCenter;
+
+    var i;
+    for (i = 1; i < polygon.length - 1; i++) {
+      var tri = [polygon[0], polygon[i], polygon[i + 1]];
+      var triCenter = polygonCentroid(tri);
+      if (pointInPolygon(triCenter.x, triCenter.y, polygon)) return triCenter;
+    }
+
+    var steps = 10;
+    var sx;
+    var sy;
+    for (sy = 0; sy <= steps; sy++) {
+      for (sx = 0; sx <= steps; sx++) {
+        var x = xBounds.minX + (xBounds.maxX - xBounds.minX) * sx / steps;
+        var y = yBounds.minY + (yBounds.maxY - yBounds.minY) * sy / steps;
+        if (pointInPolygon(x, y, polygon)) return { x: x, y: y };
+      }
+    }
+
+    return centroid;
+  }
+
+  function findInteriorPointInRect(polygon, x1, y1, x2, y2) {
+    var steps = 4;
+    var sy;
+    var sx;
+    for (sy = 0; sy <= steps; sy++) {
+      for (sx = 0; sx <= steps; sx++) {
+        var x = x1 + (x2 - x1) * sx / steps;
+        var y = y1 + (y2 - y1) * sy / steps;
+        if (pointInPolygon(x, y, polygon)) return { x: x, y: y };
+      }
+    }
+    return null;
+  }
+
   function polygonArea(points) {
     var area = 0;
     for (var i = 0; i < points.length; i++) {
@@ -748,55 +797,289 @@
   }
 
   function horizontalSliceAtY(polygon, y) {
-    var xs = [];
-    for (var i = 0; i < polygon.length; i++) {
-      var j = (i + 1) % polygon.length;
-      var x1 = polygon[i].x;
-      var y1 = polygon[i].y;
-      var x2 = polygon[j].x;
-      var y2 = polygon[j].y;
-      if (Math.abs(y1 - y2) < 0.5) {
-        if (Math.abs(y1 - y) < 1.5) {
-          xs.push(x1, x2);
-        }
-        continue;
+    var xBounds = getShapeXBounds(polygon);
+    var steps = 12;
+    var i;
+    for (i = 0; i <= steps; i++) {
+      var x = xBounds.minX + (xBounds.maxX - xBounds.minX) * i / steps;
+      if (pointInPolygon(x, y, polygon)) {
+        return chordInPolygonAtAngle(polygon, x, y, 0);
       }
-      if (y < Math.min(y1, y2) - 0.5 || y > Math.max(y1, y2) + 0.5) continue;
-      var t = (y - y1) / (y2 - y1);
-      if (t < -0.001 || t > 1.001) continue;
-      xs.push(x1 + t * (x2 - x1));
     }
-    if (xs.length < 2) return null;
-    xs.sort(function(a, b) { return a - b; });
-    return { axis: 'h', x1: xs[0], x2: xs[xs.length - 1], y: y };
+    return chordInPolygonAtAngle(polygon, (xBounds.minX + xBounds.maxX) / 2, y, 0);
   }
 
   function verticalSliceAtX(polygon, x) {
-    var ys = [];
+    var yBounds = getShapeYBounds(polygon);
+    var steps = 12;
+    var i;
+    for (i = 0; i <= steps; i++) {
+      var y = yBounds.minY + (yBounds.maxY - yBounds.minY) * i / steps;
+      if (pointInPolygon(x, y, polygon)) {
+        return chordInPolygonAtAngle(polygon, x, y, Math.PI / 2);
+      }
+    }
+    return chordInPolygonAtAngle(polygon, x, (yBounds.minY + yBounds.maxY) / 2, Math.PI / 2);
+  }
+
+  function snapDividerAngle(angle) {
+    return Math.round(angle / SNAP_ANGLE) * SNAP_ANGLE;
+  }
+
+  function normalizeAngle(angle) {
+    var tau = Math.PI * 2;
+    angle = angle % tau;
+    if (angle < 0) angle += tau;
+    return angle;
+  }
+
+  function anglesClose(a, b) {
+    var diff = Math.abs(normalizeAngle(a) - normalizeAngle(b));
+    if (diff > Math.PI) diff = Math.PI * 2 - diff;
+    return diff < SNAP_ANGLE * 0.55;
+  }
+
+  function chordLength(chord) {
+    if (!chord) return 0;
+    var dx = chord.x2 - chord.x1;
+    var dy = chord.y2 - chord.y1;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function distancePointToSegment(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-6) {
+      dx = px - x1;
+      dy = py - y1;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    var t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    dx = px - (x1 + t * dx);
+    dy = py - (y1 + t * dy);
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function segmentIntersection(ax, ay, bx, by, cx, cy, dx, dy) {
+    var denom = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+    if (Math.abs(denom) < 1e-6) return null;
+    var t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / denom;
+    var u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / denom;
+    if (t < -0.001 || t > 1.001 || u < -0.001 || u > 1.001) return null;
+    return { x: ax + t * (bx - ax), y: ay + t * (by - ay) };
+  }
+
+  function angleToDividerAxis(angle) {
+    var snapped = normalizeAngle(snapDividerAngle(angle));
+    if (anglesClose(snapped, 0) || anglesClose(snapped, Math.PI)) return 'h';
+    if (anglesClose(snapped, Math.PI / 2) || anglesClose(snapped, Math.PI * 1.5)) return 'v';
+    return 'd';
+  }
+
+  function preferredDividerAngleAtPoint(polygon, px, py) {
+    var bestDist = Infinity;
+    var bestAngle = Math.PI / 2;
     for (var i = 0; i < polygon.length; i++) {
       var j = (i + 1) % polygon.length;
       var x1 = polygon[i].x;
       var y1 = polygon[i].y;
       var x2 = polygon[j].x;
       var y2 = polygon[j].y;
-      if (Math.abs(x1 - x2) < 0.5) {
-        if (Math.abs(x1 - x) < 1.5) {
-          ys.push(y1, y2);
-        }
-        continue;
+      var dist = distancePointToSegment(px, py, x1, y1, x2, y2);
+      if (dist < bestDist) {
+        bestDist = dist;
+        var edgeAngle = Math.atan2(y2 - y1, x2 - x1);
+        bestAngle = snapDividerAngle(edgeAngle + Math.PI / 2);
       }
-      if (x < Math.min(x1, x2) - 0.5 || x > Math.max(x1, x2) + 0.5) continue;
-      var t = (x - x1) / (x2 - x1);
-      if (t < -0.001 || t > 1.001) continue;
-      ys.push(y1 + t * (y2 - y1));
     }
-    if (ys.length < 2) return null;
-    ys.sort(function(a, b) { return a - b; });
-    return { axis: 'v', x: x, y1: ys[0], y2: ys[ys.length - 1] };
+    return bestAngle;
+  }
+
+  function chordInPolygonAtAngle(polygon, px, py, angle) {
+    var dirX = Math.cos(angle);
+    var dirY = Math.sin(angle);
+    var far = Math.max(LETTER_WIDTH, LETTER_HEIGHT) * 2;
+    var hits = [];
+    var i;
+    for (i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      var hit = segmentIntersection(
+        px - dirX * far, py - dirY * far,
+        px + dirX * far, py + dirY * far,
+        polygon[i].x, polygon[i].y, polygon[j].x, polygon[j].y
+      );
+      if (!hit) continue;
+      var along = (hit.x - px) * dirX + (hit.y - py) * dirY;
+      hits.push({ x: hit.x, y: hit.y, along: along });
+    }
+    if (hits.length < 2) return null;
+    hits.sort(function(a, b) { return a.along - b.along; });
+    var unique = [hits[0]];
+    for (i = 1; i < hits.length; i++) {
+      if (Math.abs(hits[i].along - unique[unique.length - 1].along) > 0.5) {
+        unique.push(hits[i]);
+      }
+    }
+    if (unique.length < 2) return null;
+
+    var snapped = snapDividerAngle(angle);
+    var axis = angleToDividerAxis(snapped);
+    var k;
+    for (k = 0; k < unique.length - 1; k++) {
+      if (unique[k].along <= 0.5 && unique[k + 1].along >= -0.5) {
+        return {
+          axis: axis,
+          angle: snapped,
+          x1: unique[k].x,
+          y1: unique[k].y,
+          x2: unique[k + 1].x,
+          y2: unique[k + 1].y
+        };
+      }
+    }
+    if (pointInPolygon(px, py, polygon)) {
+      return {
+        axis: axis,
+        angle: snapped,
+        x1: unique[0].x,
+        y1: unique[0].y,
+        x2: unique[unique.length - 1].x,
+        y2: unique[unique.length - 1].y
+      };
+    }
+    return null;
+  }
+
+  function resolveDividerAngleFromDrag(dx, dy, shape, startX, startY) {
+    var adx = Math.abs(dx);
+    var ady = Math.abs(dy);
+    if (Math.max(adx, ady) < DIVIDER_DRAG_THRESHOLD) return null;
+
+    var shapeAngle = preferredDividerAngleAtPoint(shape.points, startX, startY);
+    var dragAngle = snapDividerAngle(Math.atan2(dy, dx));
+    var ratio = adx > 0.001 ? ady / adx : Infinity;
+
+    if (ratio > 0.55 && ratio < 1.8) {
+      return dragAngle;
+    }
+    if (adx > ady * DIVIDER_AXIS_DOMINANCE) {
+      var chordH = chordInPolygonAtAngle(shape.points, startX, startY, 0);
+      if (!chordH || chordLength(chordH) < MIN_SEGMENT_PX * 1.5) return shapeAngle;
+      var chordShape = chordInPolygonAtAngle(shape.points, startX, startY, shapeAngle);
+      if (chordShape && chordLength(chordShape) > chordLength(chordH) * 1.12 &&
+          !anglesClose(shapeAngle, 0) && !anglesClose(shapeAngle, Math.PI)) {
+        return shapeAngle;
+      }
+      return 0;
+    }
+    if (ady > adx * DIVIDER_AXIS_DOMINANCE) {
+      var chordV = chordInPolygonAtAngle(shape.points, startX, startY, Math.PI / 2);
+      if (!chordV || chordLength(chordV) < MIN_SEGMENT_PX * 1.5) return shapeAngle;
+      var chordShapeV = chordInPolygonAtAngle(shape.points, startX, startY, shapeAngle);
+      if (chordShapeV && chordLength(chordShapeV) > chordLength(chordV) * 1.12 &&
+          !anglesClose(shapeAngle, Math.PI / 2) && !anglesClose(shapeAngle, Math.PI * 1.5)) {
+        return shapeAngle;
+      }
+      return Math.PI / 2;
+    }
+    return shapeAngle;
+  }
+
+  function dividerAnchorPoint(chord) {
+    return {
+      x: (chord.x1 + chord.x2) / 2,
+      y: (chord.y1 + chord.y2) / 2
+    };
+  }
+
+  function dividerOffsetDistance(chordA, chordB) {
+    if (!anglesClose(chordA.angle, chordB.angle)) return Infinity;
+    var dirX = Math.cos(chordA.angle);
+    var dirY = Math.sin(chordA.angle);
+    var normX = -dirY;
+    var normY = dirX;
+    var anchorA = dividerAnchorPoint(chordA);
+    var anchorB = dividerAnchorPoint(chordB);
+    return Math.abs((anchorB.x - anchorA.x) * normX + (anchorB.y - anchorA.y) * normY);
+  }
+
+  function chordToStoredDivider(chord) {
+    var div = {
+      axis: chord.axis,
+      angle: chord.angle,
+      x1: Math.round(chord.x1 * 10) / 10,
+      y1: Math.round(chord.y1 * 10) / 10,
+      x2: Math.round(chord.x2 * 10) / 10,
+      y2: Math.round(chord.y2 * 10) / 10
+    };
+    if (div.axis === 'h') div.y = div.y1;
+    if (div.axis === 'v') div.x = div.x1;
+    return div;
+  }
+
+  function clipPolygonByHalfPlane(polygon, x1, y1, x2, y2, keepPositive) {
+    if (polygon.length < 3) return null;
+    var nx = -(y2 - y1);
+    var ny = x2 - x1;
+    var result = [];
+    var i;
+    for (i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      var pi = polygon[i];
+      var pj = polygon[j];
+      var si = (pi.x - x1) * nx + (pi.y - y1) * ny;
+      var sj = (pj.x - x1) * nx + (pj.y - y1) * ny;
+      var piInside = keepPositive ? si >= -0.5 : si <= 0.5;
+      var pjInside = keepPositive ? sj >= -0.5 : sj <= 0.5;
+      if (piInside) result.push({ x: pi.x, y: pi.y });
+      if (piInside !== pjInside) {
+        var denom = si - sj;
+        if (Math.abs(denom) < 1e-6) continue;
+        var t = si / denom;
+        result.push({
+          x: Math.round((pi.x + t * (pj.x - pi.x)) * 10) / 10,
+          y: Math.round((pi.y + t * (pj.y - pi.y)) * 10) / 10
+        });
+      }
+    }
+    return result.length >= 3 ? result : null;
+  }
+
+  function subdividePolygonByDividers(polygon, dividers) {
+    var regions = [polygon.map(function(p) { return { x: p.x, y: p.y }; })];
+    dividers.forEach(function(div) {
+      normalizeDivider(div);
+      var next = [];
+      regions.forEach(function(poly) {
+        if (poly.length < 3) return;
+        var left = clipPolygonByHalfPlane(poly, div.x1, div.y1, div.x2, div.y2, true);
+        var right = clipPolygonByHalfPlane(poly, div.x1, div.y1, div.x2, div.y2, false);
+        if (left && polygonArea(left) > MIN_SEGMENT_PX) next.push(left);
+        if (right && polygonArea(right) > MIN_SEGMENT_PX) next.push(right);
+      });
+      if (next.length) regions = next;
+    });
+    return regions;
   }
 
   function normalizeDivider(div) {
     if (!div.axis) div.axis = 'h';
+    if (div.x1 !== undefined && div.x2 !== undefined) return div;
+    if (div.axis === 'v') {
+      div.x1 = div.x;
+      div.y1 = div.y1;
+      div.x2 = div.x;
+      div.y2 = div.y2;
+      div.angle = Math.PI / 2;
+    } else if (div.axis === 'h') {
+      div.x1 = div.x1;
+      div.y1 = div.y;
+      div.x2 = div.x2;
+      div.y2 = div.y;
+      div.angle = 0;
+    }
     return div;
   }
 
@@ -805,86 +1088,79 @@
     shape.dividers.forEach(normalizeDivider);
   }
 
-  function snapVerticalX(shape, x) {
+  function snapDividerChord(shape, chord) {
+    if (!chord || chord.axis !== 'v') return chord;
     var xBounds = getShapeXBounds(shape.points);
     var centerX = (xBounds.minX + xBounds.maxX) / 2;
     var width = xBounds.maxX - xBounds.minX;
-    if (width > 0 && Math.abs(x - centerX) <= width * CENTER_SNAP_RATIO) {
-      return { x: centerX, snapped: true };
+    if (width > 0 && Math.abs(dividerAnchorPoint(chord).x - centerX) <= width * CENTER_SNAP_RATIO) {
+      var snapped = chordInPolygonAtAngle(shape.points, centerX, dividerAnchorPoint(chord).y, Math.PI / 2);
+      if (snapped) {
+        snapped.snapped = true;
+        return snapped;
+      }
     }
-    return { x: x, snapped: false };
+    return chord;
+  }
+
+  function addDividerFromChord(shapeIndex, chord, snappedCenter) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.closed || !chord) return false;
+    ensureShapeDividers(shape);
+    chord = snapDividerChord(shape, chord);
+    if (chordLength(chord) < MIN_SEGMENT_PX) {
+      showToast('Could not place divider here');
+      return false;
+    }
+
+    var bbox = getShapeBBox(shape);
+    var pad = DIVIDER_EDGE_PAD;
+    var anchor = dividerAnchorPoint(chord);
+    if (anchor.x <= bbox.minX + pad || anchor.x >= bbox.maxX - pad ||
+        anchor.y <= bbox.minY + pad || anchor.y >= bbox.maxY - pad) {
+      showToast('Place the divider away from the outer edges');
+      return false;
+    }
+
+    var di;
+    for (di = 0; di < shape.dividers.length; di++) {
+      normalizeDivider(shape.dividers[di]);
+      if (dividerOffsetDistance(shape.dividers[di], chord) < DIVIDER_MIN_GAP) {
+        showToast('A divider is already near this position');
+        return false;
+      }
+    }
+
+    var stored = chordToStoredDivider(chord);
+    shape.dividers.push(stored);
+    shape.dividers.sort(function(a, b) {
+      normalizeDivider(a);
+      normalizeDivider(b);
+      if (a.axis !== b.axis) return a.axis === 'h' ? -1 : (b.axis === 'h' ? 1 : a.axis.localeCompare(b.axis));
+      var aa = dividerAnchorPoint(a);
+      var bb = dividerAnchorPoint(b);
+      if (Math.abs(aa.y - bb.y) > 12) return aa.y - bb.y;
+      return aa.x - bb.x;
+    });
+    actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: stored.axis });
+
+    var axisLabel = stored.axis === 'h' ? 'Horizontal' : (stored.axis === 'v' ? 'Vertical' : 'Diagonal');
+    var msg = axisLabel + ' divider added';
+    if (snappedCenter || chord.snapped) msg += ' (snapped to center)';
+    showToast(msg + ' — ' + getDerivedPanels().length + ' panels');
+    return true;
   }
 
   function addDivider(shapeIndex, axis, pos, snappedCenter) {
     var shape = completedShapes[shapeIndex];
     if (!shape || !shape.closed) return false;
-    ensureShapeDividers(shape);
-
+    var chord;
     if (axis === 'v') {
-      var xBounds = getShapeXBounds(shape.points);
-      if (pos <= xBounds.minX + DIVIDER_EDGE_PAD || pos >= xBounds.maxX - DIVIDER_EDGE_PAD) {
-        showToast('Place the divider between the left and right edges');
-        return false;
-      }
-      var vSlice = verticalSliceAtX(shape.points, pos);
-      if (!vSlice || vSlice.y2 - vSlice.y1 < MIN_SEGMENT_PX) {
-        showToast('Could not place divider here');
-        return false;
-      }
-      for (var vi = 0; vi < shape.dividers.length; vi++) {
-        var vd = shape.dividers[vi];
-        if (vd.axis === 'v' && Math.abs(vd.x - pos) < DIVIDER_MIN_GAP) {
-          showToast('A divider is already near this position');
-          return false;
-        }
-      }
-      shape.dividers.push({
-        axis: 'v',
-        x: Math.round(pos * 10) / 10,
-        y1: vSlice.y1,
-        y2: vSlice.y2
-      });
-      shape.dividers.sort(function(a, b) {
-        if (a.axis !== b.axis) return a.axis === 'h' ? -1 : 1;
-        return (a.axis === 'h' ? a.y : a.x) - (b.axis === 'h' ? b.y : b.x);
-      });
-      actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: 'v' });
-      var vMsg = 'Vertical divider added';
-      if (snappedCenter) vMsg += ' (snapped to center)';
-      showToast(vMsg + ' — ' + getDerivedPanels().length + ' panels');
-      return true;
+      chord = verticalSliceAtX(shape.points, pos);
+    } else {
+      chord = horizontalSliceAtY(shape.points, pos);
     }
-
-    var yBounds = getShapeYBounds(shape.points);
-    if (pos <= yBounds.minY + DIVIDER_EDGE_PAD || pos >= yBounds.maxY - DIVIDER_EDGE_PAD) {
-      showToast('Place the divider between the top and bottom edges');
-      return false;
-    }
-    var hSlice = horizontalSliceAtY(shape.points, pos);
-    if (!hSlice || hSlice.x2 - hSlice.x1 < MIN_SEGMENT_PX) {
-      showToast('Could not place divider here');
-      return false;
-    }
-    for (var hi = 0; hi < shape.dividers.length; hi++) {
-      var hd = shape.dividers[hi];
-      if (hd.axis === 'h' && Math.abs(hd.y - pos) < DIVIDER_MIN_GAP) {
-        showToast('A divider is already near this height');
-        return false;
-      }
-    }
-    shape.dividers.push({
-      axis: 'h',
-      y: Math.round(pos * 10) / 10,
-      x1: hSlice.x1,
-      x2: hSlice.x2
-    });
-    shape.dividers.sort(function(a, b) {
-      if (a.axis !== b.axis) return a.axis === 'h' ? -1 : 1;
-      return (a.axis === 'h' ? a.y : a.x) - (b.axis === 'h' ? b.y : b.x);
-    });
-    actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: 'h' });
-    showToast('Horizontal divider added — ' + getDerivedPanels().length + ' panels');
-    return true;
+    return addDividerFromChord(shapeIndex, chord, snappedCenter);
   }
 
   function dedupeCuts(cuts) {
@@ -912,33 +1188,25 @@
       var shape = completedShapes[i];
       if (!shape.closed || shape.points.length < MIN_POLYGON_POINTS) continue;
       ensureShapeDividers(shape);
-      var xBounds = getShapeXBounds(shape.points);
-      var yBounds = getShapeYBounds(shape.points);
-      var xCuts = [xBounds.minX];
-      var yCuts = [yBounds.minY];
-      for (var d = 0; d < shape.dividers.length; d++) {
-        var div = shape.dividers[d];
-        if (div.axis === 'v') xCuts.push(div.x);
-        else yCuts.push(div.y);
-      }
-      xCuts.push(xBounds.maxX);
-      yCuts.push(yBounds.maxY);
-      xCuts = dedupeCuts(xCuts);
-      yCuts = dedupeCuts(yCuts);
       var shapePanels = [];
-      for (var yi = 0; yi < yCuts.length - 1; yi++) {
-        for (var xi = 0; xi < xCuts.length - 1; xi++) {
-          var xMid = (xCuts[xi] + xCuts[xi + 1]) / 2;
-          var yMid = (yCuts[yi] + yCuts[yi + 1]) / 2;
-          if (xCuts[xi + 1] - xCuts[xi] < DIVIDER_MIN_GAP) continue;
-          if (yCuts[yi + 1] - yCuts[yi] < DIVIDER_MIN_GAP) continue;
-          if (!pointInPolygon(xMid, yMid, shape.points)) continue;
-          shapePanels.push({
-            id: i + ':' + yi + ':' + xi,
-            shapeIndex: i,
-            centroid: { x: xMid, y: yMid }
-          });
-        }
+      if (!shape.dividers.length) {
+        shapePanels.push({
+          id: i + ':0:0',
+          shapeIndex: i,
+          centroid: findInteriorLabelPoint(shape.points)
+        });
+        sortPanelsByPosition(shapePanels);
+        for (var p0 = 0; p0 < shapePanels.length; p0++) panels.push(shapePanels[p0]);
+        continue;
+      }
+      var regions = subdividePolygonByDividers(shape.points, shape.dividers);
+      for (var ri = 0; ri < regions.length; ri++) {
+        var labelPoint = findInteriorLabelPoint(regions[ri]);
+        shapePanels.push({
+          id: i + ':' + ri,
+          shapeIndex: i,
+          centroid: labelPoint
+        });
       }
       sortPanelsByPosition(shapePanels);
       for (var p = 0; p < shapePanels.length; p++) panels.push(shapePanels[p]);
@@ -956,10 +1224,10 @@
     return labels;
   }
 
-  function drawDividerLine(x1, y, x2, dashed) {
+  function drawDividerSegment(x1, y1, x2, y2, dashed) {
     ctx.beginPath();
-    ctx.moveTo(x1, y);
-    ctx.lineTo(x2, y);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
     ctx.lineCap = 'round';
     if (dashed) {
       ctx.setLineDash([18, 12]);
@@ -973,39 +1241,37 @@
     ctx.setLineDash([]);
   }
 
+  function drawDividerLine(x1, y, x2, dashed) {
+    drawDividerSegment(x1, y, x2, y, dashed);
+  }
+
   function drawDividerLineV(x, y1, y2, dashed) {
-    ctx.beginPath();
-    ctx.moveTo(x, y1);
-    ctx.lineTo(x, y2);
-    ctx.lineCap = 'round';
-    if (dashed) {
-      ctx.setLineDash([18, 12]);
-      ctx.strokeStyle = COLORS.preview;
-    } else {
-      ctx.setLineDash([]);
-      ctx.strokeStyle = COLORS.stroke;
-    }
-    ctx.lineWidth = STROKE_WIDTH;
-    ctx.stroke();
-    ctx.setLineDash([]);
+    drawDividerSegment(x, y1, x, y2, dashed);
   }
 
   function drawDividerSlice(slice, dashed) {
     if (!slice) return;
-    if (slice.axis === 'v') drawDividerLineV(slice.x, slice.y1, slice.y2, dashed);
-    else drawDividerLine(slice.x1, slice.y, slice.x2, dashed);
+    drawDividerSegment(slice.x1, slice.y1, slice.x2, slice.y2, dashed);
   }
 
   function cloneShapeGeometry(shape) {
     return {
       points: shape.points.map(function(p) { return { x: p.x, y: p.y }; }),
       dividers: (shape.dividers || []).map(function(d) {
-        var copy = { axis: d.axis || 'h' };
+        normalizeDivider(d);
+        var copy = {
+          axis: d.axis || 'h',
+          angle: d.angle,
+          x1: d.x1,
+          y1: d.y1,
+          x2: d.x2,
+          y2: d.y2
+        };
         if (copy.axis === 'v') {
           copy.x = d.x;
           copy.y1 = d.y1;
           copy.y2 = d.y2;
-        } else {
+        } else if (copy.axis === 'h') {
           copy.y = d.y;
           copy.x1 = d.x1;
           copy.x2 = d.x2;
@@ -1022,14 +1288,19 @@
     });
     ensureShapeDividers(shape);
     shape.dividers.forEach(function(d) {
+      normalizeDivider(d);
+      d.x1 += dx;
+      d.y1 += dy;
+      d.x2 += dx;
+      d.y2 += dy;
       if (d.axis === 'v') {
-        d.x += dx;
-        d.y1 += dy;
-        d.y2 += dy;
-      } else {
-        d.y += dy;
-        d.x1 += dx;
-        d.x2 += dx;
+        d.x = d.x1;
+        d.y1 = d.y1;
+        d.y2 = d.y2;
+      } else if (d.axis === 'h') {
+        d.y = d.y1;
+        d.x1 = d.x1;
+        d.x2 = d.x2;
       }
     });
   }
@@ -1088,15 +1359,6 @@
     draw();
   }
 
-  function resolveDividerAxisFromDrag(dx, dy) {
-    var adx = Math.abs(dx);
-    var ady = Math.abs(dy);
-    if (Math.max(adx, ady) < DIVIDER_DRAG_THRESHOLD) return null;
-    if (adx > ady * DIVIDER_AXIS_DOMINANCE) return 'h';
-    if (ady > adx * DIVIDER_AXIS_DOMINANCE) return 'v';
-    return null;
-  }
-
   function startDividerDrag(shapeIndex, x, y) {
     dividerDrag = {
       shapeIndex: shapeIndex,
@@ -1104,7 +1366,7 @@
       startY: y,
       currentX: x,
       currentY: y,
-      axis: null
+      angle: null
     };
     dividerPreview = null;
   }
@@ -1113,23 +1375,35 @@
     if (!dividerDrag) return;
     dividerDrag.currentX = p.x;
     dividerDrag.currentY = p.y;
-    if (!dividerDrag.axis) {
-      dividerDrag.axis = resolveDividerAxisFromDrag(
-        p.x - dividerDrag.startX,
-        p.y - dividerDrag.startY
-      );
-    }
     var shape = completedShapes[dividerDrag.shapeIndex];
-    if (!shape || !dividerDrag.axis) {
+    if (!shape) {
       dividerPreview = null;
       return;
     }
-    if (dividerDrag.axis === 'h') {
-      dividerPreview = horizontalSliceAtY(shape.points, dividerDrag.startY);
-    } else {
-      var snap = snapVerticalX(shape, dividerDrag.startX);
-      dividerPreview = verticalSliceAtX(shape.points, snap.x);
+    if (dividerDrag.angle === null) {
+      dividerDrag.angle = resolveDividerAngleFromDrag(
+        p.x - dividerDrag.startX,
+        p.y - dividerDrag.startY,
+        shape,
+        dividerDrag.startX,
+        dividerDrag.startY
+      );
     }
+    if (dividerDrag.angle === null) {
+      dividerPreview = chordInPolygonAtAngle(
+        shape.points,
+        dividerDrag.startX,
+        dividerDrag.startY,
+        preferredDividerAngleAtPoint(shape.points, dividerDrag.startX, dividerDrag.startY)
+      );
+      return;
+    }
+    dividerPreview = chordInPolygonAtAngle(
+      shape.points,
+      dividerDrag.startX,
+      dividerDrag.startY,
+      dividerDrag.angle
+    );
   }
 
   function cancelDividerDrag() {
@@ -1139,37 +1413,45 @@
 
   function commitDividerDrag() {
     if (!dividerDrag) return;
-    if (!dividerDrag.axis) {
-      var dx = dividerDrag.currentX - dividerDrag.startX;
-      var dy = dividerDrag.currentY - dividerDrag.startY;
-      if (dx * dx + dy * dy > DIVIDER_DRAG_THRESHOLD * DIVIDER_DRAG_THRESHOLD * 0.25) {
-        showToast('Drag more horizontally or vertically to place a divider');
-      }
+    var shape = completedShapes[dividerDrag.shapeIndex];
+    if (!shape) {
       cancelDividerDrag();
-      draw();
       return;
     }
-    var shapeIndex = dividerDrag.shapeIndex;
-    if (dividerDrag.axis === 'h') {
-      addDivider(shapeIndex, 'h', dividerDrag.startY, false);
-    } else {
-      var shape = completedShapes[shapeIndex];
-      var snap = snapVerticalX(shape, dividerDrag.startX);
-      addDivider(shapeIndex, 'v', snap.x, snap.snapped);
+    if (dividerDrag.angle === null) {
+      var dx = dividerDrag.currentX - dividerDrag.startX;
+      var dy = dividerDrag.currentY - dividerDrag.startY;
+      dividerDrag.angle = resolveDividerAngleFromDrag(dx, dy, shape, dividerDrag.startX, dividerDrag.startY);
+      if (dividerDrag.angle === null) {
+        dividerDrag.angle = preferredDividerAngleAtPoint(shape.points, dividerDrag.startX, dividerDrag.startY);
+      }
     }
+    var chord = chordInPolygonAtAngle(
+      shape.points,
+      dividerDrag.startX,
+      dividerDrag.startY,
+      dividerDrag.angle
+    );
+    addDividerFromChord(dividerDrag.shapeIndex, chord, false);
     cancelDividerDrag();
     updateUi();
     draw();
   }
 
   function drawDividerDragStem() {
-    if (!dividerDrag || !dividerDrag.axis) return;
+    if (!dividerDrag) return;
     var x1 = dividerDrag.startX;
     var y1 = dividerDrag.startY;
     var x2 = dividerDrag.currentX;
     var y2 = dividerDrag.currentY;
-    if (dividerDrag.axis === 'h') y2 = y1;
-    else x2 = x1;
+    if (dividerDrag.angle !== null) {
+      var len = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+      if (len > 0.001) {
+        var scale = Math.min(len, LETTER_WIDTH * 0.08) / len;
+        x2 = x1 + (x2 - x1) * scale;
+        y2 = y1 + (y2 - y1) * scale;
+      }
+    }
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -1326,7 +1608,7 @@
       } else if (isAttachMode) {
         statusEl.innerHTML = 'Draw the outer outline with as many corners as you need, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
-        statusEl.innerHTML = 'Drag <strong>horizontally</strong> or <strong>vertically</strong> inside a shape to add a panel divider.';
+        statusEl.innerHTML = 'Drag inside a shape to add a divider — lines snap to the shape and can run horizontally, vertically, or diagonally.';
       } else {
         statusEl.innerHTML = 'Tap corners to draw the outline — add as many straight sides as you need.';
       }
@@ -1431,8 +1713,8 @@
       drawShape(shape.points, shape.closed, null, false);
       ensureShapeDividers(shape);
       shape.dividers.forEach(function(div) {
-        if (div.axis === 'v') drawDividerLineV(div.x, div.y1, div.y2, false);
-        else drawDividerLine(div.x1, div.y, div.x2, false);
+        normalizeDivider(div);
+        drawDividerSegment(div.x1, div.y1, div.x2, div.y2, false);
       });
       if (toolMode === 'move' && selectedShapeIndex === idx) {
         var box = getShapeBBox(shape);
@@ -1531,10 +1813,25 @@
       return { x: pt.x + dx, y: pt.y + dy };
     });
     shape.dividers = dragState.snapshot.dividers.map(function(d) {
-      if (d.axis === 'v') {
-        return { axis: 'v', x: d.x + dx, y1: d.y1 + dy, y2: d.y2 + dy };
+      normalizeDivider(d);
+      var copy = {
+        axis: d.axis,
+        angle: d.angle,
+        x1: d.x1 + dx,
+        y1: d.y1 + dy,
+        x2: d.x2 + dx,
+        y2: d.y2 + dy
+      };
+      if (copy.axis === 'v') {
+        copy.x = copy.x1;
+        copy.y1 = copy.y1;
+        copy.y2 = copy.y2;
+      } else if (copy.axis === 'h') {
+        copy.y = copy.y1;
+        copy.x1 = copy.x1;
+        copy.x2 = copy.x2;
       }
-      return { axis: 'h', y: d.y + dy, x1: d.x1 + dx, x2: d.x2 + dx };
+      return copy;
     });
     draw();
   }
@@ -1607,11 +1904,23 @@
       if (moved && action.snapshot) {
         moved.points = action.snapshot.points.map(function(p) { return { x: p.x, y: p.y }; });
         moved.dividers = action.snapshot.dividers.map(function(d) {
-          var copy = { axis: d.axis };
+          normalizeDivider(d);
+          var copy = {
+            axis: d.axis,
+            angle: d.angle,
+            x1: d.x1,
+            y1: d.y1,
+            x2: d.x2,
+            y2: d.y2
+          };
           if (copy.axis === 'v') {
-            copy.x = d.x; copy.y1 = d.y1; copy.y2 = d.y2;
-          } else {
-            copy.y = d.y; copy.x1 = d.x1; copy.x2 = d.x2;
+            copy.x = d.x;
+            copy.y1 = d.y1;
+            copy.y2 = d.y2;
+          } else if (copy.axis === 'h') {
+            copy.y = d.y;
+            copy.x1 = d.x1;
+            copy.x2 = d.x2;
           }
           return copy;
         });
