@@ -2336,7 +2336,7 @@
 
   function buildSealantDesc(s, calc) {
     return 'Apply self leveling joint sealant to expansion joints and control joints.\n\n'
-      + calc.feet + ' linear feet.';
+      + calc.feet + ' linear feet @ $' + Number(calc.unitPrice).toFixed(2) + '/ft.';
   }
 
   function buildSealantHCPLine(s, calc) {
@@ -2355,11 +2355,13 @@
     if (isSealantOption(opt)) {
       if (!isSealantReady(opt.sealant)) return [];
       var sc = calcSealant(opt.sealant);
+      // HCP: unit price/cost are per foot; quantity is linear feet.
       return [{
         name: SEALANT_LINE_NAME,
         category: 'Joint Sealant',
-        sale: sc.sale,
-        cost: sc.cost,
+        sale: sc.unitPrice,
+        cost: SEALANT_UNIT_COST,
+        quantity: sc.feet,
         description: buildSealantDesc(opt.sealant, sc)
       }];
     }
@@ -2369,6 +2371,7 @@
         name: hcpLineItemName(p), category: p.category,
         sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
         depth: p.depth, sides: p.sides,
+        quantity: 1,
         description: buildDesc(p, calc)
       };
     });
