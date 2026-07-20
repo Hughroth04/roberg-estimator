@@ -732,13 +732,25 @@
 #rb-estimator.rb-client-preview .rb-metric-sale .rb-metric-label-edit { display: none; }
 #rb-estimator.rb-client-preview .rb-metric-sale .rb-metric-label-preview { display: inline; }
 #rb-estimator.rb-client-preview .rb-field input,
-#rb-estimator.rb-client-preview .rb-field select,
-#rb-estimator.rb-client-preview .rb-panel-name,
-#rb-estimator.rb-client-preview .rb-tab-name {
+#rb-estimator.rb-client-preview .rb-field select {
   pointer-events: none;
   caret-color: transparent;
   background: #f7f8f8;
   color: var(--rb-text);
+}
+#rb-estimator.rb-client-preview .rb-panel-name,
+#rb-estimator.rb-client-preview .rb-tab-name {
+  pointer-events: none;
+  caret-color: transparent;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--rb-navy);
+  cursor: default;
+}
+#rb-estimator.rb-client-preview .rb-panel-name:hover,
+#rb-estimator.rb-client-preview .rb-tab-name:hover {
+  background: transparent;
 }
 #rb-estimator.rb-client-preview .rb-panel-card:focus-within { border-top-color: transparent; }
 #rb-estimator.rb-client-preview .rb-sealant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
