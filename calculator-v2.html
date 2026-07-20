@@ -34,6 +34,11 @@
     <a class="rb-nav-link" href="sketch.html" id="rb-nav-sketch">Site Sketch</a>
   </div>
 
+  <div class="rb-preview-banner" id="rb-preview-banner" style="display:none" role="status">
+    <span class="rb-preview-banner-text">Client preview — prices only</span>
+    <button type="button" class="rb-btn-exit-preview" id="rb-btn-exit-preview">Exit preview</button>
+  </div>
+
   <div class="rb-total-bar" id="rb-total-bar">
     <button type="button" class="rb-total-bar-send" id="rb-total-bar-send">Upload estimate</button>
     <div class="rb-total-bar-total">
@@ -73,6 +78,11 @@
           <span class="rb-total-val" id="rb-total-val">$0</span>
         </div>
       </div>
+
+      <button class="rb-btn-preview" id="rb-btn-preview" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Client Preview
+      </button>
 
       <!-- Send to HCP -->
       <button class="rb-btn-hcp" id="rb-btn-hcp">
@@ -644,6 +654,94 @@
 }
 #rb-estimator .rb-btn-copy-all:active { background: var(--rb-blue-dark); }
 #rb-estimator .rb-btn-copy-all.rb-copied { background: var(--rb-success); box-shadow: none; }
+
+#rb-estimator .rb-btn-preview {
+  width: 100%; height: 44px; background: var(--rb-navy); color: #fff;
+  border: none; border-radius: var(--rb-radius-lg);
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 8px; transition: all 0.15s; margin-bottom: 8px;
+  box-shadow: 0 2px 10px rgba(39,35,93,0.28); -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-preview:active { background: #1c1945; }
+
+#rb-estimator .rb-preview-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--rb-navy);
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+#rb-estimator .rb-preview-banner-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.85);
+}
+#rb-estimator .rb-btn-exit-preview {
+  flex-shrink: 0;
+  height: 36px; padding: 0 14px;
+  background: var(--rb-blue); color: #fff; border: none;
+  border-radius: var(--rb-radius);
+  font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-btn-exit-preview:active { background: var(--rb-blue-dark); }
+
+/* Client preview: same layout, price only (no cost / foam / internal tools) */
+#rb-estimator.rb-client-preview .rb-preview-banner { display: flex; }
+#rb-estimator.rb-client-preview .rb-nav-link,
+#rb-estimator.rb-client-preview .rb-total-bar-send,
+#rb-estimator.rb-client-preview .rb-btn-preview,
+#rb-estimator.rb-client-preview .rb-btn-hcp,
+#rb-estimator.rb-client-preview .rb-btn-copy-all,
+#rb-estimator.rb-client-preview .rb-btn-reset,
+#rb-estimator.rb-client-preview .rb-btn-signout,
+#rb-estimator.rb-client-preview .rb-btn-add,
+#rb-estimator.rb-client-preview .rb-btn-add-option-inline,
+#rb-estimator.rb-client-preview .rb-tab-add,
+#rb-estimator.rb-client-preview .rb-tab-more,
+#rb-estimator.rb-client-preview .rb-panel-controls,
+#rb-estimator.rb-client-preview .rb-panel-footer,
+#rb-estimator.rb-client-preview .rb-metric-foam,
+#rb-estimator.rb-client-preview .rb-metric-cost,
+#rb-estimator.rb-client-preview .rb-metric-feet,
+#rb-estimator.rb-client-preview .rb-internal-field,
+#rb-estimator.rb-client-preview .rb-min-badge,
+#rb-estimator.rb-client-preview .rb-btn-add-photo,
+#rb-estimator.rb-client-preview .rb-photo-remove,
+#rb-estimator.rb-client-preview .rb-photos-count {
+  display: none !important;
+}
+#rb-estimator.rb-client-preview .rb-total-bar-total {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+#rb-estimator.rb-client-preview .rb-results-bar {
+  grid-template-columns: 1fr;
+}
+#rb-estimator .rb-metric-label-preview { display: none; }
+#rb-estimator.rb-client-preview .rb-metric-sale .rb-metric-label-edit { display: none; }
+#rb-estimator.rb-client-preview .rb-metric-sale .rb-metric-label-preview { display: inline; }
+#rb-estimator.rb-client-preview .rb-field input,
+#rb-estimator.rb-client-preview .rb-field select,
+#rb-estimator.rb-client-preview .rb-panel-name,
+#rb-estimator.rb-client-preview .rb-tab-name {
+  pointer-events: none;
+  caret-color: transparent;
+  background: #f7f8f8;
+  color: var(--rb-text);
+}
+#rb-estimator.rb-client-preview .rb-panel-card:focus-within { border-top-color: transparent; }
+#rb-estimator.rb-client-preview .rb-sealant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 #rb-estimator .rb-btn-reset {
   width: 100%; height: 40px; background: none; color: var(--rb-text-muted);
@@ -1456,6 +1554,7 @@
     height: 46px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
   }
+  #rb-estimator.rb-client-preview .rb-total-bar { top: 52px; }
   #rb-estimator .rb-total-bar-send {
     font-size: 9px;
     letter-spacing: 0.05em;
@@ -1563,6 +1662,7 @@
   /* Full-width buttons must not exceed the viewport */
   #rb-estimator .rb-btn-add,
   #rb-estimator .rb-btn-hcp,
+  #rb-estimator .rb-btn-preview,
   #rb-estimator .rb-btn-copy-all,
   #rb-estimator .rb-btn-reset,
   #rb-estimator .rb-btn-signout,
@@ -1573,6 +1673,7 @@
   }
   #rb-estimator .rb-btn-add { height: 56px; font-size: 12px; }
   #rb-estimator .rb-btn-hcp { height: 56px; font-size: 12px; }
+  #rb-estimator .rb-btn-preview { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-copy-all { height: 48px; font-size: 11px; }
   #rb-estimator .rb-btn-reset { height: 44px; font-size: 10px; }
 
@@ -1967,6 +2068,7 @@
   var DUPLICATE_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>';
   var UNDO_MS = 6000;
   var pendingUndo = null;
+  var clientPreviewActive = false;
   var undoHideTimer = null;
 
   // Multi-option model: an estimate is an ordered list of options; each option
@@ -2329,6 +2431,30 @@
     setTimeout(function() { t.classList.remove('rb-show'); }, 2200);
   }
 
+  function enterClientPreview() {
+    var root = document.getElementById('rb-estimator');
+    if (!root || clientPreviewActive) return;
+    clientPreviewActive = true;
+    root.classList.add('rb-client-preview');
+    var banner = document.getElementById('rb-preview-banner');
+    if (banner) banner.style.display = 'flex';
+    closeTabActionSheet();
+    closeAddOptionSheet();
+    closeModal();
+    var focused = document.activeElement;
+    if (focused && root.contains(focused) && typeof focused.blur === 'function') focused.blur();
+    window.scrollTo(0, 0);
+  }
+
+  function exitClientPreview() {
+    var root = document.getElementById('rb-estimator');
+    if (!root || !clientPreviewActive) return;
+    clientPreviewActive = false;
+    root.classList.remove('rb-client-preview');
+    var banner = document.getElementById('rb-preview-banner');
+    if (banner) banner.style.display = 'none';
+  }
+
   function showUndoToast(msg, undoState, onUndo) {
     if (undoHideTimer) { clearTimeout(undoHideTimer); undoHideTimer = null; }
     pendingUndo = { state: undoState, onUndo: onUndo };
@@ -2627,11 +2753,12 @@
     if (!lbsEl) return;
     if (calc) {
       lbsEl.textContent = calc.lbs+' lbs'; costEl.textContent = fmt(calc.cost); saleEl.textContent = fmt(calc.sale);
-      lbl.innerHTML = 'Sale'+(calc.isMin?' <span class="rb-min-badge">min</span>':'');
+      lbl.innerHTML = '<span class="rb-metric-label-edit">Sale'+(calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-label-preview">Price</span>';
       btn.disabled = false;
     } else {
       lbsEl.textContent = costEl.textContent = saleEl.textContent = '\u2014';
-      lbl.innerHTML = 'Sale'; btn.disabled = true;
+      lbl.innerHTML = '<span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span>';
+      btn.disabled = true;
     }
   }
 
@@ -3298,15 +3425,15 @@
             '<input type="number" min="0" step="0.5" value="' + (s.feet || '') + '" placeholder="0" data-sealant-field="feet" inputmode="decimal"></div>' +
           '<div class="rb-field"><label>Unit price ($/ft)</label>' +
             '<input type="number" min="0" step="0.01" value="' + (s.unitPrice != null ? s.unitPrice : SEALANT_DEFAULT_UNIT_PRICE) + '" placeholder="' + SEALANT_DEFAULT_UNIT_PRICE + '" data-sealant-field="unitPrice" inputmode="decimal"></div>' +
-          '<div class="rb-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
+          '<div class="rb-field rb-internal-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
             '<div class="rb-sealant-total">' + fmt(SEALANT_UNIT_COST) + '/ft</div></div>' +
           '<div class="rb-field"><label>Unit total ($)</label>' +
             '<div class="rb-sealant-total" id="rb-sealant-total">' + (calc ? fmt(calc.total) : '\u2014') + '</div></div>' +
         '</div>' +
         '<div class="rb-results-bar">' +
-          '<div class="rb-metric"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div>' +
-          '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-sealant-cost">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
-          '<div class="rb-metric"><span class="rb-metric-label">Sale</span><span class="rb-metric-value rb-price" id="rb-sealant-sale">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
+          '<div class="rb-metric rb-metric-feet"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div>' +
+          '<div class="rb-metric rb-metric-cost"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-sealant-cost">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
+          '<div class="rb-metric rb-metric-sale"><span class="rb-metric-label"><span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span></span><span class="rb-metric-value rb-price" id="rb-sealant-sale">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
         '</div>';
       container.appendChild(div);
       return;
@@ -3332,9 +3459,9 @@
         '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="'+(p.depth||'')+'" placeholder="0" data-id="'+p.id+'" data-field="depth" inputmode="decimal"></div>'+
         '</div>'+
         '<div class="rb-results-bar">'+
-        '<div class="rb-metric"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
-        '<div class="rb-metric"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
-        '<div class="rb-metric"><span class="rb-metric-label" id="rb-salelbl-'+p.id+'">Sale'+(calc&&calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-value rb-price" id="rb-sale-'+p.id+'">'+(calc?fmt(calc.sale):'\u2014')+'</span></div>'+
+        '<div class="rb-metric rb-metric-foam"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
+        '<div class="rb-metric rb-metric-cost"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
+        '<div class="rb-metric rb-metric-sale"><span class="rb-metric-label" id="rb-salelbl-'+p.id+'"><span class="rb-metric-label-edit">Sale'+(calc&&calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-label-preview">Price</span></span><span class="rb-metric-value rb-price" id="rb-sale-'+p.id+'">'+(calc?fmt(calc.sale):'\u2014')+'</span></div>'+
         '</div>'+
         '<div class="rb-panel-footer"><button class="rb-btn-copy-panel" id="rb-copybtn-'+p.id+'" data-id="'+p.id+'"'+(calc?'':' disabled')+'>'+COPY_SVG+' Copy This Panel</button></div>';
       container.appendChild(div);
@@ -3883,6 +4010,7 @@
   if (root) {
     // Unlock option name editing on pointerdown so mobile taps open the keyboard.
     root.addEventListener('pointerdown', function(e) {
+      if (clientPreviewActive) return;
       var t = e.target;
       if (!t || !t.classList || !t.classList.contains('rb-tab-name')) return;
       if (t.readOnly) enableTabNameEdit(t);
@@ -3892,6 +4020,31 @@
       // Search result selection
       var resultItem = e.target.closest('.rb-search-result-item');
       if (resultItem) { selectCustomer(resultItem.getAttribute('data-id'), resultItem.getAttribute('data-name')); return; }
+
+      // Exit client preview from the sticky banner (always allowed)
+      if (e.target.closest('#rb-btn-exit-preview')) {
+        exitClientPreview();
+        return;
+      }
+
+      // In client preview, block editing / internal actions. Option tabs still
+      // switch so you can walk the client through each option.
+      if (clientPreviewActive) {
+        var previewTab = e.target.closest('.rb-tab');
+        if (previewTab && !previewTab.classList.contains('rb-tab-add')) {
+          var previewOid = parseInt(previewTab.getAttribute('data-option-id'), 10);
+          if (!isNaN(previewOid)) switchOption(previewOid);
+        }
+        var previewThumb = e.target.closest('.rb-photo-thumb');
+        if (previewThumb) {
+          var previewOpt = getActiveOption();
+          if (!previewOpt) return;
+          var previewPid = parseInt(previewThumb.getAttribute('data-photo-id'), 10);
+          var previewPhoto = previewOpt.photos.find(function(p) { return p.id === previewPid; });
+          if (previewPhoto) openPhotoPreview(previewPhoto.dataUrl);
+        }
+        return;
+      }
 
       // ── Photos: thumbnail tap to preview, ✕ to remove ──
       // Check the remove button first so its click doesn't also trigger the
@@ -3938,6 +4091,7 @@
       var t = e.target.closest('button, a');
       if (!t) return;
       var tid = t.id;
+      if (tid === 'rb-btn-preview')      { enterClientPreview(); return; }
       if (tid === 'rb-btn-add')           { addPanel(); return; }
       if (tid === 'rb-copy-all-btn')      { copyAll();  return; }
       if (tid === 'rb-btn-reset')         { resetAll(); return; }
@@ -4016,8 +4170,13 @@
     }
 
     // Panel/tab title UX: Enter commits the edit (blur), and blurring with an
-    // empty title restores the default name.
+    // empty title restores the default name. Escape exits client preview.
     root.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && clientPreviewActive) {
+        e.preventDefault();
+        exitClientPreview();
+        return;
+      }
       if (!e.target || !e.target.classList) return;
       if (e.key === 'Enter' && (e.target.classList.contains('rb-panel-name') || e.target.classList.contains('rb-tab-name'))) {
         e.preventDefault();
@@ -4177,6 +4336,7 @@
     // Panel field input/change — data-id + data-field. Tab name inputs only
     // have data-option-id (no data-field) so they're naturally excluded.
     root.addEventListener('input', function(e) {
+      if (clientPreviewActive) return;
       var t=e.target;
       var sf = t.getAttribute('data-sealant-field');
       if (sf) { updateSealantField(sf, t.value); return; }
@@ -4184,6 +4344,7 @@
       if (id && field) updateField(parseInt(id,10), field, t.value);
     });
     root.addEventListener('change', function(e) {
+      if (clientPreviewActive) return;
       var t=e.target;
       var sf = t.getAttribute('data-sealant-field');
       if (sf) { updateSealantField(sf, t.value); return; }
@@ -4194,6 +4355,7 @@
     // Live update of the option name (separate from panel field handler above
     // because option name inputs use data-option-id, not data-id/data-field).
     root.addEventListener('input', function(e) {
+      if (clientPreviewActive) return;
       var t = e.target;
       if (!t || !t.classList || !t.classList.contains('rb-tab-name')) return;
       var oid = parseInt(t.getAttribute('data-option-id'), 10);
