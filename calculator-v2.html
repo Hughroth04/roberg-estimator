@@ -2252,7 +2252,7 @@
     return opt.panels.filter(isReady).map(function(p) {
       var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
       return {
-        name: p.name, category: p.category,
+        name: hcpLineItemName(p), category: p.category,
         sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
         depth: p.depth, sides: p.sides,
         description: buildDesc(p, calc)
@@ -2291,8 +2291,15 @@
     return 'Drill into ' + cat + ' panel, Install Ports (as needed), Install ' + calc.lbs + ' +/- lbs of foam, Patch Holes.\n\nLift ' + depthLabel(p.depth) + ' to ' + sidesStr + '.\n\n' + disclaimers(calc.lbs);
   }
 
+  // HCP line-item names omit the in-app "(Panel N)" suffix so estimates stay
+  // category-focused; panel numbers remain only in the calculator UI.
+  function hcpLineItemName(p) {
+    var name = (p.name || '').replace(/\s*\(Panel\s+\d+\)\s*$/i, '').trim();
+    return name || p.name || 'Lift and Level';
+  }
+
   function buildHCPLine(p, calc) {
-    return p.name + '\n' + buildDesc(p, calc);
+    return hcpLineItemName(p) + '\n' + buildDesc(p, calc);
   }
 
   function clearPendingUndo() {
@@ -2541,10 +2548,12 @@
     var src = info.panel;
     var idx = opt.panels.findIndex(function(p) { return p.id === id; });
     if (idx < 0) return;
+    // New panel is auto-named so it gets the next Panel N (e.g. duplicating
+    // Panel 3 yields Panel 4), while measurements/category are copied.
     var newPanel = {
       id: nextPanelId++,
-      name: src.name,
-      isCustomName: true,
+      name: '',
+      isCustomName: false,
       length: src.length, width: src.width,
       sides: src.sides, depth: src.depth,
       category: src.category
