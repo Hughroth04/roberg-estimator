@@ -173,6 +173,31 @@
       border-color: var(--rb-navy);
     }
 
+    #rb-sketch .rb-measure-input {
+      position: absolute;
+      z-index: 6;
+      transform: translate(-50%, -50%);
+      width: 88px;
+      height: 36px;
+      margin: 0;
+      padding: 0 6px;
+      border: 2px solid #000;
+      border-radius: 4px;
+      background: #fff;
+      color: #000;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    #rb-sketch .rb-measure-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.18);
+    }
+
     #rb-sketch canvas {
       display: block;
       flex-shrink: 0;
@@ -337,6 +362,7 @@
       <button type="button" class="rb-btn rb-btn-primary rb-btn-attach" id="rb-btn-attach" style="display:none" disabled>Attach to estimate</button>
       <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
       <button type="button" class="rb-btn rb-btn-ghost rb-btn-share-jpg" id="rb-btn-share-jpg">Share JPG</button>
+      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-measure">Measure</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-move">Move shape</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
       <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo panel</button>
@@ -349,10 +375,12 @@
 
     <div class="rb-canvas-wrap">
       <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
+      <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
+        inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
     </div>
 
     <p class="rb-hint">
-      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag inside a shape to split panels — dividers snap to the shape and can run horizontally, vertically, or diagonally.
+      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag inside a shape to split panels. Use <strong>Measure</strong> to add horizontal or vertical dimension arrows.
     </p>
   </main>
 
@@ -389,6 +417,8 @@
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
   var btnMove = document.getElementById('rb-btn-move');
+  var btnMeasure = document.getElementById('rb-btn-measure');
+  var measureInput = document.getElementById('rb-measure-input');
   var btnAttach = document.getElementById('rb-btn-attach');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
   var btnShareJpg = document.getElementById('rb-btn-share-jpg');
@@ -415,6 +445,11 @@
   var pendingSaveBlob = null;
   var pendingSaveFilename = '';
   var pendingSaveUrl = null;
+  var measurements = [];
+  var measureDraft = null;
+  var measureCursor = null;
+  var editingMeasureIndex = null;
+  var nextMeasureId = 1;
 
   var COLORS = {
     stroke: '#27235d',
@@ -455,6 +490,11 @@
   var DIVIDER_DRAG_THRESHOLD = Math.round(LETTER_WIDTH * 0.02);
   var DIVIDER_AXIS_DOMINANCE = 1.2;
   var DRAG_THRESHOLD = 8;
+  var MEASURE_STROKE = 5;
+  var MEASURE_ARROW_SIZE = 28;
+  var MEASURE_FONT_SIZE = 48;
+  var MEASURE_TEXT_PAD_X = 20;
+  var MEASURE_TEXT_PAD_Y = 12;
   var displayCssW = 0;
   var displayCssH = 0;
   var canvasDpr = 1;
@@ -1343,17 +1383,261 @@
     activeDrawMode = 'outline';
     dividerTargetIndex = null;
     dividerDrag = null;
+    measureDraft = null;
+    measureCursor = null;
+  }
+
+  function cancelMeasureDraft() {
+    measureDraft = null;
+    measureCursor = null;
+  }
+
+  function resolveMeasureEnd(start, x, y) {
+    var dx = x - start.x;
+    var dy = y - start.y;
+    var absDx = Math.abs(dx);
+    var absDy = Math.abs(dy);
+    if (absDx < 0.001 && absDy < 0.001) {
+      return { x: start.x, y: start.y, axis: 'h', length: 0 };
+    }
+    // Horizontal or vertical only — pick the dominant drag axis.
+    if (absDx >= absDy) {
+      return {
+        x: Math.round(x * 10) / 10,
+        y: start.y,
+        axis: 'h',
+        length: absDx
+      };
+    }
+    return {
+      x: start.x,
+      y: Math.round(y * 10) / 10,
+      axis: 'v',
+      length: absDy
+    };
+  }
+
+  function measureLabelText(m) {
+    if (m && m.label != null && String(m.label).trim() !== '') return String(m.label).trim();
+    return '?';
+  }
+
+  function getMeasurementGeometry(m) {
+    var label = measureLabelText(m);
+    ctx.save();
+    ctx.font = '700 ' + MEASURE_FONT_SIZE + 'px Montserrat, sans-serif';
+    var textW = ctx.measureText(label).width;
+    ctx.restore();
+    var gapW = textW + MEASURE_TEXT_PAD_X * 2;
+    var gapH = MEASURE_FONT_SIZE + MEASURE_TEXT_PAD_Y * 2;
+    var x1 = m.x1;
+    var y1 = m.y1;
+    var x2 = m.x2;
+    var y2 = m.y2;
+    return {
+      x1: x1,
+      y1: y1,
+      x2: x2,
+      y2: y2,
+      axis: m.axis,
+      mx: (x1 + x2) / 2,
+      my: (y1 + y2) / 2,
+      label: label,
+      gapW: gapW,
+      gapH: gapH
+    };
+  }
+
+  function drawArrowHead(tipX, tipY, fromX, fromY) {
+    var angle = Math.atan2(tipY - fromY, tipX - fromX);
+    var size = MEASURE_ARROW_SIZE;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(
+      tipX - size * Math.cos(angle - Math.PI / 6),
+      tipY - size * Math.sin(angle - Math.PI / 6)
+    );
+    ctx.lineTo(
+      tipX - size * Math.cos(angle + Math.PI / 6),
+      tipY - size * Math.sin(angle + Math.PI / 6)
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawMeasurementArrow(m, isPreview) {
+    var g = getMeasurementGeometry(m);
+    ctx.save();
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = '#000000';
+    ctx.lineWidth = MEASURE_STROKE;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+    if (isPreview) ctx.globalAlpha = 0.55;
+
+    if (g.axis === 'h') {
+      var y = g.y1;
+      var left = Math.min(g.x1, g.x2);
+      var right = Math.max(g.x1, g.x2);
+      var gapLeft = g.mx - g.gapW / 2;
+      var gapRight = g.mx + g.gapW / 2;
+      if (gapLeft > left + 2) {
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(gapLeft, y);
+        ctx.stroke();
+        drawArrowHead(left, y, gapLeft, y);
+      }
+      if (right > gapRight + 2) {
+        ctx.beginPath();
+        ctx.moveTo(gapRight, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        drawArrowHead(right, y, gapRight, y);
+      }
+    } else {
+      var x = g.x1;
+      var top = Math.min(g.y1, g.y2);
+      var bottom = Math.max(g.y1, g.y2);
+      var gapTop = g.my - g.gapH / 2;
+      var gapBottom = g.my + g.gapH / 2;
+      if (gapTop > top + 2) {
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, gapTop);
+        ctx.stroke();
+        drawArrowHead(x, top, x, gapTop);
+      }
+      if (bottom > gapBottom + 2) {
+        ctx.beginPath();
+        ctx.moveTo(x, gapBottom);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+        drawArrowHead(x, bottom, x, gapBottom);
+      }
+    }
+
+    ctx.globalAlpha = isPreview ? 0.7 : 1;
+    ctx.font = '700 ' + MEASURE_FONT_SIZE + 'px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(g.label, g.mx, g.my);
+    ctx.restore();
+  }
+
+  function hitTestMeasurementLabel(x, y) {
+    for (var i = measurements.length - 1; i >= 0; i--) {
+      if (editingMeasureIndex === i) continue;
+      var g = getMeasurementGeometry(measurements[i]);
+      var hw = Math.max(g.gapW, 60) / 2;
+      var hh = Math.max(g.gapH, 40) / 2;
+      if (x >= g.mx - hw && x <= g.mx + hw && y >= g.my - hh && y <= g.my + hh) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  function closeMeasureEditor(commit) {
+    if (editingMeasureIndex === null) return;
+    var idx = editingMeasureIndex;
+    var m = measurements[idx];
+    if (commit && m && measureInput) {
+      m.label = String(measureInput.value || '').trim();
+    }
+    editingMeasureIndex = null;
+    if (measureInput) {
+      measureInput.style.display = 'none';
+      measureInput.blur();
+    }
+    draw();
+  }
+
+  function openMeasureEditor(index) {
+    if (!measureInput || index == null || !measurements[index]) return;
+    closeMeasureEditor(true);
+    editingMeasureIndex = index;
+    var m = measurements[index];
+    var g = getMeasurementGeometry(m);
+    var canvasRect = canvas.getBoundingClientRect();
+    var wrap = canvas.parentElement;
+    var wrapRect = wrap.getBoundingClientRect();
+    var cssX = (g.mx / LETTER_WIDTH) * displayCssW;
+    var cssY = (g.my / LETTER_HEIGHT) * displayCssH;
+    var left = (canvasRect.left - wrapRect.left) + cssX;
+    var top = (canvasRect.top - wrapRect.top) + cssY;
+    measureInput.style.display = 'block';
+    measureInput.style.left = left + 'px';
+    measureInput.style.top = top + 'px';
+    measureInput.value = m.label || '';
+    draw();
+    setTimeout(function() {
+      try {
+        measureInput.focus();
+        measureInput.select();
+      } catch (_) {}
+    }, 30);
+  }
+
+  function commitMeasure(end) {
+    if (!measureDraft || !end) {
+      cancelMeasureDraft();
+      return;
+    }
+    if (end.length < MIN_SEGMENT_PX) {
+      showToast('Drag farther to place the measurement');
+      cancelMeasureDraft();
+      updateUi();
+      draw();
+      return;
+    }
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    var p1 = clampToContent(measureDraft.x, measureDraft.y, layout);
+    var p2 = clampToContent(end.x, end.y, layout);
+    var resolved = resolveMeasureEnd(p1, p2.x, p2.y);
+    if (resolved.length < MIN_SEGMENT_PX) {
+      showToast('Measurement too short');
+      cancelMeasureDraft();
+      updateUi();
+      draw();
+      return;
+    }
+    var entry = {
+      id: nextMeasureId++,
+      x1: p1.x,
+      y1: p1.y,
+      x2: resolved.x,
+      y2: resolved.y,
+      axis: resolved.axis,
+      label: ''
+    };
+    measurements.push(entry);
+    actionHistory.push({ type: 'measure' });
+    cancelMeasureDraft();
+    updateUi();
+    draw();
+    openMeasureEditor(measurements.length - 1);
+    showToast('Tap the number to edit the measurement');
   }
 
   function setToolMode(mode) {
+    closeMeasureEditor(true);
     toolMode = mode;
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
+    if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
     canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
     if (toolMode === 'draw') {
       selectedShapeIndex = null;
       dragState = null;
+      cancelMeasureDraft();
+    } else if (toolMode === 'measure') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
     } else {
       cancelCurrentDrawing();
+      cancelMeasureDraft();
     }
     updateUi();
     draw();
@@ -1590,16 +1874,27 @@
 
   function updateUi() {
     var n = currentPoints.length;
-    btnUndo.disabled = n === 0 || toolMode === 'move';
-    btnFinish.disabled = toolMode === 'move' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0;
+    var measuring = toolMode === 'measure';
+    btnUndo.disabled = measuring
+      ? !measureDraft
+      : (n === 0 || toolMode === 'move');
+    btnFinish.disabled = toolMode !== 'draw' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move';
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || !!measureDraft;
     }
     if (toolMode === 'move') {
       statusEl.innerHTML = dragState
         ? 'Dragging — release to place the shape.'
         : 'Tap and drag a driveway to move it. Tap <strong>Move shape</strong> again to draw.';
+      return;
+    }
+    if (toolMode === 'measure') {
+      if (measureDraft) {
+        statusEl.innerHTML = 'Tap the other end — snaps <strong>horizontal</strong> or <strong>vertical</strong> only. Then edit the number.';
+      } else {
+        statusEl.innerHTML = 'Tap to place the first end of a measurement arrow, or tap an existing number to edit it.';
+      }
       return;
     }
     if (n === 0) {
@@ -1730,6 +2025,29 @@
 
     drawPanelLabels(panelLabels);
 
+    measurements.forEach(function(m, idx) {
+      if (editingMeasureIndex === idx) return;
+      drawMeasurementArrow(m, false);
+    });
+
+    if (measureDraft && measureCursor) {
+      drawMeasurementArrow({
+        x1: measureDraft.x,
+        y1: measureDraft.y,
+        x2: measureCursor.x,
+        y2: measureCursor.y,
+        axis: measureCursor.axis,
+        label: ''
+      }, true);
+    } else if (measureDraft) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(measureDraft.x, measureDraft.y, VERTEX_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = '#000000';
+      ctx.fill();
+      ctx.restore();
+    }
+
     if (dividerPreview) drawDividerSlice(dividerPreview, true);
     drawDividerDragStem();
 
@@ -1855,6 +2173,13 @@
   }
 
   function undoPoint() {
+    if (toolMode === 'measure') {
+      if (!measureDraft) return;
+      cancelMeasureDraft();
+      updateUi();
+      draw();
+      return;
+    }
     if (!currentPoints.length) return;
     currentPoints.pop();
     if (!currentPoints.length) {
@@ -1899,6 +2224,9 @@
     } else if (action.type === 'shape') {
       completedShapes.pop();
       selectedShapeIndex = null;
+    } else if (action.type === 'measure') {
+      measurements.pop();
+      closeMeasureEditor(false);
     } else if (action.type === 'move') {
       var moved = completedShapes[action.shapeIndex];
       if (moved && action.snapshot) {
@@ -1931,9 +2259,11 @@
   }
 
   function clearAll() {
-    if (!completedShapes.length && !currentPoints.length) return;
+    if (!completedShapes.length && !currentPoints.length && !measurements.length && !measureDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
+    measurements = [];
+    closeMeasureEditor(false);
     cancelCurrentDrawing();
     toolMode = 'draw';
     selectedShapeIndex = null;
@@ -1941,6 +2271,7 @@
     dividerDrag = null;
     actionHistory = [];
     if (btnMove) btnMove.classList.remove('rb-btn-active');
+    if (btnMeasure) btnMeasure.classList.remove('rb-btn-active');
     canvas.style.cursor = 'crosshair';
     updateUi();
     draw();
@@ -2098,6 +2429,10 @@
     var savedDrag = dragState;
     var savedDividerDrag = dividerDrag;
     var savedSelected = selectedShapeIndex;
+    var savedMeasureDraft = measureDraft;
+    var savedMeasureCursor = measureCursor;
+    var savedEditing = editingMeasureIndex;
+    closeMeasureEditor(true);
     cancelCurrentDrawing();
     toolMode = 'draw';
     dragState = null;
@@ -2113,7 +2448,11 @@
       dragState = savedDrag;
       dividerDrag = savedDividerDrag;
       selectedShapeIndex = savedSelected;
+      measureDraft = savedMeasureDraft;
+      measureCursor = savedMeasureCursor;
+      editingMeasureIndex = savedEditing;
       if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
+      if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
       canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
       draw();
     };
@@ -2245,9 +2584,50 @@
     var p = getPointerPos(e);
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     var clamped = clampToContent(p.x, p.y, layout);
+
     if (toolMode === 'move') {
       handleMovePointerDown(e, p);
-    } else if (currentPoints.length) {
+      e.preventDefault();
+      return;
+    }
+
+    if (toolMode === 'measure') {
+      if (editingMeasureIndex !== null) closeMeasureEditor(true);
+      var hitLabel = hitTestMeasurementLabel(clamped.x, clamped.y);
+      if (hitLabel !== null && !measureDraft) {
+        openMeasureEditor(hitLabel);
+        e.preventDefault();
+        return;
+      }
+      if (!isInContentArea(clamped.x, clamped.y, layout)) {
+        showToast('Draw inside the page area below the header');
+        e.preventDefault();
+        return;
+      }
+      if (!measureDraft) {
+        measureDraft = { x: clamped.x, y: clamped.y };
+        measureCursor = null;
+        updateUi();
+        draw();
+      } else {
+        var end = resolveMeasureEnd(measureDraft, clamped.x, clamped.y);
+        commitMeasure(end);
+      }
+      e.preventDefault();
+      return;
+    }
+
+    // Allow editing existing measurement labels without leaving draw mode.
+    if (!currentPoints.length && !dividerDrag) {
+      var editHit = hitTestMeasurementLabel(clamped.x, clamped.y);
+      if (editHit !== null) {
+        openMeasureEditor(editHit);
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (currentPoints.length) {
       addPoint(p.x, p.y);
     } else {
       var containerIdx = findRootContainerAt(clamped.x, clamped.y);
@@ -2270,6 +2650,14 @@
       return;
     }
 
+    if (toolMode === 'measure') {
+      if (measureDraft) {
+        measureCursor = resolveMeasureEnd(measureDraft, p.x, p.y);
+        draw();
+      }
+      return;
+    }
+
     if (dividerDrag) {
       updateDividerDrag(p);
       draw();
@@ -2289,6 +2677,11 @@
 
   canvas.addEventListener('pointerleave', function() {
     cursorPoint = null;
+    if (toolMode === 'measure') {
+      if (!measureDraft) measureCursor = null;
+      draw();
+      return;
+    }
     if (dividerDrag) cancelDividerDrag();
     else dividerPreview = null;
     if (toolMode === 'move' && dragState) return;
@@ -2306,7 +2699,13 @@
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        if (e.target === measureInput) {
+          e.preventDefault();
+          closeMeasureEditor(true);
+        }
+        return;
+      }
       e.preventDefault();
       if (currentPoints.length >= MIN_POLYGON_POINTS) {
         finishShape();
@@ -2316,18 +2715,27 @@
       e.preventDefault();
       undoPoint();
     } else if (e.key === 'Escape') {
-      if (dividerDrag) {
+      if (editingMeasureIndex !== null) {
+        closeMeasureEditor(false);
+        showToast('Edit cancelled');
+      } else if (dividerDrag) {
         cancelDividerDrag();
         draw();
         showToast('Divider cancelled');
+      } else if (measureDraft) {
+        cancelMeasureDraft();
+        updateUi();
+        draw();
+        showToast('Measurement cancelled');
       } else if (currentPoints.length) {
         cancelCurrentDrawing();
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move') {
+      } else if (toolMode === 'move' || toolMode === 'measure') {
+        var was = toolMode;
         setToolMode('draw');
-        showToast('Move mode off');
+        showToast(was === 'move' ? 'Move mode off' : 'Measure mode off');
       }
     }
   });
@@ -2340,6 +2748,26 @@
     btnMove.addEventListener('click', function() {
       setToolMode(toolMode === 'move' ? 'draw' : 'move');
       if (toolMode === 'move') showToast('Move mode — drag a shape to reposition');
+    });
+  }
+  if (btnMeasure) {
+    btnMeasure.addEventListener('click', function() {
+      setToolMode(toolMode === 'measure' ? 'draw' : 'measure');
+      if (toolMode === 'measure') showToast('Measure mode — tap two ends for an arrow');
+    });
+  }
+  if (measureInput) {
+    measureInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        closeMeasureEditor(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMeasureEditor(false);
+      }
+    });
+    measureInput.addEventListener('blur', function() {
+      if (editingMeasureIndex !== null) closeMeasureEditor(true);
     });
   }
   btnExportJpg.addEventListener('click', exportJpg);
