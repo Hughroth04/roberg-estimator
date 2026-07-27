@@ -2101,7 +2101,7 @@
   var options = [], activeOptionId = null;
   var nextPanelId = 1, nextOptionId = 1, nextPhotoId = 1;
   var actionSheetOptionId = null;
-  var selectedCustomerId = null, selectedCustomerName = null;
+  var selectedCustomerId = null, selectedCustomerName = null, selectedCustomerAddressId = null;
   var isProcessingPhotos = false;
   var custSearchDebounceTimer = null;
   var custSearchSeq = 0;
@@ -2170,6 +2170,7 @@
       customer: {
         selectedCustomerId: selectedCustomerId,
         selectedCustomerName: selectedCustomerName,
+        selectedCustomerAddressId: selectedCustomerAddressId,
         search: custSearchEl ? custSearchEl.value : '',
         form: readNewCustomerForm()
       }
@@ -2180,6 +2181,7 @@
     if (!customer) return;
     selectedCustomerId = customer.selectedCustomerId || null;
     selectedCustomerName = customer.selectedCustomerName || null;
+    selectedCustomerAddressId = customer.selectedCustomerAddressId || null;
     var form = customer.form || {};
     var setVal = function(id, val) {
       var el = document.getElementById(id);
@@ -2838,6 +2840,7 @@
     activeOptionId = null;
     selectedCustomerId = null;
     selectedCustomerName = null;
+    selectedCustomerAddressId = null;
     applyCustomerDraftToDom({ form: {}, search: '' });
     seedDefaultOptions();
     addPanel();
@@ -3623,6 +3626,39 @@
     }
   }
 
+  // Prefer the customer's service address; fall back to the first address on file.
+  // Search results and create-customer responses both use this HCP shape.
+  function pickCustomerAddressId(customer) {
+    if (!customer) return null;
+    var addresses = Array.isArray(customer.addresses) ? customer.addresses : [];
+    if (!addresses.length) return null;
+    var service = null;
+    for (var i = 0; i < addresses.length; i++) {
+      if (addresses[i] && addresses[i].id && addresses[i].type === 'service') {
+        service = addresses[i];
+        break;
+      }
+    }
+    var chosen = service;
+    if (!chosen) {
+      for (var j = 0; j < addresses.length; j++) {
+        if (addresses[j] && addresses[j].id) { chosen = addresses[j]; break; }
+      }
+    }
+    return chosen ? chosen.id : null;
+  }
+
+  function formatCustomerAddressDetail(customer) {
+    var addresses = (customer && Array.isArray(customer.addresses)) ? customer.addresses : [];
+    var addr = null;
+    for (var i = 0; i < addresses.length; i++) {
+      if (addresses[i] && addresses[i].type === 'service') { addr = addresses[i]; break; }
+    }
+    if (!addr) addr = addresses[0];
+    if (!addr) return '';
+    return [addr.street, addr.city, addr.state, addr.zip].filter(Boolean).join(', ');
+  }
+
   function readNewCustomerForm() {
     return {
       first:  document.getElementById('rb-first-name').value.trim(),
@@ -3719,8 +3755,12 @@
         resultsEl.style.display = 'block';
         resultsEl.innerHTML = customers.map(function(c) {
           var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
-          var detail = [c.email, c.mobile_number || c.home_number].filter(Boolean).join(' \u00b7 ');
-          return '<div class="rb-search-result-item" data-id="' + escapeAttr(c.id) + '" data-name="' + escapeAttr(name) + '">'
+          var addressId = pickCustomerAddressId(c) || '';
+          var addressDetail = formatCustomerAddressDetail(c);
+          var detail = [addressDetail || null, c.email, c.mobile_number || c.home_number].filter(Boolean).join(' \u00b7 ');
+          return '<div class="rb-search-result-item" data-id="' + escapeAttr(c.id)
+            + '" data-name="' + escapeAttr(name)
+            + '" data-address-id="' + escapeAttr(addressId) + '">'
             + '<div class="rb-result-name">' + escapeHtml(name) + '</div>'
             + (detail ? '<div class="rb-result-detail">' + escapeHtml(detail) + '</div>' : '')
             + '</div>';
@@ -3747,8 +3787,10 @@
     }, CUST_SEARCH_DEBOUNCE_MS);
   }
 
-  function selectCustomer(id, name) {
-    selectedCustomerId = id; selectedCustomerName = name;
+  function selectCustomer(id, name, addressId) {
+    selectedCustomerId = id;
+    selectedCustomerName = name;
+    selectedCustomerAddressId = addressId || null;
     document.getElementById('rb-selected-name').textContent = name;
     document.getElementById('rb-selected-customer').style.display = 'flex';
     document.getElementById('rb-new-cust-form').style.display = 'none';
@@ -3896,7 +3938,11 @@
     showStep('loading');
 
     if (selectedCustomerId) {
-      createEstimate({ customer_id: selectedCustomerId, options: optionsPayload });
+      createEstimate({
+        customer_id: selectedCustomerId,
+        address_id: selectedCustomerAddressId || undefined,
+        options: optionsPayload
+      });
       return;
     }
 
@@ -3921,9 +3967,16 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(cust) {
-      if (!cust.id) throw new Error(cust.message || 'Customer creation failed');
+      if (!cust.id) throw new Error(cust.message || cust.error || 'Customer creation failed');
+      selectedCustomerId = cust.id;
+      selectedCustomerName = ((cust.first_name || first) + ' ' + (cust.last_name || last)).trim();
+      selectedCustomerAddressId = pickCustomerAddressId(cust);
       document.getElementById('rb-loading-msg').textContent = 'Creating estimate\u2026';
-      createEstimate({ customer_id: cust.id, options: optionsPayload });
+      createEstimate({
+        customer_id: cust.id,
+        address_id: selectedCustomerAddressId || undefined,
+        options: optionsPayload
+      });
     })
     .catch(function(e) {
       document.getElementById('rb-error-msg').textContent = e.message;
@@ -3950,7 +4003,17 @@
     .then(function(res) {
       var data = res.data || {};
       if (!res.ok || !data.success) {
-        throw new Error(data.error || ('Estimate creation failed (HTTP ' + res.status + ')'));
+        var detail = data.detail;
+        var detailMsg = '';
+        if (detail && typeof detail === 'object') {
+          detailMsg = detail.error || detail.message || '';
+          if (!detailMsg && Array.isArray(detail.errors) && detail.errors[0]) {
+            detailMsg = typeof detail.errors[0] === 'string'
+              ? detail.errors[0]
+              : (detail.errors[0].message || '');
+          }
+        }
+        throw new Error(data.error || detailMsg || ('Estimate creation failed (HTTP ' + res.status + ')'));
       }
       var panelCount = (typeof data.panel_count === 'number')
         ? data.panel_count
@@ -4034,7 +4097,14 @@
     root.addEventListener('click', function(e) {
       // Search result selection
       var resultItem = e.target.closest('.rb-search-result-item');
-      if (resultItem) { selectCustomer(resultItem.getAttribute('data-id'), resultItem.getAttribute('data-name')); return; }
+      if (resultItem) {
+        selectCustomer(
+          resultItem.getAttribute('data-id'),
+          resultItem.getAttribute('data-name'),
+          resultItem.getAttribute('data-address-id')
+        );
+        return;
+      }
 
       // Exit client preview from the sticky banner (always allowed)
       if (e.target.closest('#rb-btn-exit-preview')) {
@@ -4129,7 +4199,7 @@
       }
       if (tid === 'rb-photo-preview-close') { closePhotoPreview(); return; }
       if (tid === 'rb-btn-change-cust')   {
-        selectedCustomerId = null; selectedCustomerName = null;
+        selectedCustomerId = null; selectedCustomerName = null; selectedCustomerAddressId = null;
         document.getElementById('rb-selected-customer').style.display = 'none';
         document.getElementById('rb-new-cust-form').style.display = 'block';
         clearCustomerFieldErrors();
