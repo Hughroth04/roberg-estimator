@@ -212,6 +212,12 @@
       border-color: #f0c0c0;
       color: #a33;
     }
+    #rb-sketch .rb-tool.rb-tool-number {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1;
+    }
 
     /* Tooltip labels on desktop */
     #rb-sketch .rb-tool[data-tip]::after {
@@ -257,6 +263,86 @@
       -webkit-overflow-scrolling: touch;
       min-height: min(92vh, 1200px);
       max-height: calc(100vh - 120px);
+    }
+    #rb-sketch .rb-number-library {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 7;
+      width: 170px;
+      max-width: calc(100% - 16px);
+      padding: 8px;
+      border: 1px solid var(--rb-border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: var(--rb-shadow);
+      display: none;
+    }
+    #rb-sketch .rb-number-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    #rb-sketch .rb-number-item {
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--rb-border);
+      border-radius: 6px;
+      background: #fff;
+      color: #000;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: grab;
+    }
+    #rb-sketch .rb-number-item:active { cursor: grabbing; }
+    #rb-sketch .rb-number-item.rb-active {
+      border-color: var(--rb-navy);
+      background: var(--rb-navy);
+      color: #fff;
+    }
+    #rb-sketch .rb-number-custom {
+      display: flex;
+      gap: 4px;
+    }
+    #rb-sketch .rb-number-custom-input {
+      min-width: 0;
+      flex: 1 1 auto;
+      height: 28px;
+      border: 1px solid var(--rb-border);
+      border-radius: 6px;
+      padding: 0 6px;
+      font-size: 12px;
+    }
+    #rb-sketch .rb-number-custom-btn {
+      flex: 0 0 auto;
+      height: 28px;
+      min-width: 34px;
+      border: 1px solid var(--rb-border);
+      border-radius: 6px;
+      background: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #rb-sketch .rb-drag-chip {
+      position: fixed;
+      z-index: 30;
+      transform: translate(-50%, -50%);
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border: 2px solid #000;
+      border-radius: 8px;
+      background: #fff;
+      color: #000;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
     }
 
     /* Legacy text-button styles kept for save overlay actions */
@@ -574,6 +660,16 @@
             <line x1="12" y1="2" x2="12" y2="22"/>
           </svg>
         </button>
+        <button type="button" class="rb-tool" id="rb-btn-xmark"
+          data-tip="X mark" title="X mark" aria-label="X mark">X</button>
+        <button type="button" class="rb-tool" id="rb-btn-crack"
+          data-tip="Crack tool" title="Crack tool" aria-label="Crack tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="5 4 10 9 8 13 13 17 11 21 17 16 15 12 19 8"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool rb-tool-number" id="rb-btn-number"
+          data-tip="Number tool" title="Number tool" aria-label="Number tool">#</button>
 
         <div class="rb-tool-sep" role="separator"></div>
 
@@ -600,10 +696,18 @@
         <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
         <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
           inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+        <div class="rb-number-library" id="rb-number-library" aria-label="Number library">
+          <div class="rb-number-grid" id="rb-number-grid"></div>
+          <div class="rb-number-custom">
+            <input type="text" class="rb-number-custom-input" id="rb-number-custom-input" maxlength="10" placeholder="Custom">
+            <button type="button" class="rb-number-custom-btn" id="rb-number-custom-btn">Add</button>
+          </div>
+        </div>
       </div>
     </div>
 
   </main>
+  <div class="rb-drag-chip" id="rb-drag-chip"></div>
 
   <div class="rb-toast" id="rb-toast"></div>
 
@@ -640,7 +744,15 @@
   var btnMove = document.getElementById('rb-btn-move');
   var btnDraw = document.getElementById('rb-btn-draw');
   var btnMeasure = document.getElementById('rb-btn-measure');
+  var btnXmark = document.getElementById('rb-btn-xmark');
+  var btnCrack = document.getElementById('rb-btn-crack');
+  var btnNumber = document.getElementById('rb-btn-number');
   var measureInput = document.getElementById('rb-measure-input');
+  var numberLibraryEl = document.getElementById('rb-number-library');
+  var numberGridEl = document.getElementById('rb-number-grid');
+  var numberCustomInput = document.getElementById('rb-number-custom-input');
+  var numberCustomBtn = document.getElementById('rb-number-custom-btn');
+  var dragChipEl = document.getElementById('rb-drag-chip');
   var btnAttach = document.getElementById('rb-btn-attach');
   var btnExportJpg = document.getElementById('rb-btn-export-jpg');
   var btnShareJpg = document.getElementById('rb-btn-share-jpg');
@@ -672,6 +784,21 @@
   var measureCursor = null;
   var editingMeasureIndex = null;
   var nextMeasureId = 1;
+  var numberLabels = [];
+  var xMarks = [];
+  var cracks = [];
+  var crackDraft = null;
+  var crackCursor = null;
+  var nextNumberLabelId = 1;
+  var numberPalette = ['0', '-1', '-2', '-3', '-4', '-5', '-6', '0', '+1', '+2', '+3', '+4', '+5', '+6'];
+  var selectedNumberValue = null;
+  var numberDrag = null;
+  var NUMBER_LABEL_FONT_SIZE = 59;
+  var NUMBER_CORNER_OFFSET = 60;
+  var NUMBER_MID_OFFSET = 46;
+  var NUMBER_CRACK_OFFSET = 42;
+  var X_MARK_SIZE = 44;
+  var CRACK_STROKE_WIDTH = 5;
 
   var COLORS = {
     stroke: '#27235d',
@@ -1455,7 +1582,8 @@
         shapePanels.push({
           id: i + ':0:0',
           shapeIndex: i,
-          centroid: findInteriorLabelPoint(shape.points)
+          centroid: findInteriorLabelPoint(shape.points),
+          polygon: shape.points.map(function(pt) { return { x: pt.x, y: pt.y }; })
         });
         sortPanelsByPosition(shapePanels);
         for (var p0 = 0; p0 < shapePanels.length; p0++) panels.push(shapePanels[p0]);
@@ -1467,7 +1595,8 @@
         shapePanels.push({
           id: i + ':' + ri,
           shapeIndex: i,
-          centroid: labelPoint
+          centroid: labelPoint,
+          polygon: regions[ri].map(function(pt) { return { x: pt.x, y: pt.y }; })
         });
       }
       sortPanelsByPosition(shapePanels);
@@ -1541,6 +1670,77 @@
         return copy;
       })
     };
+  }
+
+  function cloneNumberLabels() {
+    return numberLabels.map(function(n) {
+      return { id: n.id, value: n.value, x: n.x, y: n.y };
+    });
+  }
+
+  function cloneXMarks() {
+    return xMarks.map(function(m) {
+      return { x: m.x, y: m.y };
+    });
+  }
+
+  function cloneMeasurements() {
+    return measurements.map(function(m) {
+      return {
+        id: m.id,
+        x1: m.x1, y1: m.y1,
+        x2: m.x2, y2: m.y2,
+        axis: m.axis,
+        label: m.label
+      };
+    });
+  }
+
+  function cloneCracks() {
+    return cracks.map(function(c) {
+      return {
+        points: c.points.map(function(p) { return { x: p.x, y: p.y }; })
+      };
+    });
+  }
+
+  function drawCrackPath(points, previewEnd) {
+    if (!points || !points.length) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    if (previewEnd) ctx.lineTo(previewEnd.x, previewEnd.y);
+    ctx.stroke();
+  }
+
+  function drawCracks() {
+    if (!cracks.length && !crackDraft) return;
+    ctx.save();
+    ctx.strokeStyle = '#d02222';
+    ctx.lineWidth = CRACK_STROKE_WIDTH;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    cracks.forEach(function(c) { drawCrackPath(c.points, null); });
+    if (crackDraft && crackDraft.length) drawCrackPath(crackDraft, crackCursor);
+    ctx.restore();
+  }
+
+  function cancelCrackDraft() {
+    crackDraft = null;
+    crackCursor = null;
+  }
+
+  function commitCrackDraft() {
+    if (!crackDraft || crackDraft.length < 2) {
+      cancelCrackDraft();
+      return false;
+    }
+    cracks.push({
+      points: crackDraft.map(function(p) { return { x: p.x, y: p.y }; })
+    });
+    actionHistory.push({ type: 'crack' });
+    cancelCrackDraft();
+    return true;
   }
 
   function translateShape(shape, dx, dy) {
@@ -1843,10 +2043,241 @@
     showToast('Tap the number to edit the measurement');
   }
 
+  function sanitizeNumberValue(v) {
+    return String(v == null ? '' : v).trim().slice(0, 10);
+  }
+
+  function renderNumberPalette() {
+    if (!numberGridEl) return;
+    numberGridEl.innerHTML = numberPalette.map(function(v, idx) {
+      var isActive = selectedNumberValue === v;
+      return '<button type="button" class="rb-number-item' + (isActive ? ' rb-active' : '')
+        + '" data-num-idx="' + idx + '">' + v.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>';
+    }).join('');
+  }
+
+  function setSelectedNumber(value) {
+    var val = sanitizeNumberValue(value);
+    if (!val) return;
+    selectedNumberValue = val;
+    renderNumberPalette();
+  }
+
+  function setNumberLibraryVisible(show) {
+    if (!numberLibraryEl) return;
+    numberLibraryEl.style.display = show ? 'block' : 'none';
+  }
+
+  function getPanelAnchors() {
+    var panels = getDerivedPanels();
+    var anchors = [];
+    function norm(x, y) {
+      var len = Math.sqrt(x * x + y * y);
+      if (len < 0.001) return { x: 0, y: 0 };
+      return { x: x / len, y: y / len };
+    }
+    function cornerInwardOffset(poly, idx, dist) {
+      var n = poly.length;
+      if (!n) return { x: 0, y: 0 };
+      var c = poly[idx];
+      var prev = poly[(idx - 1 + n) % n];
+      var next = poly[(idx + 1) % n];
+      var v1 = norm(prev.x - c.x, prev.y - c.y);
+      var v2 = norm(next.x - c.x, next.y - c.y);
+      var bis = norm(v1.x + v2.x, v1.y + v2.y);
+      if (!bis.x && !bis.y) bis = v1;
+      return { x: bis.x * dist, y: bis.y * dist };
+    }
+    function midpointInwardOffset(poly, a, b, dist) {
+      var mx = (a.x + b.x) / 2;
+      var my = (a.y + b.y) / 2;
+      var dx = b.x - a.x;
+      var dy = b.y - a.y;
+      var n1 = norm(-dy, dx);
+      var n2 = norm(dy, -dx);
+      var t1 = { x: mx + n1.x * dist, y: my + n1.y * dist };
+      var t2 = { x: mx + n2.x * dist, y: my + n2.y * dist };
+      if (pointInPolygon(t1.x, t1.y, poly)) return { x: n1.x * dist, y: n1.y * dist };
+      if (pointInPolygon(t2.x, t2.y, poly)) return { x: n2.x * dist, y: n2.y * dist };
+      return { x: 0, y: 0 };
+    }
+    for (var i = 0; i < panels.length; i++) {
+      var poly = panels[i].polygon || [];
+      if (poly.length < 2) continue;
+      for (var j = 0; j < poly.length; j++) {
+        var a = poly[j];
+        var b = poly[(j + 1) % poly.length];
+        var cOff = cornerInwardOffset(poly, j, NUMBER_CORNER_OFFSET);
+        anchors.push({
+          x: a.x, y: a.y, kind: 'corner', ox: cOff.x, oy: cOff.y,
+          panelPoly: poly
+        });
+        var mOff = midpointInwardOffset(poly, a, b, NUMBER_MID_OFFSET);
+        anchors.push({
+          x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, kind: 'mid', ox: mOff.x, oy: mOff.y,
+          panelPoly: poly
+        });
+      }
+    }
+    return anchors;
+  }
+
+  function nearestAnchor(x, y) {
+    var anchors = getPanelAnchors();
+    if (!anchors.length) return null;
+    // Prefer anchors from the panel that contains the click. This allows
+    // separate labels on shared corners (e.g. panel 4 BR vs panel 6 TR).
+    var localAnchors = anchors.filter(function(a) {
+      return a.panelPoly && pointInOrOnPolygon(x, y, a.panelPoly);
+    });
+    if (localAnchors.length) anchors = localAnchors;
+    var best = null;
+    var bestD2 = Infinity;
+    for (var i = 0; i < anchors.length; i++) {
+      var dx = anchors[i].x - x;
+      var dy = anchors[i].y - y;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = anchors[i];
+      }
+    }
+    var snapMax = (CLOSE_SNAP_PX * 1.6) * (CLOSE_SNAP_PX * 1.6);
+    return bestD2 <= snapMax ? best : null;
+  }
+
+  function nearestCrackNumberPlacement(x, y) {
+    var best = null;
+    var bestD2 = Infinity;
+    for (var ci = 0; ci < cracks.length; ci++) {
+      var pts = cracks[ci].points || [];
+      for (var pi = 0; pi < pts.length - 1; pi++) {
+        var a = pts[pi];
+        var b = pts[pi + 1];
+        var vx = b.x - a.x;
+        var vy = b.y - a.y;
+        var len2 = vx * vx + vy * vy;
+        if (len2 < 1e-6) continue;
+        var t = ((x - a.x) * vx + (y - a.y) * vy) / len2;
+        if (t < 0) t = 0;
+        else if (t > 1) t = 1;
+        var px = a.x + t * vx;
+        var py = a.y + t * vy;
+        var dx = x - px;
+        var dy = y - py;
+        var d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          best = { projX: px, projY: py, vx: vx, vy: vy };
+        }
+      }
+    }
+    if (!best) return null;
+    var snapMax = (CLOSE_SNAP_PX * 1.2) * (CLOSE_SNAP_PX * 1.2);
+    if (bestD2 > snapMax) return null;
+    var len = Math.sqrt(best.vx * best.vx + best.vy * best.vy) || 1;
+    var nx = -best.vy / len;
+    var ny = best.vx / len;
+    var side = best.vx * (y - best.projY) - best.vy * (x - best.projX);
+    if (side < 0) { nx = -nx; ny = -ny; }
+    return {
+      x: Math.round((best.projX + nx * NUMBER_CRACK_OFFSET) * 10) / 10,
+      y: Math.round((best.projY + ny * NUMBER_CRACK_OFFSET) * 10) / 10
+    };
+  }
+
+  function updateDragChip(x, y, text, visible) {
+    if (!dragChipEl) return;
+    if (!visible) {
+      dragChipEl.style.display = 'none';
+      return;
+    }
+    dragChipEl.textContent = text;
+    dragChipEl.style.display = 'inline-flex';
+    dragChipEl.style.left = x + 'px';
+    dragChipEl.style.top = y + 'px';
+  }
+
+  function startNumberDrag(clientX, clientY, value) {
+    var v = sanitizeNumberValue(value);
+    if (!v) return;
+    numberDrag = { value: v };
+    updateDragChip(clientX, clientY, v, true);
+  }
+
+  function placeNumberValueAtCanvasPoint(value, p) {
+    var labelPos = nearestCrackNumberPlacement(p.x, p.y);
+    if (!labelPos) {
+      var anchor = nearestAnchor(p.x, p.y);
+      if (!anchor) return false;
+      labelPos = {
+        x: Math.round((anchor.x + (anchor.ox || 0)) * 10) / 10,
+        y: Math.round((anchor.y + (anchor.oy || 0)) * 10) / 10
+      };
+    }
+    numberLabels.push({
+      id: nextNumberLabelId++,
+      value: value,
+      x: labelPos.x,
+      y: labelPos.y
+    });
+    actionHistory.push({ type: 'number-label' });
+    return true;
+  }
+
+  function placeNumberAtCanvasPoint(p) {
+    if (!numberDrag) return false;
+    return placeNumberValueAtCanvasPoint(numberDrag.value, p);
+  }
+
+  function stopNumberDrag() {
+    numberDrag = null;
+    updateDragChip(0, 0, '', false);
+  }
+
+  function drawNumberLabels() {
+    if (!numberLabels.length) return;
+    ctx.save();
+    ctx.font = '700 ' + NUMBER_LABEL_FONT_SIZE + 'px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    numberLabels.forEach(function(n) {
+      var t = n.value;
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeText(t, n.x, n.y);
+      ctx.fillStyle = '#000000';
+      ctx.fillText(t, n.x, n.y);
+    });
+    ctx.restore();
+  }
+
+  function drawXMarks() {
+    if (!xMarks.length) return;
+    ctx.save();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    xMarks.forEach(function(m) {
+      var h = X_MARK_SIZE / 2;
+      ctx.beginPath();
+      ctx.moveTo(m.x - h, m.y - h);
+      ctx.lineTo(m.x + h, m.y + h);
+      ctx.moveTo(m.x + h, m.y - h);
+      ctx.lineTo(m.x - h, m.y + h);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   function syncToolButtons() {
     if (btnDraw) btnDraw.classList.toggle('rb-btn-active', toolMode === 'draw');
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
     if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
+    if (btnXmark) btnXmark.classList.toggle('rb-btn-active', toolMode === 'xmark');
+    if (btnCrack) btnCrack.classList.toggle('rb-btn-active', toolMode === 'crack');
+    if (btnNumber) btnNumber.classList.toggle('rb-btn-active', toolMode === 'number');
+    setNumberLibraryVisible(toolMode === 'number');
     canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
   }
 
@@ -1858,13 +2289,32 @@
       selectedShapeIndex = null;
       dragState = null;
       cancelMeasureDraft();
+      cancelCrackDraft();
     } else if (toolMode === 'measure') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
+      cancelCrackDraft();
+    } else if (toolMode === 'number') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
+    } else if (toolMode === 'xmark') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
+      cancelCrackDraft();
+    } else if (toolMode === 'crack') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
     } else {
       cancelCurrentDrawing();
       cancelMeasureDraft();
+      cancelCrackDraft();
     }
     updateUi();
     draw();
@@ -2108,9 +2558,9 @@
         : (n === 0 || toolMode === 'move');
     }
     btnFinish.disabled = toolMode !== 'draw' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && cracks.length === 0 && !crackDraft;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || !!measureDraft;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'crack' || !!measureDraft || !!numberDrag || !!crackDraft;
     }
     if (toolMode === 'move') {
       statusEl.innerHTML = dragState
@@ -2124,6 +2574,20 @@
       } else {
         statusEl.innerHTML = 'Tap to place the first end of a measurement arrow, or tap an existing number to edit it.';
       }
+      return;
+    }
+    if (toolMode === 'number') {
+      statusEl.innerHTML = 'Drag a number from the # library onto a panel corner or side midpoint.';
+      return;
+    }
+    if (toolMode === 'xmark') {
+      statusEl.innerHTML = 'Tap inside a shape to place an X.';
+      return;
+    }
+    if (toolMode === 'crack') {
+      statusEl.innerHTML = crackDraft && crackDraft.length
+        ? 'Click to continue crack. Press Enter or tap Crack tool to finish.'
+        : 'Click to start crack line.';
       return;
     }
     if (n === 0) {
@@ -2253,6 +2717,9 @@
     });
 
     drawPanelLabels(panelLabels);
+    drawNumberLabels();
+    drawXMarks();
+    drawCracks();
 
     measurements.forEach(function(m, idx) {
       if (editingMeasureIndex === idx) return;
@@ -2337,12 +2804,61 @@
     }
     selectedShapeIndex = hit;
     var shape = completedShapes[hit];
+    var shapeSnapshot = cloneShapeGeometry(shape);
+    var numberSnapshot = cloneNumberLabels();
+    var xMarkSnapshot = cloneXMarks();
+    var measurementSnapshot = cloneMeasurements();
+    var crackSnapshot = cloneCracks();
+    var numberMoveIndices = [];
+    var xMarkMoveIndices = [];
+    var measurementMoveIndices = [];
+    var crackMoveIndices = [];
+    var i;
+    for (i = 0; i < numberSnapshot.length; i++) {
+      if (pointInOrOnPolygon(numberSnapshot[i].x, numberSnapshot[i].y, shapeSnapshot.points)) {
+        numberMoveIndices.push(i);
+      }
+    }
+    for (i = 0; i < xMarkSnapshot.length; i++) {
+      if (pointInOrOnPolygon(xMarkSnapshot[i].x, xMarkSnapshot[i].y, shapeSnapshot.points)) {
+        xMarkMoveIndices.push(i);
+      }
+    }
+    for (i = 0; i < measurementSnapshot.length; i++) {
+      var mx = (measurementSnapshot[i].x1 + measurementSnapshot[i].x2) / 2;
+      var my = (measurementSnapshot[i].y1 + measurementSnapshot[i].y2) / 2;
+      if (pointInOrOnPolygon(mx, my, shapeSnapshot.points)) {
+        measurementMoveIndices.push(i);
+      }
+    }
+    for (i = 0; i < crackSnapshot.length; i++) {
+      var pts = crackSnapshot[i].points || [];
+      if (!pts.length) continue;
+      var sx = 0, sy = 0;
+      for (var cp = 0; cp < pts.length; cp++) {
+        sx += pts[cp].x;
+        sy += pts[cp].y;
+      }
+      var cx = sx / pts.length;
+      var cy = sy / pts.length;
+      if (pointInOrOnPolygon(cx, cy, shapeSnapshot.points)) {
+        crackMoveIndices.push(i);
+      }
+    }
     dragState = {
       shapeIndex: hit,
       startX: p.x,
       startY: p.y,
       moved: false,
-      snapshot: cloneShapeGeometry(shape)
+      snapshot: shapeSnapshot,
+      numberSnapshot: numberSnapshot,
+      xMarkSnapshot: xMarkSnapshot,
+      measurementSnapshot: measurementSnapshot,
+      crackSnapshot: crackSnapshot,
+      numberMoveIndices: numberMoveIndices,
+      xMarkMoveIndices: xMarkMoveIndices,
+      measurementMoveIndices: measurementMoveIndices,
+      crackMoveIndices: crackMoveIndices
     };
     canvas.style.cursor = 'grabbing';
     draw();
@@ -2380,6 +2896,35 @@
       }
       return copy;
     });
+
+    // Move any extra marks/annotations that were inside this shape at drag start.
+    dragState.numberMoveIndices.forEach(function(idx) {
+      var src = dragState.numberSnapshot[idx];
+      if (!src || !numberLabels[idx]) return;
+      numberLabels[idx].x = src.x + dx;
+      numberLabels[idx].y = src.y + dy;
+    });
+    dragState.xMarkMoveIndices.forEach(function(idx) {
+      var src = dragState.xMarkSnapshot[idx];
+      if (!src || !xMarks[idx]) return;
+      xMarks[idx].x = src.x + dx;
+      xMarks[idx].y = src.y + dy;
+    });
+    dragState.measurementMoveIndices.forEach(function(idx) {
+      var src = dragState.measurementSnapshot[idx];
+      if (!src || !measurements[idx]) return;
+      measurements[idx].x1 = src.x1 + dx;
+      measurements[idx].y1 = src.y1 + dy;
+      measurements[idx].x2 = src.x2 + dx;
+      measurements[idx].y2 = src.y2 + dy;
+    });
+    dragState.crackMoveIndices.forEach(function(idx) {
+      var src = dragState.crackSnapshot[idx];
+      if (!src || !cracks[idx]) return;
+      cracks[idx].points = src.points.map(function(p0) {
+        return { x: p0.x + dx, y: p0.y + dy };
+      });
+    });
     draw();
   }
 
@@ -2392,7 +2937,11 @@
       actionHistory.push({
         type: 'move',
         shapeIndex: dragState.shapeIndex,
-        snapshot: dragState.snapshot
+        snapshot: dragState.snapshot,
+        numberSnapshot: dragState.numberSnapshot,
+        xMarkSnapshot: dragState.xMarkSnapshot,
+        measurementSnapshot: dragState.measurementSnapshot,
+        crackSnapshot: dragState.crackSnapshot
       });
       showToast('Shape moved');
     }
@@ -2405,6 +2954,14 @@
     if (toolMode === 'measure') {
       if (!measureDraft) return;
       cancelMeasureDraft();
+      updateUi();
+      draw();
+      return;
+    }
+    if (toolMode === 'crack') {
+      if (!crackDraft || !crackDraft.length) return;
+      crackDraft.pop();
+      if (!crackDraft.length) cancelCrackDraft();
       updateUi();
       draw();
       return;
@@ -2456,6 +3013,12 @@
     } else if (action.type === 'measure') {
       measurements.pop();
       closeMeasureEditor(false);
+    } else if (action.type === 'number-label') {
+      numberLabels.pop();
+    } else if (action.type === 'xmark') {
+      xMarks.pop();
+    } else if (action.type === 'crack') {
+      cracks.pop();
     } else if (action.type === 'move') {
       var moved = completedShapes[action.shapeIndex];
       if (moved && action.snapshot) {
@@ -2482,17 +3045,50 @@
           return copy;
         });
       }
+      if (action.numberSnapshot) {
+        numberLabels = action.numberSnapshot.map(function(n) {
+          return { id: n.id, value: n.value, x: n.x, y: n.y };
+        });
+      }
+      if (action.xMarkSnapshot) {
+        xMarks = action.xMarkSnapshot.map(function(m) {
+          return { x: m.x, y: m.y };
+        });
+      }
+      if (action.measurementSnapshot) {
+        measurements = action.measurementSnapshot.map(function(m) {
+          return {
+            id: m.id,
+            x1: m.x1, y1: m.y1,
+            x2: m.x2, y2: m.y2,
+            axis: m.axis,
+            label: m.label
+          };
+        });
+      }
+      if (action.crackSnapshot) {
+        cracks = action.crackSnapshot.map(function(c) {
+          return {
+            points: c.points.map(function(p) { return { x: p.x, y: p.y }; })
+          };
+        });
+      }
     }
     updateUi();
     draw();
   }
 
   function clearAll() {
-    if (!completedShapes.length && !currentPoints.length && !measurements.length && !measureDraft) return;
+    if (!completedShapes.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !cracks.length && !measureDraft && !crackDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
     measurements = [];
+    numberLabels = [];
+    xMarks = [];
+    cracks = [];
+    stopNumberDrag();
     closeMeasureEditor(false);
+    cancelCrackDraft();
     cancelCurrentDrawing();
     toolMode = 'draw';
     selectedShapeIndex = null;
@@ -2763,8 +3359,8 @@
       showToast('Finish or cancel the current shape first');
       return;
     }
-    if (toolMode === 'move' || dragState) {
-      showToast('Exit move mode before attaching');
+    if (toolMode === 'move' || toolMode === 'crack' || dragState || crackDraft) {
+      showToast('Finish crack/move mode before attaching');
       return;
     }
     btnAttach.disabled = true;
@@ -2815,6 +3411,39 @@
       e.preventDefault();
       return;
     }
+    if (toolMode === 'crack') {
+      if (!isInContentArea(clamped.x, clamped.y, layout)) {
+        showToast('Draw inside the page area below the header');
+        e.preventDefault();
+        return;
+      }
+      if (!crackDraft) {
+        crackDraft = [{ x: Math.round(clamped.x * 10) / 10, y: Math.round(clamped.y * 10) / 10 }];
+      } else {
+        crackDraft.push({ x: Math.round(clamped.x * 10) / 10, y: Math.round(clamped.y * 10) / 10 });
+      }
+      crackCursor = null;
+      updateUi();
+      draw();
+      e.preventDefault();
+      return;
+    }
+    if (toolMode === 'xmark') {
+      var shapeIdx = findRootContainerAt(clamped.x, clamped.y);
+      if (shapeIdx === null) {
+        showToast('Place X inside a shape');
+        e.preventDefault();
+        return;
+      }
+      xMarks.push({
+        x: Math.round(clamped.x * 10) / 10,
+        y: Math.round(clamped.y * 10) / 10
+      });
+      actionHistory.push({ type: 'xmark' });
+      draw();
+      e.preventDefault();
+      return;
+    }
 
     if (toolMode === 'measure') {
       if (editingMeasureIndex !== null) closeMeasureEditor(true);
@@ -2838,6 +3467,21 @@
         var end = resolveMeasureEnd(measureDraft, clamped.x, clamped.y);
         commitMeasure(end);
       }
+      e.preventDefault();
+      return;
+    }
+    if (toolMode === 'number') {
+      if (!selectedNumberValue) {
+        showToast('Select a number from the # library first');
+        e.preventDefault();
+        return;
+      }
+      if (!placeNumberValueAtCanvasPoint(selectedNumberValue, clamped)) {
+        showToast('Place numbers near a crack, panel corner, or panel side midpoint');
+        e.preventDefault();
+        return;
+      }
+      draw();
       e.preventDefault();
       return;
     }
@@ -2882,6 +3526,13 @@
       }
       return;
     }
+    if (toolMode === 'crack') {
+      if (crackDraft && crackDraft.length) {
+        crackCursor = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+        draw();
+      }
+      return;
+    }
 
     if (dividerDrag) {
       updateDividerDrag(p);
@@ -2902,6 +3553,11 @@
 
   canvas.addEventListener('pointerleave', function() {
     cursorPoint = null;
+    if (toolMode === 'crack') {
+      crackCursor = null;
+      draw();
+      return;
+    }
     if (toolMode === 'measure') {
       if (!measureDraft) measureCursor = null;
       draw();
@@ -2922,6 +3578,30 @@
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   });
 
+  document.addEventListener('pointermove', function(e) {
+    if (!numberDrag) return;
+    updateDragChip(e.clientX, e.clientY, numberDrag.value, true);
+  });
+
+  document.addEventListener('pointerup', function(e) {
+    if (!numberDrag) return;
+    var rect = canvas.getBoundingClientRect();
+    var inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (inside) {
+      var p = {
+        x: (e.clientX - rect.left) * (LETTER_WIDTH / rect.width),
+        y: (e.clientY - rect.top) * (LETTER_HEIGHT / rect.height)
+      };
+      if (placeNumberAtCanvasPoint(p)) {
+        draw();
+      } else {
+        showToast('Drop near a crack, panel corner, or side midpoint');
+      }
+    }
+    stopNumberDrag();
+    updateUi();
+  });
+
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
@@ -2932,6 +3612,17 @@
         return;
       }
       e.preventDefault();
+      if (toolMode === 'crack') {
+        if (commitCrackDraft()) {
+          updateUi();
+          draw();
+          showToast('Crack saved');
+        } else {
+          updateUi();
+          draw();
+        }
+        return;
+      }
       if (currentPoints.length >= MIN_POLYGON_POINTS) {
         finishShape();
       }
@@ -2952,15 +3643,23 @@
         updateUi();
         draw();
         showToast('Measurement cancelled');
+      } else if (crackDraft && crackDraft.length) {
+        cancelCrackDraft();
+        updateUi();
+        draw();
+        showToast('Crack cancelled');
       } else if (currentPoints.length) {
         cancelCurrentDrawing();
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move' || toolMode === 'measure') {
+      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark') {
         var was = toolMode;
         setToolMode('draw');
-        showToast(was === 'move' ? 'Move mode off' : 'Measure mode off');
+        if (was === 'move') showToast('Move mode off');
+        else if (was === 'measure') showToast('Measure mode off');
+        else if (was === 'number') showToast('Number mode off');
+        else showToast('X mode off');
       }
     }
   });
@@ -2970,6 +3669,9 @@
   btnClear.addEventListener('click', clearAll);
   if (btnDraw) {
     btnDraw.addEventListener('click', function() {
+      if (toolMode === 'crack' && crackDraft && crackDraft.length) {
+        commitCrackDraft();
+      }
       setToolMode('draw');
       showToast('Draw mode — tap corners to outline');
     });
@@ -2984,6 +3686,76 @@
     btnMeasure.addEventListener('click', function() {
       setToolMode(toolMode === 'measure' ? 'draw' : 'measure');
       if (toolMode === 'measure') showToast('Measure mode — tap two ends for an arrow');
+    });
+  }
+  if (btnXmark) {
+    btnXmark.addEventListener('click', function() {
+      setToolMode(toolMode === 'xmark' ? 'draw' : 'xmark');
+      if (toolMode === 'xmark') showToast('X mode — tap inside a shape');
+    });
+  }
+  if (btnCrack) {
+    btnCrack.addEventListener('click', function() {
+      if (toolMode === 'crack') {
+        if (commitCrackDraft()) {
+          setToolMode('draw');
+          showToast('Crack saved');
+        } else {
+          setToolMode('draw');
+          showToast('Crack mode off');
+        }
+        updateUi();
+        draw();
+        return;
+      }
+      setToolMode('crack');
+      showToast('Crack mode — click to add segments, Enter to finish');
+    });
+  }
+  if (btnNumber) {
+    btnNumber.addEventListener('click', function() {
+      setToolMode(toolMode === 'number' ? 'draw' : 'number');
+      if (toolMode === 'number') showToast('Number mode — drag values from # library');
+    });
+  }
+  if (numberGridEl) {
+    numberGridEl.addEventListener('click', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.rb-number-item') : null;
+      if (!btn) return;
+      var idx = parseInt(btn.getAttribute('data-num-idx'), 10);
+      if (!Number.isFinite(idx) || idx < 0 || idx >= numberPalette.length) return;
+      setSelectedNumber(numberPalette[idx]);
+    });
+    numberGridEl.addEventListener('pointerdown', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.rb-number-item') : null;
+      if (!btn) return;
+      var idx = parseInt(btn.getAttribute('data-num-idx'), 10);
+      if (!Number.isFinite(idx) || idx < 0 || idx >= numberPalette.length) return;
+      var value = numberPalette[idx];
+      setSelectedNumber(value);
+      startNumberDrag(e.clientX, e.clientY, value);
+      if (toolMode !== 'number') setToolMode('number');
+      e.preventDefault();
+    });
+  }
+  if (numberCustomBtn) {
+    numberCustomBtn.addEventListener('click', function() {
+      var val = sanitizeNumberValue(numberCustomInput ? numberCustomInput.value : '');
+      if (!val) return;
+      numberPalette.push(val);
+      setSelectedNumber(val);
+      renderNumberPalette();
+      if (numberCustomInput) numberCustomInput.select();
+      if (toolMode !== 'number') setToolMode('number');
+      showToast('Custom value added to library');
+    });
+  }
+  if (numberCustomInput) {
+    numberCustomInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (numberCustomBtn) numberCustomBtn.click();
+      }
     });
   }
   if (measureInput) {
@@ -3018,6 +3790,8 @@
   });
 
   window.addEventListener('resize', resizeCanvas);
+  renderNumberPalette();
+  setSelectedNumber(numberPalette[0] || '0');
   initAttachMode();
   resizeCanvas();
   updateUi();
