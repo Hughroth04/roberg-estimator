@@ -669,6 +669,12 @@
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
+        <button type="button" class="rb-tool" id="rb-btn-line"
+          data-tip="Line" title="Line — draw without panels" aria-label="Line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4 18 9 8 14 14 20 6"/>
+          </svg>
+        </button>
         <button type="button" class="rb-tool" id="rb-btn-measure"
           data-tip="Measure" title="Measure" aria-label="Measure">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
@@ -780,6 +786,7 @@
   var btnClear = document.getElementById('rb-btn-clear');
   var btnMove = document.getElementById('rb-btn-move');
   var btnDraw = document.getElementById('rb-btn-draw');
+  var btnLine = document.getElementById('rb-btn-line');
   var btnMeasure = document.getElementById('rb-btn-measure');
   var btnXmark = document.getElementById('rb-btn-xmark');
   var btnCircle = document.getElementById('rb-btn-circle');
@@ -804,6 +811,7 @@
   var saveShareBtn = document.getElementById('rb-save-share');
 
   var completedShapes = [];
+  var lines = [];
   var currentPoints = [];
   var cursorPoint = null;
   var dividerPreview = null;
@@ -1852,6 +1860,15 @@
     });
   }
 
+  function cloneLines() {
+    return lines.map(function(line) {
+      return {
+        closed: !!line.closed,
+        points: line.points.map(function(p) { return { x: p.x, y: p.y }; })
+      };
+    });
+  }
+
   function drawCrackPath(points, previewEnd) {
     if (!points || !points.length) return;
     ctx.beginPath();
@@ -1960,6 +1977,41 @@
   function cancelMeasureDraft() {
     measureDraft = null;
     measureCursor = null;
+  }
+
+  function projectPointToSegment(px, py, ax, ay, bx, by) {
+    var abx = bx - ax;
+    var aby = by - ay;
+    var len2 = abx * abx + aby * aby;
+    if (len2 < 0.0001) return { x: ax, y: ay, dist: Math.hypot(px - ax, py - ay) };
+    var t = ((px - ax) * abx + (py - ay) * aby) / len2;
+    t = Math.max(0, Math.min(1, t));
+    var x = ax + t * abx;
+    var y = ay + t * aby;
+    return { x: x, y: y, dist: Math.hypot(px - x, py - y) };
+  }
+
+  function snapPointToLines(x, y) {
+    if (!lines.length) return { x: x, y: y, snapped: false };
+    var best = null;
+    var threshold = Math.max(CLOSE_SNAP_PX, MIN_SEGMENT_PX * 0.75);
+    for (var i = 0; i < lines.length; i++) {
+      var pts = lines[i].points || [];
+      if (pts.length < 2) continue;
+      var segCount = lines[i].closed ? pts.length : pts.length - 1;
+      for (var s = 0; s < segCount; s++) {
+        var a = pts[s];
+        var b = pts[(s + 1) % pts.length];
+        var proj = projectPointToSegment(x, y, a.x, a.y, b.x, b.y);
+        if (!best || proj.dist < best.dist) best = proj;
+      }
+    }
+    if (!best || best.dist > threshold) return { x: x, y: y, snapped: false };
+    return {
+      x: Math.round(best.x * 10) / 10,
+      y: Math.round(best.y * 10) / 10,
+      snapped: true
+    };
   }
 
   function resolveMeasureEnd(start, x, y) {
@@ -2471,6 +2523,7 @@
 
   function syncToolButtons() {
     if (btnDraw) btnDraw.classList.toggle('rb-btn-active', toolMode === 'draw');
+    if (btnLine) btnLine.classList.toggle('rb-btn-active', toolMode === 'line');
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
     if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
     if (btnXmark) btnXmark.classList.toggle('rb-btn-active', toolMode === 'xmark');
@@ -2488,6 +2541,13 @@
     if (toolMode === 'draw') {
       selectedShapeIndex = null;
       dragState = null;
+      cancelMeasureDraft();
+      cancelCrackDraft();
+      cancelCircleDraft();
+    } else if (toolMode === 'line') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCrackDraft();
       cancelCircleDraft();
@@ -2723,14 +2783,25 @@
   }
 
   function tryCloseOutlineAt(clamped) {
+    if (toolMode !== 'draw') return false;
     if (currentPoints.length < MIN_POLYGON_POINTS || activeDrawMode !== 'outline') return false;
     if (!isNearPoint(clamped, currentPoints[0], CLOSE_SNAP_PX)) return false;
     finishShape();
     return true;
   }
 
+  function tryCloseLineAt(clamped) {
+    if (toolMode !== 'line') return false;
+    if (currentPoints.length < MIN_POLYGON_POINTS) return false;
+    if (!isNearPoint(clamped, currentPoints[0], CLOSE_SNAP_PX)) return false;
+    finishLine(true);
+    return true;
+  }
+
   function drawClosingCornerHint() {
-    if (currentPoints.length < MIN_POLYGON_POINTS || activeDrawMode !== 'outline') return;
+    if (currentPoints.length < MIN_POLYGON_POINTS) return;
+    if (toolMode !== 'draw' && toolMode !== 'line') return;
+    if (toolMode === 'draw' && activeDrawMode !== 'outline') return;
     var first = currentPoints[0];
     var nearFirst = cursorPoint && isNearPoint(cursorPoint, first, CLOSE_SNAP_PX * 1.4);
     ctx.beginPath();
@@ -2767,12 +2838,15 @@
     if (btnUndo) {
       btnUndo.disabled = measuring
         ? !measureDraft
-        : (n === 0 || toolMode === 'move');
+        : (n === 0 || (toolMode !== 'draw' && toolMode !== 'line'));
     }
-    btnFinish.disabled = toolMode !== 'draw' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft;
+    btnFinish.disabled = !(
+      (toolMode === 'draw' && activeDrawMode === 'outline' && n >= MIN_POLYGON_POINTS) ||
+      (toolMode === 'line' && n >= 2)
+    );
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && lines.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || toolMode === 'line' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft;
     }
     if (toolMode === 'move') {
       statusEl.innerHTML = dragState
@@ -2780,6 +2854,18 @@
           ? 'Dragging circle — release to place.'
           : 'Dragging — release to place the shape.')
         : 'Drag a circle to move it, or drag a driveway to move the whole panel. Tap <strong>Move shape</strong> again to draw.';
+      return;
+    }
+    if (toolMode === 'line') {
+      if (n === 0) {
+        statusEl.innerHTML = 'Line mode — tap corners like Draw. No panels are created. Use Measure along these lines.';
+      } else if (n < 2) {
+        statusEl.innerHTML = '<strong>' + n + '</strong> point — place another to start a line.';
+      } else if (n < MIN_POLYGON_POINTS) {
+        statusEl.innerHTML = '<strong>' + n + '</strong> points — tap to continue, or tap <strong>Finish</strong> to save the open line.';
+      } else {
+        statusEl.innerHTML = '<strong>' + n + '</strong> points — tap to continue, tap the <strong>first corner</strong> to close, or <strong>Finish</strong> for an open line.';
+      }
       return;
     }
     if (toolMode === 'measure') {
@@ -2905,6 +2991,26 @@
     ctx.restore();
   }
 
+  function drawLines() {
+    if (!lines.length) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = COLORS.stroke;
+    ctx.lineWidth = STROKE_WIDTH;
+    lines.forEach(function(line) {
+      if (!line.points || line.points.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(line.points[0].x, line.points[0].y);
+      for (var i = 1; i < line.points.length; i++) {
+        ctx.lineTo(line.points[i].x, line.points[i].y);
+      }
+      if (line.closed && line.points.length >= 2) ctx.closePath();
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   function draw() {
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     var panelLabels = getPanelLabelMap();
@@ -2937,6 +3043,7 @@
     });
 
     drawPanelLabels(panelLabels);
+    drawLines();
     drawNumberLabels();
     drawXMarks();
     drawCircles();
@@ -2968,15 +3075,77 @@
     if (dividerPreview) drawDividerSlice(dividerPreview, true);
     drawDividerDragStem();
 
-    if (currentPoints.length && activeDrawMode === 'outline') {
+    if (currentPoints.length && (toolMode === 'line' || (toolMode === 'draw' && activeDrawMode === 'outline'))) {
       drawShape(currentPoints, false, cursorPoint, true);
       drawClosingCornerHint();
     }
     ctx.restore();
   }
 
+  function addLinePoint(x, y) {
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    if (!isInContentArea(x, y, layout)) {
+      showToast('Draw inside the page area below the header');
+      return;
+    }
+    var clamped = clampToContent(
+      Math.round(x * 10) / 10,
+      Math.round(y * 10) / 10,
+      layout
+    );
+
+    if (!currentPoints.length) {
+      currentPoints.push(clamped);
+      updateUi();
+      draw();
+      return;
+    }
+
+    if (currentPoints.length >= MIN_POLYGON_POINTS && tryCloseLineAt(clamped)) return;
+
+    var anchor = currentPoints[currentPoints.length - 1];
+    var snapped = snapPointFromAnchor(anchor, clamped.x, clamped.y);
+    if (!snapped) {
+      showToast('Move farther from the last corner');
+      return;
+    }
+    currentPoints.push(clampToContent(snapped.x, snapped.y, layout));
+    updateUi();
+    draw();
+  }
+
+  function finishLine(closed) {
+    if (currentPoints.length < 2) {
+      showToast('Need at least 2 points to finish a line');
+      return;
+    }
+    if (closed && currentPoints.length < MIN_POLYGON_POINTS) {
+      showToast('Need at least ' + MIN_POLYGON_POINTS + ' corners to close the line');
+      return;
+    }
+    var pts = currentPoints.map(function(p) { return { x: p.x, y: p.y }; });
+    if (closed) {
+      var rectified = rectifyOutlinePoints(pts);
+      pts = rectified.points;
+    }
+    lines.push({
+      points: pts,
+      closed: !!closed
+    });
+    actionHistory.push({ type: 'line' });
+    currentPoints = [];
+    cursorPoint = null;
+    updateUi();
+    draw();
+    showToast(closed ? 'Closed line saved — no panels created' : 'Line saved — no panels created');
+  }
+
   function addPoint(x, y) {
     if (toolMode === 'move') return;
+    if (toolMode === 'line') {
+      addLinePoint(x, y);
+      return;
+    }
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     if (!isInContentArea(x, y, layout)) {
       showToast('Draw inside the page area below the header');
@@ -3048,11 +3217,13 @@
     var circleSnapshot = cloneCircles();
     var measurementSnapshot = cloneMeasurements();
     var crackSnapshot = cloneCracks();
+    var lineSnapshot = cloneLines();
     var numberMoveIndices = [];
     var xMarkMoveIndices = [];
     var circleMoveIndices = [];
     var measurementMoveIndices = [];
     var crackMoveIndices = [];
+    var lineMoveIndices = [];
     var i;
     for (i = 0; i < numberSnapshot.length; i++) {
       if (pointInOrOnPolygon(numberSnapshot[i].x, numberSnapshot[i].y, shapeSnapshot.points)) {
@@ -3090,6 +3261,18 @@
         crackMoveIndices.push(i);
       }
     }
+    for (i = 0; i < lineSnapshot.length; i++) {
+      var lpts = lineSnapshot[i].points || [];
+      if (!lpts.length) continue;
+      var lsx = 0, lsy = 0;
+      for (var lp = 0; lp < lpts.length; lp++) {
+        lsx += lpts[lp].x;
+        lsy += lpts[lp].y;
+      }
+      if (pointInOrOnPolygon(lsx / lpts.length, lsy / lpts.length, shapeSnapshot.points)) {
+        lineMoveIndices.push(i);
+      }
+    }
     dragState = {
       kind: 'shape',
       shapeIndex: hit,
@@ -3102,11 +3285,13 @@
       circleSnapshot: circleSnapshot,
       measurementSnapshot: measurementSnapshot,
       crackSnapshot: crackSnapshot,
+      lineSnapshot: lineSnapshot,
       numberMoveIndices: numberMoveIndices,
       xMarkMoveIndices: xMarkMoveIndices,
       circleMoveIndices: circleMoveIndices,
       measurementMoveIndices: measurementMoveIndices,
-      crackMoveIndices: crackMoveIndices
+      crackMoveIndices: crackMoveIndices,
+      lineMoveIndices: lineMoveIndices
     };
     canvas.style.cursor = 'grabbing';
     draw();
@@ -3195,6 +3380,13 @@
         return { x: p0.x + dx, y: p0.y + dy };
       });
     });
+    dragState.lineMoveIndices.forEach(function(idx) {
+      var src = dragState.lineSnapshot[idx];
+      if (!src || !lines[idx]) return;
+      lines[idx].points = src.points.map(function(p0) {
+        return { x: p0.x + dx, y: p0.y + dy };
+      });
+    });
     draw();
   }
 
@@ -3220,7 +3412,8 @@
           xMarkSnapshot: dragState.xMarkSnapshot,
           circleSnapshot: dragState.circleSnapshot,
           measurementSnapshot: dragState.measurementSnapshot,
-          crackSnapshot: dragState.crackSnapshot
+          crackSnapshot: dragState.crackSnapshot,
+          lineSnapshot: dragState.lineSnapshot
         });
         showToast('Shape moved');
       }
@@ -3246,6 +3439,7 @@
       draw();
       return;
     }
+    if (toolMode !== 'draw' && toolMode !== 'line') return;
     if (!currentPoints.length) return;
     currentPoints.pop();
     if (!currentPoints.length) {
@@ -3257,6 +3451,10 @@
   }
 
   function finishShape() {
+    if (toolMode === 'line') {
+      finishLine(false);
+      return;
+    }
     if (currentPoints.length < MIN_POLYGON_POINTS) {
       showToast('Need at least ' + MIN_POLYGON_POINTS + ' corners to close the shape');
       return;
@@ -3290,6 +3488,8 @@
     } else if (action.type === 'shape') {
       completedShapes.pop();
       selectedShapeIndex = null;
+    } else if (action.type === 'line') {
+      lines.pop();
     } else if (action.type === 'measure') {
       measurements.pop();
       closeMeasureEditor(false);
@@ -3367,15 +3567,24 @@
           };
         });
       }
+      if (action.lineSnapshot) {
+        lines = action.lineSnapshot.map(function(line) {
+          return {
+            closed: !!line.closed,
+            points: line.points.map(function(p) { return { x: p.x, y: p.y }; })
+          };
+        });
+      }
     }
     updateUi();
     draw();
   }
 
   function clearAll() {
-    if (!completedShapes.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft) return;
+    if (!completedShapes.length && !lines.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
+    lines = [];
     measurements = [];
     numberLabels = [];
     xMarks = [];
@@ -3779,12 +3988,14 @@
         return;
       }
       if (!measureDraft) {
-        measureDraft = { x: clamped.x, y: clamped.y };
+        var startSnap = snapPointToLines(clamped.x, clamped.y);
+        measureDraft = { x: startSnap.x, y: startSnap.y };
         measureCursor = null;
         updateUi();
         draw();
       } else {
-        var end = resolveMeasureEnd(measureDraft, clamped.x, clamped.y);
+        var endSnap = snapPointToLines(clamped.x, clamped.y);
+        var end = resolveMeasureEnd(measureDraft, endSnap.x, endSnap.y);
         commitMeasure(end);
       }
       e.preventDefault();
@@ -3802,6 +4013,11 @@
         return;
       }
       draw();
+      e.preventDefault();
+      return;
+    }
+    if (toolMode === 'line') {
+      addLinePoint(p.x, p.y);
       e.preventDefault();
       return;
     }
@@ -3841,7 +4057,8 @@
 
     if (toolMode === 'measure') {
       if (measureDraft) {
-        measureCursor = resolveMeasureEnd(measureDraft, p.x, p.y);
+        var moveSnap = snapPointToLines(p.x, p.y);
+        measureCursor = resolveMeasureEnd(measureDraft, moveSnap.x, moveSnap.y);
         draw();
       }
       return;
@@ -3869,7 +4086,7 @@
       return;
     }
 
-    if (currentPoints.length && activeDrawMode === 'outline') {
+    if (currentPoints.length && (toolMode === 'line' || (toolMode === 'draw' && activeDrawMode === 'outline'))) {
       cursorPoint = resolveDrawPoint(raw.x, raw.y);
       draw();
       return;
@@ -3960,6 +4177,10 @@
         }
         return;
       }
+      if (toolMode === 'line') {
+        if (currentPoints.length >= 2) finishLine(false);
+        return;
+      }
       if (currentPoints.length >= MIN_POLYGON_POINTS) {
         finishShape();
       }
@@ -3995,13 +4216,14 @@
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle') {
+      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'line') {
         var was = toolMode;
         setToolMode('draw');
         if (was === 'move') showToast('Move mode off');
         else if (was === 'measure') showToast('Measure mode off');
         else if (was === 'number') showToast('Number mode off');
         else if (was === 'circle') showToast('Circle mode off');
+        else if (was === 'line') showToast('Line mode off');
         else showToast('X mode off');
       }
     }
@@ -4017,6 +4239,18 @@
       }
       setToolMode('draw');
       showToast('Draw mode — tap corners to outline');
+    });
+  }
+  if (btnLine) {
+    btnLine.addEventListener('click', function() {
+      if (toolMode === 'line') {
+        cancelCurrentDrawing();
+        setToolMode('draw');
+        showToast('Draw mode — tap corners to outline');
+      } else {
+        setToolMode('line');
+        showToast('Line mode — draw without creating panels');
+      }
     });
   }
   if (btnMove) {
