@@ -66,7 +66,11 @@
       gap: 8px;
       min-width: 0;
     }
-    #rb-sketch .rb-logo span { color: var(--rb-blue); }
+    #rb-sketch .rb-logo-brand {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #rb-sketch .rb-logo-brand > span { color: var(--rb-blue); }
     #rb-sketch .rb-logo-divider {
       width: 2px;
       height: 18px;
@@ -610,7 +614,7 @@
 <div id="rb-sketch">
   <header class="rb-header">
     <div class="rb-logo">
-      Ro<span>-Berg</span>
+      <span class="rb-logo-brand">Ro<span>-Berg</span></span>
       <div class="rb-logo-divider"></div>
       <span class="rb-logo-sub">Site Sketch</span>
     </div>
@@ -645,7 +649,7 @@
             <polyline points="7 3 7 8 15 8"/>
           </svg>
         </button>
-        <button type="button" class="rb-tool rb-btn-share-jpg" id="rb-btn-share-jpg"
+        <button type="button" class="rb-tool rb-tool-accent rb-btn-share-jpg" id="rb-btn-share-jpg"
           data-tip="Share JPG" title="Share JPG" aria-label="Share JPG">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="18" cy="5" r="3"/>
@@ -686,6 +690,12 @@
         </button>
         <button type="button" class="rb-tool" id="rb-btn-xmark"
           data-tip="X mark" title="X mark" aria-label="X mark">X</button>
+        <button type="button" class="rb-tool" id="rb-btn-circle"
+          data-tip="Circle" title="Circle — pillars & obstructions" aria-label="Circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <circle cx="12" cy="12" r="8"/>
+          </svg>
+        </button>
         <button type="button" class="rb-tool" id="rb-btn-crack"
           data-tip="Crack tool" title="Crack tool" aria-label="Crack tool">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -772,6 +782,7 @@
   var btnDraw = document.getElementById('rb-btn-draw');
   var btnMeasure = document.getElementById('rb-btn-measure');
   var btnXmark = document.getElementById('rb-btn-xmark');
+  var btnCircle = document.getElementById('rb-btn-circle');
   var btnCrack = document.getElementById('rb-btn-crack');
   var btnNumber = document.getElementById('rb-btn-number');
   var measureInput = document.getElementById('rb-measure-input');
@@ -816,6 +827,8 @@
   var nextMeasureId = 1;
   var numberLabels = [];
   var xMarks = [];
+  var circles = [];
+  var circleDraft = null;
   var cracks = [];
   var crackDraft = null;
   var crackCursor = null;
@@ -859,6 +872,7 @@
   var STROKE_WIDTH = 5;
   var VERTEX_RADIUS = 10;
   var MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.014);
+  var MIN_CIRCLE_RADIUS = Math.round(LETTER_WIDTH * 0.008);
   var DIVIDER_EDGE_PAD = 14;
   var DIVIDER_MIN_GAP = 20;
   var CENTER_SNAP_RATIO = 0.07;
@@ -1801,6 +1815,23 @@
     });
   }
 
+  function cloneCircles() {
+    return circles.map(function(c) {
+      return { cx: c.cx, cy: c.cy, r: c.r };
+    });
+  }
+
+  function hitTestCircle(x, y) {
+    var pad = Math.max(STROKE_WIDTH * 3, 18);
+    for (var i = circles.length - 1; i >= 0; i--) {
+      var c = circles[i];
+      var dx = x - c.cx;
+      var dy = y - c.cy;
+      if (Math.sqrt(dx * dx + dy * dy) <= c.r + pad) return i;
+    }
+    return null;
+  }
+
   function cloneMeasurements() {
     return measurements.map(function(m) {
       return {
@@ -2388,11 +2419,62 @@
     ctx.restore();
   }
 
+  function cancelCircleDraft() {
+    circleDraft = null;
+  }
+
+  function commitCircleDraft() {
+    if (!circleDraft || !(circleDraft.r >= MIN_CIRCLE_RADIUS)) {
+      cancelCircleDraft();
+      return false;
+    }
+    circles.push({
+      cx: Math.round(circleDraft.cx * 10) / 10,
+      cy: Math.round(circleDraft.cy * 10) / 10,
+      r: Math.round(circleDraft.r * 10) / 10
+    });
+    actionHistory.push({ type: 'circle' });
+    cancelCircleDraft();
+    return true;
+  }
+
+  function drawCircles() {
+    if (!circles.length && !circleDraft) return;
+    ctx.save();
+    ctx.strokeStyle = COLORS.stroke;
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.lineCap = 'round';
+    circles.forEach(function(c, idx) {
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, c.r, 0, Math.PI * 2);
+      ctx.stroke();
+      if (dragState && dragState.kind === 'circle' && dragState.circleIndex === idx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(114, 165, 183, 0.85)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([16, 10]);
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.r + 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    });
+    if (circleDraft && circleDraft.r > 0) {
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(circleDraft.cx, circleDraft.cy, circleDraft.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function syncToolButtons() {
     if (btnDraw) btnDraw.classList.toggle('rb-btn-active', toolMode === 'draw');
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
     if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
     if (btnXmark) btnXmark.classList.toggle('rb-btn-active', toolMode === 'xmark');
+    if (btnCircle) btnCircle.classList.toggle('rb-btn-active', toolMode === 'circle');
     if (btnCrack) btnCrack.classList.toggle('rb-btn-active', toolMode === 'crack');
     if (btnNumber) btnNumber.classList.toggle('rb-btn-active', toolMode === 'number');
     setNumberLibraryVisible(toolMode === 'number');
@@ -2408,17 +2490,27 @@
       dragState = null;
       cancelMeasureDraft();
       cancelCrackDraft();
+      cancelCircleDraft();
     } else if (toolMode === 'measure') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelCrackDraft();
+      cancelCircleDraft();
     } else if (toolMode === 'number') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelMeasureDraft();
+      cancelCircleDraft();
     } else if (toolMode === 'xmark') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
+      cancelCrackDraft();
+      cancelCircleDraft();
+    } else if (toolMode === 'circle') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
@@ -2429,10 +2521,12 @@
       dragState = null;
       cancelCurrentDrawing();
       cancelMeasureDraft();
+      cancelCircleDraft();
     } else {
       cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCrackDraft();
+      cancelCircleDraft();
     }
     updateUi();
     draw();
@@ -2676,14 +2770,16 @@
         : (n === 0 || toolMode === 'move');
     }
     btnFinish.disabled = toolMode !== 'draw' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && cracks.length === 0 && !crackDraft;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'crack' || !!measureDraft || !!numberDrag || !!crackDraft;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft;
     }
     if (toolMode === 'move') {
       statusEl.innerHTML = dragState
-        ? 'Dragging — release to place the shape.'
-        : 'Tap and drag a driveway to move it. Tap <strong>Move shape</strong> again to draw.';
+        ? (dragState.kind === 'circle'
+          ? 'Dragging circle — release to place.'
+          : 'Dragging — release to place the shape.')
+        : 'Drag a circle to move it, or drag a driveway to move the whole panel. Tap <strong>Move shape</strong> again to draw.';
       return;
     }
     if (toolMode === 'measure') {
@@ -2700,6 +2796,12 @@
     }
     if (toolMode === 'xmark') {
       statusEl.innerHTML = 'Tap inside a shape to place an X.';
+      return;
+    }
+    if (toolMode === 'circle') {
+      statusEl.innerHTML = circleDraft
+        ? 'Drag to size the circle — release to place.'
+        : 'Press and drag to mark a pillar or obstruction (perfect circle).';
       return;
     }
     if (toolMode === 'crack') {
@@ -2837,6 +2939,7 @@
     drawPanelLabels(panelLabels);
     drawNumberLabels();
     drawXMarks();
+    drawCircles();
     drawCracks();
 
     measurements.forEach(function(m, idx) {
@@ -2914,6 +3017,23 @@
   }
 
   function handleMovePointerDown(e, p) {
+    var circleHit = hitTestCircle(p.x, p.y);
+    if (circleHit !== null) {
+      selectedShapeIndex = null;
+      var circ = circles[circleHit];
+      dragState = {
+        kind: 'circle',
+        circleIndex: circleHit,
+        startX: p.x,
+        startY: p.y,
+        moved: false,
+        snapshot: { cx: circ.cx, cy: circ.cy, r: circ.r }
+      };
+      canvas.style.cursor = 'grabbing';
+      draw();
+      return;
+    }
+
     var hit = findRootContainerAt(p.x, p.y);
     if (hit === null) {
       selectedShapeIndex = null;
@@ -2925,10 +3045,12 @@
     var shapeSnapshot = cloneShapeGeometry(shape);
     var numberSnapshot = cloneNumberLabels();
     var xMarkSnapshot = cloneXMarks();
+    var circleSnapshot = cloneCircles();
     var measurementSnapshot = cloneMeasurements();
     var crackSnapshot = cloneCracks();
     var numberMoveIndices = [];
     var xMarkMoveIndices = [];
+    var circleMoveIndices = [];
     var measurementMoveIndices = [];
     var crackMoveIndices = [];
     var i;
@@ -2940,6 +3062,11 @@
     for (i = 0; i < xMarkSnapshot.length; i++) {
       if (pointInOrOnPolygon(xMarkSnapshot[i].x, xMarkSnapshot[i].y, shapeSnapshot.points)) {
         xMarkMoveIndices.push(i);
+      }
+    }
+    for (i = 0; i < circleSnapshot.length; i++) {
+      if (pointInOrOnPolygon(circleSnapshot[i].cx, circleSnapshot[i].cy, shapeSnapshot.points)) {
+        circleMoveIndices.push(i);
       }
     }
     for (i = 0; i < measurementSnapshot.length; i++) {
@@ -2964,6 +3091,7 @@
       }
     }
     dragState = {
+      kind: 'shape',
       shapeIndex: hit,
       startX: p.x,
       startY: p.y,
@@ -2971,10 +3099,12 @@
       snapshot: shapeSnapshot,
       numberSnapshot: numberSnapshot,
       xMarkSnapshot: xMarkSnapshot,
+      circleSnapshot: circleSnapshot,
       measurementSnapshot: measurementSnapshot,
       crackSnapshot: crackSnapshot,
       numberMoveIndices: numberMoveIndices,
       xMarkMoveIndices: xMarkMoveIndices,
+      circleMoveIndices: circleMoveIndices,
       measurementMoveIndices: measurementMoveIndices,
       crackMoveIndices: crackMoveIndices
     };
@@ -2988,6 +3118,22 @@
     var dy = p.y - dragState.startY;
     if (!dragState.moved && (dx * dx + dy * dy) < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
     dragState.moved = true;
+
+    if (dragState.kind === 'circle') {
+      var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+      var circ = circles[dragState.circleIndex];
+      if (!circ || !dragState.snapshot) return;
+      var next = clampToContent(
+        dragState.snapshot.cx + dx,
+        dragState.snapshot.cy + dy,
+        layout
+      );
+      circ.cx = Math.round(next.x * 10) / 10;
+      circ.cy = Math.round(next.y * 10) / 10;
+      draw();
+      return;
+    }
+
     var shape = completedShapes[dragState.shapeIndex];
     if (!shape) return;
     shape.points = dragState.snapshot.points.map(function(pt) {
@@ -3028,6 +3174,12 @@
       xMarks[idx].x = src.x + dx;
       xMarks[idx].y = src.y + dy;
     });
+    dragState.circleMoveIndices.forEach(function(idx) {
+      var src = dragState.circleSnapshot[idx];
+      if (!src || !circles[idx]) return;
+      circles[idx].cx = src.cx + dx;
+      circles[idx].cy = src.cy + dy;
+    });
     dragState.measurementMoveIndices.forEach(function(idx) {
       var src = dragState.measurementSnapshot[idx];
       if (!src || !measurements[idx]) return;
@@ -3050,18 +3202,28 @@
     if (!dragState) return;
     canvas.style.cursor = 'grab';
     if (dragState.moved) {
-      var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
-      clampShapeInContent(dragState.shapeIndex, layout);
-      actionHistory.push({
-        type: 'move',
-        shapeIndex: dragState.shapeIndex,
-        snapshot: dragState.snapshot,
-        numberSnapshot: dragState.numberSnapshot,
-        xMarkSnapshot: dragState.xMarkSnapshot,
-        measurementSnapshot: dragState.measurementSnapshot,
-        crackSnapshot: dragState.crackSnapshot
-      });
-      showToast('Shape moved');
+      if (dragState.kind === 'circle') {
+        actionHistory.push({
+          type: 'circle-move',
+          circleIndex: dragState.circleIndex,
+          snapshot: dragState.snapshot
+        });
+        showToast('Circle moved');
+      } else {
+        var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+        clampShapeInContent(dragState.shapeIndex, layout);
+        actionHistory.push({
+          type: 'move',
+          shapeIndex: dragState.shapeIndex,
+          snapshot: dragState.snapshot,
+          numberSnapshot: dragState.numberSnapshot,
+          xMarkSnapshot: dragState.xMarkSnapshot,
+          circleSnapshot: dragState.circleSnapshot,
+          measurementSnapshot: dragState.measurementSnapshot,
+          crackSnapshot: dragState.crackSnapshot
+        });
+        showToast('Shape moved');
+      }
     }
     dragState = null;
     updateUi();
@@ -3135,6 +3297,15 @@
       numberLabels.pop();
     } else if (action.type === 'xmark') {
       xMarks.pop();
+    } else if (action.type === 'circle') {
+      circles.pop();
+    } else if (action.type === 'circle-move') {
+      var movedCircle = circles[action.circleIndex];
+      if (movedCircle && action.snapshot) {
+        movedCircle.cx = action.snapshot.cx;
+        movedCircle.cy = action.snapshot.cy;
+        movedCircle.r = action.snapshot.r;
+      }
     } else if (action.type === 'crack') {
       cracks.pop();
     } else if (action.type === 'move') {
@@ -3173,6 +3344,11 @@
           return { x: m.x, y: m.y };
         });
       }
+      if (action.circleSnapshot) {
+        circles = action.circleSnapshot.map(function(c) {
+          return { cx: c.cx, cy: c.cy, r: c.r };
+        });
+      }
       if (action.measurementSnapshot) {
         measurements = action.measurementSnapshot.map(function(m) {
           return {
@@ -3197,16 +3373,18 @@
   }
 
   function clearAll() {
-    if (!completedShapes.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !cracks.length && !measureDraft && !crackDraft) return;
+    if (!completedShapes.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
     measurements = [];
     numberLabels = [];
     xMarks = [];
+    circles = [];
     cracks = [];
     stopNumberDrag();
     closeMeasureEditor(false);
     cancelCrackDraft();
+    cancelCircleDraft();
     cancelCurrentDrawing();
     toolMode = 'draw';
     selectedShapeIndex = null;
@@ -3375,6 +3553,7 @@
     var savedEditing = editingMeasureIndex;
     closeMeasureEditor(true);
     cancelCurrentDrawing();
+    cancelCircleDraft();
     toolMode = 'draw';
     dragState = null;
     selectedShapeIndex = null;
@@ -3477,8 +3656,8 @@
       showToast('Finish or cancel the current shape first');
       return;
     }
-    if (toolMode === 'move' || toolMode === 'crack' || dragState || crackDraft) {
-      showToast('Finish crack/move mode before attaching');
+    if (toolMode === 'move' || toolMode === 'crack' || toolMode === 'circle' || dragState || crackDraft || circleDraft) {
+      showToast('Finish crack/move/circle mode before attaching');
       return;
     }
     closeAddressEditor(true);
@@ -3569,6 +3748,22 @@
       e.preventDefault();
       return;
     }
+    if (toolMode === 'circle') {
+      if (!isInContentArea(clamped.x, clamped.y, layout)) {
+        showToast('Draw inside the page area below the header');
+        e.preventDefault();
+        return;
+      }
+      circleDraft = {
+        cx: Math.round(clamped.x * 10) / 10,
+        cy: Math.round(clamped.y * 10) / 10,
+        r: 0
+      };
+      updateUi();
+      draw();
+      e.preventDefault();
+      return;
+    }
 
     if (toolMode === 'measure') {
       if (editingMeasureIndex !== null) closeMeasureEditor(true);
@@ -3651,6 +3846,15 @@
       }
       return;
     }
+    if (toolMode === 'circle') {
+      if (circleDraft) {
+        var dx = p.x - circleDraft.cx;
+        var dy = p.y - circleDraft.cy;
+        circleDraft.r = Math.sqrt(dx * dx + dy * dy);
+        draw();
+      }
+      return;
+    }
     if (toolMode === 'crack') {
       if (crackDraft && crackDraft.length) {
         crackCursor = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
@@ -3697,6 +3901,14 @@
   canvas.addEventListener('pointerup', function(e) {
     if (toolMode === 'move') {
       handleMovePointerUp();
+    } else if (toolMode === 'circle' && circleDraft) {
+      if (commitCircleDraft()) {
+        showToast('Circle placed');
+      } else {
+        showToast('Drag farther to size the circle');
+      }
+      updateUi();
+      draw();
     } else if (dividerDrag) {
       commitDividerDrag();
     }
@@ -3768,6 +3980,11 @@
         updateUi();
         draw();
         showToast('Measurement cancelled');
+      } else if (circleDraft) {
+        cancelCircleDraft();
+        updateUi();
+        draw();
+        showToast('Circle cancelled');
       } else if (crackDraft && crackDraft.length) {
         cancelCrackDraft();
         updateUi();
@@ -3778,12 +3995,13 @@
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark') {
+      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle') {
         var was = toolMode;
         setToolMode('draw');
         if (was === 'move') showToast('Move mode off');
         else if (was === 'measure') showToast('Measure mode off');
         else if (was === 'number') showToast('Number mode off');
+        else if (was === 'circle') showToast('Circle mode off');
         else showToast('X mode off');
       }
     }
@@ -3804,7 +4022,7 @@
   if (btnMove) {
     btnMove.addEventListener('click', function() {
       setToolMode(toolMode === 'move' ? 'draw' : 'move');
-      if (toolMode === 'move') showToast('Move mode — drag a shape to reposition');
+      if (toolMode === 'move') showToast('Move mode — drag a circle or a driveway');
     });
   }
   if (btnMeasure) {
@@ -3817,6 +4035,12 @@
     btnXmark.addEventListener('click', function() {
       setToolMode(toolMode === 'xmark' ? 'draw' : 'xmark');
       if (toolMode === 'xmark') showToast('X mode — tap inside a shape');
+    });
+  }
+  if (btnCircle) {
+    btnCircle.addEventListener('click', function() {
+      setToolMode(toolMode === 'circle' ? 'draw' : 'circle');
+      if (toolMode === 'circle') showToast('Circle mode — press and drag to size');
     });
   }
   if (btnCrack) {
