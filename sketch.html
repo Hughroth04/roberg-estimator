@@ -100,11 +100,151 @@
 
     #rb-sketch .rb-app {
       padding: 16px;
-      max-width: 1100px;
+      max-width: 1180px;
       margin: 0 auto;
     }
+    #rb-sketch .rb-status {
+      font-size: 12px;
+      color: var(--rb-text-muted);
+      margin: 0 0 10px;
+      min-height: 1.35em;
+    }
+    #rb-sketch .rb-status strong { color: var(--rb-navy); }
+
+    #rb-sketch .rb-workspace {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    #rb-sketch .rb-side-toolbar {
+      flex: 0 0 auto;
+      width: 56px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px;
+      background: var(--rb-surface);
+      border: 1px solid var(--rb-border);
+      border-radius: var(--rb-radius-lg);
+      box-shadow: var(--rb-shadow);
+      position: sticky;
+      top: 12px;
+      z-index: 4;
+    }
+    #rb-sketch .rb-tool-sep {
+      width: 100%;
+      height: 1px;
+      margin: 4px 2px;
+      background: var(--rb-border);
+      flex-shrink: 0;
+    }
+    #rb-sketch .rb-tool {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      margin: 0 auto;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--rb-navy);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    #rb-sketch .rb-tool svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+      pointer-events: none;
+    }
+    #rb-sketch .rb-tool:hover {
+      background: var(--rb-blue-light);
+      border-color: rgba(114, 165, 183, 0.35);
+    }
+    #rb-sketch .rb-tool:active { transform: translateY(1px); }
+    #rb-sketch .rb-tool:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+      background: transparent;
+      border-color: transparent;
+    }
+    #rb-sketch .rb-tool.rb-btn-active {
+      background: var(--rb-navy);
+      color: #fff;
+      border-color: var(--rb-navy);
+    }
+    #rb-sketch .rb-tool.rb-tool-primary {
+      background: var(--rb-green);
+      color: #fff;
+      border-color: var(--rb-green);
+      box-shadow: 0 2px 8px rgba(42,122,74,0.28);
+    }
+    #rb-sketch .rb-tool.rb-tool-primary:hover {
+      background: #1f5e38;
+      border-color: #1f5e38;
+    }
+    #rb-sketch .rb-tool.rb-tool-primary:disabled {
+      background: var(--rb-green);
+      border-color: var(--rb-green);
+      color: #fff;
+    }
+    #rb-sketch .rb-tool.rb-tool-accent {
+      background: var(--rb-blue);
+      color: #fff;
+      border-color: var(--rb-blue);
+      box-shadow: 0 2px 8px rgba(114,165,183,0.3);
+    }
+    #rb-sketch .rb-tool.rb-tool-accent:hover {
+      background: var(--rb-blue-dark);
+      border-color: var(--rb-blue-dark);
+    }
+    #rb-sketch .rb-tool.rb-tool-danger:hover {
+      background: #fdecec;
+      border-color: #f0c0c0;
+      color: #a33;
+    }
+
+    /* Tooltip labels on desktop */
+    #rb-sketch .rb-tool[data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--rb-navy);
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      padding: 7px 10px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 20;
+      box-shadow: var(--rb-shadow);
+    }
+    #rb-sketch .rb-tool[data-tip]:hover::after,
+    #rb-sketch .rb-tool[data-tip]:focus-visible::after {
+      opacity: 1;
+    }
+
     #rb-sketch .rb-canvas-wrap {
       position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
       background: var(--rb-bg);
       border: none;
       border-radius: 0;
@@ -118,20 +258,8 @@
       min-height: min(92vh, 1200px);
       max-height: calc(100vh - 120px);
     }
-    #rb-sketch .rb-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-      align-items: center;
-    }
-    #rb-sketch .rb-status {
-      flex: 1 1 200px;
-      font-size: 12px;
-      color: var(--rb-text-muted);
-      min-width: 0;
-    }
-    #rb-sketch .rb-status strong { color: var(--rb-navy); }
+
+    /* Legacy text-button styles kept for save overlay actions */
     #rb-sketch .rb-btn {
       border: none;
       border-radius: var(--rb-radius);
@@ -149,12 +277,6 @@
     }
     #rb-sketch .rb-btn:active { transform: translateY(1px); }
     #rb-sketch .rb-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-    #rb-sketch .rb-btn-primary {
-      background: var(--rb-green);
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(42,122,74,0.3);
-    }
-    #rb-sketch .rb-btn-primary:active { background: #1f5e38; }
     #rb-sketch .rb-btn-secondary {
       background: var(--rb-blue);
       color: #fff;
@@ -167,11 +289,6 @@
       border: 1px solid var(--rb-border);
     }
     #rb-sketch .rb-btn-ghost:active { background: #fafafa; }
-    #rb-sketch .rb-btn-active {
-      background: var(--rb-navy);
-      color: #fff;
-      border-color: var(--rb-navy);
-    }
 
     #rb-sketch .rb-measure-input {
       position: absolute;
@@ -328,17 +445,54 @@
     @media (max-width: 720px) {
       #rb-sketch .rb-app { padding: 8px; }
       #rb-sketch .rb-logo-sub { display: none; }
-      #rb-sketch .rb-toolbar { gap: 6px; }
-      #rb-sketch .rb-status {
-        flex-basis: 100%;
-        order: -1;
-        margin-bottom: 2px;
+      #rb-sketch .rb-workspace { gap: 8px; }
+      #rb-sketch .rb-side-toolbar {
+        width: 48px;
+        padding: 6px;
+        gap: 4px;
+        top: 8px;
       }
-      #rb-sketch .rb-btn { flex: 1 1 calc(50% - 4px); min-width: 0; }
-      #rb-sketch .rb-btn-finish,
-      #rb-sketch .rb-btn-attach,
-      #rb-sketch .rb-btn-save-jpg,
-      #rb-sketch .rb-btn-share-jpg { flex-basis: 100%; height: 48px; font-size: 11px; }
+      #rb-sketch .rb-tool {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+      }
+      #rb-sketch .rb-tool svg {
+        width: 20px;
+        height: 20px;
+      }
+      /* Hide hover tooltips on touch; titles still work on long-press in some browsers */
+      #rb-sketch .rb-tool[data-tip]::after { display: none; }
+      #rb-sketch .rb-canvas-wrap {
+        min-height: min(88vh, 1100px);
+        max-height: calc(100vh - 100px);
+      }
+    }
+
+    @media (max-width: 480px) {
+      #rb-sketch .rb-workspace {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #rb-sketch .rb-side-toolbar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        position: static;
+        max-height: none;
+        overflow: visible;
+        gap: 6px;
+        padding: 8px;
+      }
+      #rb-sketch .rb-tool-sep {
+        display: none;
+      }
+      #rb-sketch .rb-tool {
+        width: 44px;
+        height: 44px;
+        margin: 0;
+      }
     }
   </style>
 </head>
@@ -354,34 +508,101 @@
   </header>
 
   <main class="rb-app">
-    <div class="rb-toolbar">
-      <p class="rb-status" id="rb-status">
-        8.5″ × 11″ page — draw inside the grid below the header.
-      </p>
-      <button type="button" class="rb-btn rb-btn-primary rb-btn-finish" id="rb-btn-finish" disabled>Finish panel</button>
-      <button type="button" class="rb-btn rb-btn-primary rb-btn-attach" id="rb-btn-attach" style="display:none" disabled>Attach to estimate</button>
-      <button type="button" class="rb-btn rb-btn-secondary rb-btn-save-jpg" id="rb-btn-export-jpg">Save JPG</button>
-      <button type="button" class="rb-btn rb-btn-ghost rb-btn-share-jpg" id="rb-btn-share-jpg">Share JPG</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-measure">Measure</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-move">Move shape</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo" disabled>Undo point</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-undo-shape" disabled>Undo panel</button>
-      <button type="button" class="rb-btn rb-btn-ghost" id="rb-btn-clear">Clear all</button>
+    <p class="rb-status" id="rb-status"></p>
+
+    <div class="rb-workspace">
+      <aside class="rb-side-toolbar" aria-label="Sketch tools">
+        <button type="button" class="rb-tool rb-tool-primary rb-btn-finish" id="rb-btn-finish" disabled
+          data-tip="Finish panel" title="Finish panel" aria-label="Finish panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool rb-tool-primary rb-btn-attach" id="rb-btn-attach" style="display:none" disabled
+          data-tip="Attach to estimate" title="Attach to estimate" aria-label="Attach to estimate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+
+        <div class="rb-tool-sep" role="separator"></div>
+
+        <button type="button" class="rb-tool rb-tool-accent rb-btn-save-jpg" id="rb-btn-export-jpg"
+          data-tip="Save JPG" title="Save JPG" aria-label="Save JPG">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool rb-btn-share-jpg" id="rb-btn-share-jpg"
+          data-tip="Share JPG" title="Share JPG" aria-label="Share JPG">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
+
+        <div class="rb-tool-sep" role="separator"></div>
+
+        <button type="button" class="rb-tool rb-btn-active" id="rb-btn-draw"
+          data-tip="Draw" title="Draw" aria-label="Draw">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool" id="rb-btn-measure"
+          data-tip="Measure" title="Measure" aria-label="Measure">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="4" y2="17"/>
+            <line x1="20" y1="7" x2="20" y2="17"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool" id="rb-btn-move"
+          data-tip="Move shape" title="Move shape" aria-label="Move shape">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="5 9 2 12 5 15"/>
+            <polyline points="9 5 12 2 15 5"/>
+            <polyline points="15 19 12 22 9 19"/>
+            <polyline points="19 9 22 12 19 15"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <line x1="12" y1="2" x2="12" y2="22"/>
+          </svg>
+        </button>
+
+        <div class="rb-tool-sep" role="separator"></div>
+
+        <button type="button" class="rb-tool" id="rb-btn-undo-shape" disabled
+          data-tip="Undo last action" title="Undo last action" aria-label="Undo last action">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 14L4 9l5-5"/>
+            <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool rb-tool-danger" id="rb-btn-clear"
+          data-tip="Clear all" title="Clear all" aria-label="Clear all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/>
+            <path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </aside>
+
+      <div class="rb-canvas-wrap">
+        <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
+        <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
+          inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+      </div>
     </div>
 
-    <p class="rb-hint rb-hint-save" id="rb-save-hint">
-      <strong>Save JPG</strong> exports a sharp 300 DPI letter page (2550 × 3300). Scroll the artboard if needed.
-    </p>
-
-    <div class="rb-canvas-wrap">
-      <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
-      <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
-        inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
-    </div>
-
-    <p class="rb-hint">
-      Tap corners to draw the outline — add as many straight sides as you need (e.g. a J-shaped walkway), then <strong>tap the first corner</strong> to close. Drag inside a shape to split panels. Use <strong>Measure</strong> to add horizontal or vertical dimension arrows.
-    </p>
   </main>
 
   <div class="rb-toast" id="rb-toast"></div>
@@ -417,6 +638,7 @@
   var btnUndoShape = document.getElementById('rb-btn-undo-shape');
   var btnClear = document.getElementById('rb-btn-clear');
   var btnMove = document.getElementById('rb-btn-move');
+  var btnDraw = document.getElementById('rb-btn-draw');
   var btnMeasure = document.getElementById('rb-btn-measure');
   var measureInput = document.getElementById('rb-measure-input');
   var btnAttach = document.getElementById('rb-btn-attach');
@@ -1621,12 +1843,17 @@
     showToast('Tap the number to edit the measurement');
   }
 
-  function setToolMode(mode) {
-    closeMeasureEditor(true);
-    toolMode = mode;
+  function syncToolButtons() {
+    if (btnDraw) btnDraw.classList.toggle('rb-btn-active', toolMode === 'draw');
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
     if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
     canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
+  }
+
+  function setToolMode(mode) {
+    closeMeasureEditor(true);
+    toolMode = mode;
+    syncToolButtons();
     if (toolMode === 'draw') {
       selectedShapeIndex = null;
       dragState = null;
@@ -1875,9 +2102,11 @@
   function updateUi() {
     var n = currentPoints.length;
     var measuring = toolMode === 'measure';
-    btnUndo.disabled = measuring
-      ? !measureDraft
-      : (n === 0 || toolMode === 'move');
+    if (btnUndo) {
+      btnUndo.disabled = measuring
+        ? !measureDraft
+        : (n === 0 || toolMode === 'move');
+    }
     btnFinish.disabled = toolMode !== 'draw' || activeDrawMode !== 'outline' || n < MIN_POLYGON_POINTS;
     btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && measurements.length === 0;
     if (btnAttach) {
@@ -1905,7 +2134,7 @@
       } else if (hasRootOutline()) {
         statusEl.innerHTML = 'Drag inside a shape to add a divider — lines snap to the shape and can run horizontally, vertically, or diagonally.';
       } else {
-        statusEl.innerHTML = 'Tap corners to draw the outline — add as many straight sides as you need.';
+        statusEl.innerHTML = '';
       }
     } else if (n < MIN_POLYGON_POINTS) {
       statusEl.innerHTML = '<strong>' + n + '</strong> corner' + (n === 1 ? '' : 's') + ' — place <strong>' + (MIN_POLYGON_POINTS - n) + '</strong> more to close the shape.';
@@ -2270,9 +2499,7 @@
     dragState = null;
     dividerDrag = null;
     actionHistory = [];
-    if (btnMove) btnMove.classList.remove('rb-btn-active');
-    if (btnMeasure) btnMeasure.classList.remove('rb-btn-active');
-    canvas.style.cursor = 'crosshair';
+    syncToolButtons();
     updateUi();
     draw();
   }
@@ -2451,9 +2678,7 @@
       measureDraft = savedMeasureDraft;
       measureCursor = savedMeasureCursor;
       editingMeasureIndex = savedEditing;
-      if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
-      if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
-      canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
+      syncToolButtons();
       draw();
     };
   }
@@ -2740,10 +2965,15 @@
     }
   });
 
-  btnUndo.addEventListener('click', undoPoint);
   btnFinish.addEventListener('click', finishShape);
   btnUndoShape.addEventListener('click', undoShape);
   btnClear.addEventListener('click', clearAll);
+  if (btnDraw) {
+    btnDraw.addEventListener('click', function() {
+      setToolMode('draw');
+      showToast('Draw mode — tap corners to outline');
+    });
+  }
   if (btnMove) {
     btnMove.addEventListener('click', function() {
       setToolMode(toolMode === 'move' ? 'draw' : 'move');
