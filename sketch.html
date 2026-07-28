@@ -400,6 +400,30 @@
       outline: none;
       box-shadow: 0 0 0 3px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.18);
     }
+    #rb-sketch .rb-address-input {
+      position: absolute;
+      z-index: 8;
+      transform: translate(-50%, -50%);
+      width: min(420px, 70%);
+      height: 34px;
+      margin: 0;
+      padding: 0 10px;
+      border: 2px solid var(--rb-blue);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--rb-navy);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    #rb-sketch .rb-address-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(114,165,183,0.35), 0 2px 10px rgba(0,0,0,0.18);
+    }
 
     #rb-sketch canvas {
       display: block;
@@ -696,6 +720,9 @@
         <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
         <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
           inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+        <input type="text" class="rb-address-input" id="rb-address-input" style="display:none"
+          autocomplete="street-address" spellcheck="false" aria-label="Customer address"
+          placeholder="customer address">
         <div class="rb-number-library" id="rb-number-library" aria-label="Number library">
           <div class="rb-number-grid" id="rb-number-grid"></div>
           <div class="rb-number-custom">
@@ -748,6 +775,7 @@
   var btnCrack = document.getElementById('rb-btn-crack');
   var btnNumber = document.getElementById('rb-btn-number');
   var measureInput = document.getElementById('rb-measure-input');
+  var addressInput = document.getElementById('rb-address-input');
   var numberLibraryEl = document.getElementById('rb-number-library');
   var numberGridEl = document.getElementById('rb-number-grid');
   var numberCustomInput = document.getElementById('rb-number-custom-input');
@@ -779,6 +807,8 @@
   var pendingSaveBlob = null;
   var pendingSaveFilename = '';
   var pendingSaveUrl = null;
+  var customerAddress = 'customer address';
+  var editingAddress = false;
   var measurements = [];
   var measureDraft = null;
   var measureCursor = null;
@@ -926,6 +956,20 @@
     ctx.textAlign = 'left';
     ctx.fillText('Ro-Berg Site Sketch', layout.margin, layout.headerH / 2);
 
+    if (!editingAddress) {
+      var addr = getCustomerAddressDisplay();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 48px Montserrat, sans-serif';
+      ctx.textAlign = 'center';
+      var maxAddrW = layout.pageW * 0.4;
+      var display = addr;
+      while (display.length > 3 && ctx.measureText(display).width > maxAddrW) {
+        display = display.slice(0, -2);
+      }
+      if (display !== addr) display = display.replace(/\s+$/, '') + '…';
+      ctx.fillText(display, layout.pageW / 2, layout.headerH / 2);
+    }
+
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.font = '500 52px "Open Sans", sans-serif';
     ctx.textAlign = 'right';
@@ -944,6 +988,79 @@
       layout.contentW - 2,
       layout.contentH - 2
     );
+  }
+
+  function getCustomerAddressDisplay() {
+    var s = String(customerAddress == null ? '' : customerAddress).trim();
+    return s || 'customer address';
+  }
+
+  function getAddressHeaderBounds(layout) {
+    var maxW = layout.pageW * 0.42;
+    return {
+      x: (layout.pageW - maxW) / 2,
+      y: 0,
+      w: maxW,
+      h: layout.headerH
+    };
+  }
+
+  function hitTestAddressHeader(x, y, layout) {
+    var b = getAddressHeaderBounds(layout);
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  }
+
+  function sanitizeSketchFileBase(name) {
+    var s = String(name == null ? '' : name).trim();
+    if (!s) s = 'customer address';
+    s = s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+    s = s.replace(/[. ]+$/g, '');
+    if (!s) s = 'customer address';
+    if (s.length > 80) s = s.slice(0, 80).replace(/\s+$/, '');
+    return s;
+  }
+
+  function buildSketchFilename() {
+    return sanitizeSketchFileBase(getCustomerAddressDisplay()) + ' sketch.jpg';
+  }
+
+  function closeAddressEditor(commit) {
+    if (!editingAddress) return;
+    if (commit && addressInput) {
+      var v = String(addressInput.value || '').trim();
+      customerAddress = v || 'customer address';
+    }
+    editingAddress = false;
+    if (addressInput) {
+      addressInput.style.display = 'none';
+      addressInput.blur();
+    }
+    draw();
+  }
+
+  function openAddressEditor() {
+    if (!addressInput) return;
+    closeMeasureEditor(true);
+    editingAddress = true;
+    var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+    var canvasRect = canvas.getBoundingClientRect();
+    var wrap = canvas.parentElement;
+    var wrapRect = wrap.getBoundingClientRect();
+    var cssX = ((layout.pageW / 2) / LETTER_WIDTH) * displayCssW;
+    var cssY = ((layout.headerH / 2) / LETTER_HEIGHT) * displayCssH;
+    var left = (canvasRect.left - wrapRect.left) + cssX;
+    var top = (canvasRect.top - wrapRect.top) + cssY;
+    addressInput.style.display = 'block';
+    addressInput.style.left = left + 'px';
+    addressInput.style.top = top + 'px';
+    addressInput.value = getCustomerAddressDisplay();
+    draw();
+    setTimeout(function() {
+      try {
+        addressInput.focus();
+        addressInput.select();
+      } catch (_) {}
+    }, 30);
   }
 
   function showToast(msg) {
@@ -1978,6 +2095,7 @@
 
   function openMeasureEditor(index) {
     if (!measureInput || index == null || !measurements[index]) return;
+    closeAddressEditor(true);
     closeMeasureEditor(true);
     editingMeasureIndex = index;
     var m = measurements[index];
@@ -3284,12 +3402,12 @@
       showToast('Draw at least one finished shape first');
       return null;
     }
+    closeAddressEditor(true);
     var restore = prepareExportCanvas();
     try {
       var exportImage = captureExportImage(true);
       var blob = buildJpegBlob(exportImage);
-      var stamp = new Date().toISOString().slice(0, 10);
-      return { blob: blob, filename: 'roberg-sketch-' + stamp + '.jpg' };
+      return { blob: blob, filename: buildSketchFilename() };
     } catch (err) {
       showToast(err.message || 'Could not create JPG — try again');
       return null;
@@ -3363,6 +3481,7 @@
       showToast('Finish crack/move mode before attaching');
       return;
     }
+    closeAddressEditor(true);
     btnAttach.disabled = true;
     var restore = prepareExportCanvas();
     var exportImage;
@@ -3377,8 +3496,7 @@
     restore();
 
     downscaleDataUrlForAttach(exportImage.dataUrl).then(function(dataUrl) {
-      var stamp = new Date().toISOString().slice(0, 10);
-      var fileName = 'roberg-sketch-' + stamp + '.jpg';
+      var fileName = buildSketchFilename();
       try {
         sessionStorage.setItem(PENDING_ATTACH_KEY, JSON.stringify({
           optionId: attachCtx.optionId,
@@ -3405,6 +3523,13 @@
     var p = getPointerPos(e);
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     var clamped = clampToContent(p.x, p.y, layout);
+
+    if (hitTestAddressHeader(p.x, p.y, layout)) {
+      openAddressEditor();
+      e.preventDefault();
+      return;
+    }
+    if (editingAddress) closeAddressEditor(true);
 
     if (toolMode === 'move') {
       handleMovePointerDown(e, p);
@@ -3770,6 +3895,20 @@
     });
     measureInput.addEventListener('blur', function() {
       if (editingMeasureIndex !== null) closeMeasureEditor(true);
+    });
+  }
+  if (addressInput) {
+    addressInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        closeAddressEditor(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAddressEditor(false);
+      }
+    });
+    addressInput.addEventListener('blur', function() {
+      if (editingAddress) closeAddressEditor(true);
     });
   }
   btnExportJpg.addEventListener('click', exportJpg);
