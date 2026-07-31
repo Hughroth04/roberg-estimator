@@ -2410,11 +2410,10 @@
     return 'Drill into ' + cat + ' panel, Install Ports (as needed), Install ' + calc.lbs + ' +/- lbs of foam, Patch Holes.\n\nLift ' + depthLabel(p.depth) + ' to ' + sidesStr + '.\n\n' + disclaimers(calc.lbs);
   }
 
-  // HCP line-item names omit the in-app "(Panel N)" suffix so estimates stay
-  // category-focused; panel numbers remain only in the calculator UI.
+  // HCP service-item names match the estimator exactly (including Panel N).
   function hcpLineItemName(p) {
-    var name = (p.name || '').replace(/\s*\(Panel\s+\d+\)\s*$/i, '').trim();
-    return name || p.name || 'Lift and Level';
+    var name = (p && p.name) ? String(p.name).trim() : '';
+    return name || 'Lift and Level';
   }
 
   function buildHCPLine(p, calc) {

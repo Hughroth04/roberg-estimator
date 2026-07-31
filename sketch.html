@@ -662,27 +662,6 @@
 
         <div class="rb-tool-sep" role="separator"></div>
 
-        <button type="button" class="rb-tool rb-btn-active" id="rb-btn-draw"
-          data-tip="Draw" title="Draw" aria-label="Draw">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        </button>
-        <button type="button" class="rb-tool" id="rb-btn-line"
-          data-tip="Line" title="Line — draw without panels" aria-label="Line">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="4 18 9 8 14 14 20 6"/>
-          </svg>
-        </button>
-        <button type="button" class="rb-tool" id="rb-btn-measure"
-          data-tip="Measure" title="Measure" aria-label="Measure">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-            <line x1="4" y1="7" x2="4" y2="17"/>
-            <line x1="20" y1="7" x2="20" y2="17"/>
-            <line x1="4" y1="12" x2="20" y2="12"/>
-          </svg>
-        </button>
         <button type="button" class="rb-tool" id="rb-btn-move"
           data-tip="Move shape" title="Move shape" aria-label="Move shape">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -694,6 +673,52 @@
             <line x1="12" y1="2" x2="12" y2="22"/>
           </svg>
         </button>
+        <button type="button" class="rb-tool rb-btn-active" id="rb-btn-draw"
+          data-tip="Draw" title="Draw" aria-label="Draw">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <!-- ODD PANEL TRIAL: freehand → real panel; remove this button + odd* JS to revert -->
+        <button type="button" class="rb-tool" id="rb-btn-odd"
+          data-tip="Odd panel (trial)" title="Odd panel — freehand odd-shaped panel" aria-label="Odd panel trial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 8c0-2 2-4 5-4 2 0 3 1 5 1 3 0 4 2 4 4 0 2-1 3 0 5 0 2-2 4-5 4-2 0-3-1-5-1-3 0-4-2-4-4 0-2 1-3 0-5z"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool rb-tool-number" id="rb-btn-number"
+          data-tip="Number tool" title="Number tool" aria-label="Number tool">#</button>
+        <button type="button" class="rb-tool" id="rb-btn-crack"
+          data-tip="Crack tool" title="Crack tool" aria-label="Crack tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4 18 9 8 14 14 20 6"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool" id="rb-btn-line"
+          data-tip="Line" title="Line — draw without panels" aria-label="Line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+            <path d="M2 2l7.586 7.586"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool" id="rb-btn-ink"
+          data-tip="Smooth pen (trial)" title="Smooth pen — freehand that auto-corrects" aria-label="Smooth pen trial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 18c2.5-1 4.5-4.5 6.5-8C12 6 14.5 4 18 4"/>
+            <path d="M14.5 4.5l4 2.5"/>
+            <path d="M17 3l3 4"/>
+          </svg>
+        </button>
+        <button type="button" class="rb-tool" id="rb-btn-measure"
+          data-tip="Measure" title="Measure" aria-label="Measure">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="4" y2="17"/>
+            <line x1="20" y1="7" x2="20" y2="17"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+          </svg>
+        </button>
         <button type="button" class="rb-tool" id="rb-btn-xmark"
           data-tip="X mark" title="X mark" aria-label="X mark">X</button>
         <button type="button" class="rb-tool" id="rb-btn-circle"
@@ -702,14 +727,6 @@
             <circle cx="12" cy="12" r="8"/>
           </svg>
         </button>
-        <button type="button" class="rb-tool" id="rb-btn-crack"
-          data-tip="Crack tool" title="Crack tool" aria-label="Crack tool">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="5 4 10 9 8 13 13 17 11 21 17 16 15 12 19 8"/>
-          </svg>
-        </button>
-        <button type="button" class="rb-tool rb-tool-number" id="rb-btn-number"
-          data-tip="Number tool" title="Number tool" aria-label="Number tool">#</button>
 
         <div class="rb-tool-sep" role="separator"></div>
 
@@ -786,7 +803,9 @@
   var btnClear = document.getElementById('rb-btn-clear');
   var btnMove = document.getElementById('rb-btn-move');
   var btnDraw = document.getElementById('rb-btn-draw');
+  var btnOdd = document.getElementById('rb-btn-odd');
   var btnLine = document.getElementById('rb-btn-line');
+  var btnInk = document.getElementById('rb-btn-ink');
   var btnMeasure = document.getElementById('rb-btn-measure');
   var btnXmark = document.getElementById('rb-btn-xmark');
   var btnCircle = document.getElementById('rb-btn-circle');
@@ -812,6 +831,11 @@
 
   var completedShapes = [];
   var lines = [];
+  var inkDraft = null;
+  var inkDragging = false;
+  // ODD PANEL TRIAL state — remove with odd tool to revert
+  var oddDraft = null;
+  var oddDragging = false;
   var currentPoints = [];
   var cursorPoint = null;
   var dividerPreview = null;
@@ -840,6 +864,7 @@
   var cracks = [];
   var crackDraft = null;
   var crackCursor = null;
+  var crackDragging = false;
   var nextNumberLabelId = 1;
   var numberPalette = ['0', '-1', '-2', '-3', '-4', '-5', '-6', '0', '+1', '+2', '+3', '+4', '+5', '+6'];
   var selectedNumberValue = null;
@@ -881,6 +906,9 @@
   var VERTEX_RADIUS = 10;
   var MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.014);
   var MIN_CIRCLE_RADIUS = Math.round(LETTER_WIDTH * 0.008);
+  var CRACK_MIN_SEGMENT_PX = Math.round(LETTER_WIDTH * 0.008);
+  var INK_MIN_SAMPLE_PX = 5;
+  var INK_SMOOTH_EPS = Math.round(LETTER_WIDTH * 0.0035);
   var DIVIDER_EDGE_PAD = 14;
   var DIVIDER_MIN_GAP = 20;
   var CENTER_SNAP_RATIO = 0.07;
@@ -1207,11 +1235,23 @@
     return { x: x / points.length, y: y / points.length };
   }
 
-  function findInteriorLabelPoint(polygon) {
+  function findInteriorLabelPoint(polygon, holes) {
     if (polygon.length < 3) return polygonCentroid(polygon);
+    holes = holes || [];
+
+    function usable(x, y) {
+      if (!pointInPolygon(x, y, polygon)) return false;
+      var h;
+      for (h = 0; h < holes.length; h++) {
+        if (holes[h] && holes[h].length >= 3 && pointInOrOnPolygon(x, y, holes[h])) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     var centroid = polygonCentroid(polygon);
-    if (pointInPolygon(centroid.x, centroid.y, polygon)) return centroid;
+    if (usable(centroid.x, centroid.y)) return centroid;
 
     var xBounds = getShapeXBounds(polygon);
     var yBounds = getShapeYBounds(polygon);
@@ -1219,13 +1259,13 @@
       x: (xBounds.minX + xBounds.maxX) / 2,
       y: (yBounds.minY + yBounds.maxY) / 2
     };
-    if (pointInPolygon(bboxCenter.x, bboxCenter.y, polygon)) return bboxCenter;
+    if (usable(bboxCenter.x, bboxCenter.y)) return bboxCenter;
 
     var i;
     for (i = 1; i < polygon.length - 1; i++) {
       var tri = [polygon[0], polygon[i], polygon[i + 1]];
       var triCenter = polygonCentroid(tri);
-      if (pointInPolygon(triCenter.x, triCenter.y, polygon)) return triCenter;
+      if (usable(triCenter.x, triCenter.y)) return triCenter;
     }
 
     var steps = 10;
@@ -1235,11 +1275,29 @@
       for (sx = 0; sx <= steps; sx++) {
         var x = xBounds.minX + (xBounds.maxX - xBounds.minX) * sx / steps;
         var y = yBounds.minY + (yBounds.maxY - yBounds.minY) * sy / steps;
-        if (pointInPolygon(x, y, polygon)) return { x: x, y: y };
+        if (usable(x, y)) return { x: x, y: y };
       }
     }
 
     return centroid;
+  }
+
+  function getContainedShapeIndices(parentIndex) {
+    var indices = [];
+    var j;
+    for (j = 0; j < completedShapes.length; j++) {
+      if (j === parentIndex) continue;
+      if (shapeContainsShape(completedShapes[parentIndex], completedShapes[j])) {
+        indices.push(j);
+      }
+    }
+    return indices;
+  }
+
+  function getContainedHolePolygons(parentIndex) {
+    return getContainedShapeIndices(parentIndex).map(function(j) {
+      return completedShapes[j].points;
+    });
   }
 
   function findInteriorPointInRect(polygon, x1, y1, x2, y2) {
@@ -1711,35 +1769,52 @@
 
   function getDerivedPanels() {
     var panels = [];
-    for (var i = 0; i < completedShapes.length; i++) {
+    var i;
+    for (i = 0; i < completedShapes.length; i++) {
       if (!isRootShape(i)) continue;
       var shape = completedShapes[i];
       if (!shape.closed || shape.points.length < MIN_POLYGON_POINTS) continue;
       ensureShapeDividers(shape);
+      var holes = getContainedHolePolygons(i);
       var shapePanels = [];
       if (!shape.dividers.length) {
         shapePanels.push({
           id: i + ':0:0',
           shapeIndex: i,
-          centroid: findInteriorLabelPoint(shape.points),
+          centroid: findInteriorLabelPoint(shape.points, holes),
           polygon: shape.points.map(function(pt) { return { x: pt.x, y: pt.y }; })
         });
-        sortPanelsByPosition(shapePanels);
-        for (var p0 = 0; p0 < shapePanels.length; p0++) panels.push(shapePanels[p0]);
-        continue;
-      }
-      var regions = subdividePolygonByDividers(shape.points, shape.dividers);
-      for (var ri = 0; ri < regions.length; ri++) {
-        var labelPoint = findInteriorLabelPoint(regions[ri]);
-        shapePanels.push({
-          id: i + ':' + ri,
-          shapeIndex: i,
-          centroid: labelPoint,
-          polygon: regions[ri].map(function(pt) { return { x: pt.x, y: pt.y }; })
-        });
+      } else {
+        var regions = subdividePolygonByDividers(shape.points, shape.dividers);
+        for (var ri = 0; ri < regions.length; ri++) {
+          var regionHoles = holes.filter(function(hole) {
+            var c = findInteriorLabelPoint(hole);
+            return pointInOrOnPolygon(c.x, c.y, regions[ri]);
+          });
+          shapePanels.push({
+            id: i + ':' + ri,
+            shapeIndex: i,
+            centroid: findInteriorLabelPoint(regions[ri], regionHoles),
+            polygon: regions[ri].map(function(pt) { return { x: pt.x, y: pt.y }; })
+          });
+        }
       }
       sortPanelsByPosition(shapePanels);
       for (var p = 0; p < shapePanels.length; p++) panels.push(shapePanels[p]);
+    }
+
+    // Nested odd panels (and other contained outlines) get their own labels.
+    for (i = 0; i < completedShapes.length; i++) {
+      if (isRootShape(i)) continue;
+      var nested = completedShapes[i];
+      if (!nested.closed || nested.points.length < MIN_POLYGON_POINTS) continue;
+      var nestedHoles = getContainedHolePolygons(i);
+      panels.push({
+        id: i + ':nested',
+        shapeIndex: i,
+        centroid: findInteriorLabelPoint(nested.points, nestedHoles),
+        polygon: nested.points.map(function(pt) { return { x: pt.x, y: pt.y }; })
+      });
     }
     return panels;
   }
@@ -1869,6 +1944,952 @@
     });
   }
 
+  function cancelInkDraft() {
+    inkDraft = null;
+    inkDragging = false;
+  }
+
+  function perpendicularDistToSegment(p, a, b) {
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var len2 = dx * dx + dy * dy;
+    if (len2 < 0.0001) return pointDist(p, a);
+    return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / Math.sqrt(len2);
+  }
+
+  function maxDeviationFromChord(pts) {
+    if (!pts || pts.length < 3) return 0;
+    var a = pts[0];
+    var b = pts[pts.length - 1];
+    var max = 0;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var d = perpendicularDistToSegment(pts[i], a, b);
+      if (d > max) max = d;
+    }
+    return max;
+  }
+
+  function pathLength(pts) {
+    var len = 0;
+    for (var i = 1; i < pts.length; i++) len += pointDist(pts[i - 1], pts[i]);
+    return len;
+  }
+
+  function movingAverageSmooth(pts, radius) {
+    if (!pts || pts.length < 3) {
+      return (pts || []).map(function(p) { return { x: p.x, y: p.y }; });
+    }
+    var out = [];
+    for (var i = 0; i < pts.length; i++) {
+      if (i === 0 || i === pts.length - 1) {
+        out.push({ x: pts[i].x, y: pts[i].y });
+        continue;
+      }
+      var sx = 0;
+      var sy = 0;
+      var n = 0;
+      var from = Math.max(0, i - radius);
+      var to = Math.min(pts.length - 1, i + radius);
+      for (var j = from; j <= to; j++) {
+        sx += pts[j].x;
+        sy += pts[j].y;
+        n++;
+      }
+      out.push({ x: sx / n, y: sy / n });
+    }
+    return out;
+  }
+
+  function ramerDouglasPeucker(pts, epsilon) {
+    if (!pts || pts.length < 3) {
+      return (pts || []).map(function(p) { return { x: p.x, y: p.y }; });
+    }
+    var first = pts[0];
+    var last = pts[pts.length - 1];
+    var maxDist = 0;
+    var idx = -1;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var d = perpendicularDistToSegment(pts[i], first, last);
+      if (d > maxDist) {
+        maxDist = d;
+        idx = i;
+      }
+    }
+    if (maxDist > epsilon && idx > 0) {
+      var left = ramerDouglasPeucker(pts.slice(0, idx + 1), epsilon);
+      var right = ramerDouglasPeucker(pts.slice(idx), epsilon);
+      return left.slice(0, -1).concat(right);
+    }
+    return [
+      { x: first.x, y: first.y },
+      { x: last.x, y: last.y }
+    ];
+  }
+
+  function chaikinSmooth(pts, iterations) {
+    var cur = pts.map(function(p) { return { x: p.x, y: p.y }; });
+    for (var it = 0; it < iterations; it++) {
+      if (cur.length < 3) break;
+      var next = [{ x: cur[0].x, y: cur[0].y }];
+      for (var i = 0; i < cur.length - 1; i++) {
+        var p = cur[i];
+        var q = cur[i + 1];
+        next.push({
+          x: 0.75 * p.x + 0.25 * q.x,
+          y: 0.75 * p.y + 0.25 * q.y
+        });
+        next.push({
+          x: 0.25 * p.x + 0.75 * q.x,
+          y: 0.25 * p.y + 0.75 * q.y
+        });
+      }
+      next.push({ x: cur[cur.length - 1].x, y: cur[cur.length - 1].y });
+      cur = next;
+    }
+    return cur;
+  }
+
+  function strokeTurnAngle(a, b, c) {
+    var a1 = Math.atan2(b.y - a.y, b.x - a.x);
+    var a2 = Math.atan2(c.y - b.y, c.x - b.x);
+    var d = a2 - a1;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return Math.abs(d);
+  }
+
+  function snapNearAxis(a, b) {
+    var dx = Math.abs(b.x - a.x);
+    var dy = Math.abs(b.y - a.y);
+    var len = Math.max(dx, dy);
+    if (len < 1) return [{ x: a.x, y: a.y }, { x: b.x, y: b.y }];
+    // Within ~12° of axis — snap to perfect H or V.
+    if (Math.min(dx, dy) / len <= 0.21) {
+      if (dx >= dy) {
+        return [{ x: a.x, y: a.y }, { x: b.x, y: a.y }];
+      }
+      return [{ x: a.x, y: a.y }, { x: a.x, y: b.y }];
+    }
+    return [{ x: a.x, y: a.y }, { x: b.x, y: b.y }];
+  }
+
+  function sampleCubicBezier(p0, p1, p2, p3, steps) {
+    var out = [];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var u = 1 - t;
+      var tt = t * t;
+      var uu = u * u;
+      var uuu = uu * u;
+      var ttt = tt * t;
+      out.push({
+        x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+        y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+      });
+    }
+    return out;
+  }
+
+  function isMostlyStraight(pts) {
+    if (!pts || pts.length < 3) return true;
+    var len = pathLength(pts);
+    if (len < 1) return true;
+    return maxDeviationFromChord(pts) < Math.max(16, len * 0.04);
+  }
+
+  function fitSmoothCurveSegment(seg) {
+    if (seg.length < 3) {
+      return seg.map(function(p) { return { x: p.x, y: p.y }; });
+    }
+    var a = seg[0];
+    var b = seg[seg.length - 1];
+    var segLen = pathLength(seg);
+    var peak = seg[Math.floor(seg.length / 2)];
+    var peakDist = 0;
+    var i;
+    for (i = 1; i < seg.length - 1; i++) {
+      var d = perpendicularDistToSegment(seg[i], a, b);
+      if (d > peakDist) {
+        peakDist = d;
+        peak = seg[i];
+      }
+    }
+
+    var head = seg[Math.min(seg.length - 1, Math.max(1, Math.floor(seg.length * 0.18)))];
+    var tail = seg[Math.max(0, Math.floor(seg.length * 0.82))];
+    var t0x = head.x - a.x;
+    var t0y = head.y - a.y;
+    var t1x = b.x - tail.x;
+    var t1y = b.y - tail.y;
+    var t0len = Math.sqrt(t0x * t0x + t0y * t0y) || 1;
+    var t1len = Math.sqrt(t1x * t1x + t1y * t1y) || 1;
+    t0x /= t0len; t0y /= t0len;
+    t1x /= t1len; t1y /= t1len;
+
+    var handle = Math.max(segLen * 0.28, peakDist * 1.1);
+    var c1 = { x: a.x + t0x * handle, y: a.y + t0y * handle };
+    var c2 = { x: b.x - t1x * handle, y: b.y - t1y * handle };
+    c1.x = c1.x * 0.55 + peak.x * 0.45;
+    c1.y = c1.y * 0.55 + peak.y * 0.45;
+    c2.x = c2.x * 0.55 + peak.x * 0.45;
+    c2.y = c2.y * 0.55 + peak.y * 0.45;
+
+    var steps = Math.max(16, Math.min(64, Math.round(segLen / 18)));
+    var bezier = sampleCubicBezier(a, c1, c2, b, steps);
+    var polished = chaikinSmooth(bezier, 2);
+    return ramerDouglasPeucker(polished, Math.max(2.5, INK_SMOOTH_EPS * 0.55));
+  }
+
+  // Find sharp corners first (squares, panels). Never use the global
+  // start→end chord — that mis-labels polygon sides as one giant curve.
+  function findSharpCornerIndices(pts) {
+    if (pts.length < 5) return [0, pts.length - 1];
+    var span = Math.max(3, Math.min(10, Math.floor(pts.length / 22)));
+    var scores = [];
+    var i;
+    for (i = 0; i < pts.length; i++) scores[i] = 0;
+    for (i = span; i < pts.length - span; i++) {
+      scores[i] = strokeTurnAngle(pts[i - span], pts[i], pts[i + span]);
+    }
+    // Freehand square corners are ~60–120°; ignore gentle arc bend.
+    var cornerThresh = 40 * Math.PI / 180;
+    var nmsWin = Math.max(span, Math.floor(pts.length * 0.035));
+    var peaks = [];
+    for (i = span; i < pts.length - span; i++) {
+      if (scores[i] < cornerThresh) continue;
+      var isMax = true;
+      var j;
+      for (j = i - nmsWin; j <= i + nmsWin; j++) {
+        if (j === i || j < 0 || j >= pts.length) continue;
+        if (scores[j] > scores[i] + 0.001) {
+          isMax = false;
+          break;
+        }
+      }
+      if (isMax) peaks.push(i);
+    }
+
+    var minSep = Math.max(6, Math.floor(pts.length * 0.05));
+    var filtered = [];
+    for (i = 0; i < peaks.length; i++) {
+      if (!filtered.length || peaks[i] - filtered[filtered.length - 1] >= minSep) {
+        filtered.push(peaks[i]);
+      } else if (scores[peaks[i]] > scores[filtered[filtered.length - 1]]) {
+        filtered[filtered.length - 1] = peaks[i];
+      }
+    }
+
+    var corners = [0];
+    for (i = 0; i < filtered.length; i++) {
+      if (filtered[i] > minSep && filtered[i] < pts.length - 1 - minSep) {
+        corners.push(filtered[i]);
+      }
+    }
+    corners.push(pts.length - 1);
+    return corners;
+  }
+
+  function beautifyInkStroke(raw) {
+    if (!raw || raw.length < 2) return [];
+    if (raw.length === 2) {
+      return snapNearAxis(
+        { x: Math.round(raw[0].x * 10) / 10, y: Math.round(raw[0].y * 10) / 10 },
+        { x: Math.round(raw[1].x * 10) / 10, y: Math.round(raw[1].y * 10) / 10 }
+      );
+    }
+
+    var smoothed = movingAverageSmooth(raw, 4);
+    smoothed = movingAverageSmooth(smoothed, 2);
+    var totalLen = pathLength(smoothed);
+    if (totalLen < MIN_SEGMENT_PX * 0.5) return [];
+
+    if (isMostlyStraight(smoothed)) {
+      return snapNearAxis(
+        { x: Math.round(smoothed[0].x * 10) / 10, y: Math.round(smoothed[0].y * 10) / 10 },
+        { x: Math.round(smoothed[smoothed.length - 1].x * 10) / 10, y: Math.round(smoothed[smoothed.length - 1].y * 10) / 10 }
+      );
+    }
+
+    var closed = pointDist(smoothed[0], smoothed[smoothed.length - 1]) < Math.max(CLOSE_SNAP_PX, totalLen * 0.04);
+    var corners = findSharpCornerIndices(smoothed);
+
+    // Closed shape with few detected corners: try a tighter pass.
+    if (closed && corners.length < 4) {
+      var alt = [];
+      var span2 = Math.max(2, Math.floor(smoothed.length / 30));
+      var scores2 = [];
+      var i2;
+      for (i2 = 0; i2 < smoothed.length; i2++) scores2[i2] = 0;
+      for (i2 = span2; i2 < smoothed.length - span2; i2++) {
+        scores2[i2] = strokeTurnAngle(smoothed[i2 - span2], smoothed[i2], smoothed[i2 + span2]);
+      }
+      var thresh2 = 28 * Math.PI / 180;
+      for (i2 = span2; i2 < smoothed.length - span2; i2++) {
+        if (scores2[i2] < thresh2) continue;
+        var localMax = true;
+        for (var j2 = i2 - span2; j2 <= i2 + span2; j2++) {
+          if (j2 !== i2 && scores2[j2] > scores2[i2]) localMax = false;
+        }
+        if (localMax) alt.push(i2);
+      }
+      if (alt.length >= 3) {
+        corners = [0].concat(alt).concat([smoothed.length - 1]);
+      }
+    }
+
+    var result = [];
+    var s;
+    for (s = 0; s < corners.length - 1; s++) {
+      var seg = smoothed.slice(corners[s], corners[s + 1] + 1);
+      if (seg.length < 2) continue;
+      var piece;
+      if (isMostlyStraight(seg)) {
+        piece = snapNearAxis(seg[0], seg[seg.length - 1]);
+      } else {
+        piece = fitSmoothCurveSegment(seg);
+      }
+      if (!result.length) result = piece.slice();
+      else result = result.concat(piece.slice(1));
+    }
+
+    // No useful corners → single smooth curve (sidewalk arc), never a bad polygon fit.
+    if (corners.length <= 2) {
+      result = fitSmoothCurveSegment(smoothed);
+    }
+
+    if (closed && result.length >= 3) {
+      result[result.length - 1] = { x: result[0].x, y: result[0].y };
+    }
+
+    if (result.length < 2) {
+      return [
+        { x: Math.round(smoothed[0].x * 10) / 10, y: Math.round(smoothed[0].y * 10) / 10 },
+        { x: Math.round(smoothed[smoothed.length - 1].x * 10) / 10, y: Math.round(smoothed[smoothed.length - 1].y * 10) / 10 }
+      ];
+    }
+
+    return result.map(function(p) {
+      return { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+    });
+  }
+
+  function appendInkPoint(x, y) {
+    if (!inkDraft || !inkDraft.length) {
+      inkDraft = [{ x: x, y: y }];
+      return true;
+    }
+    var last = inkDraft[inkDraft.length - 1];
+    var dx = x - last.x;
+    var dy = y - last.y;
+    if ((dx * dx + dy * dy) < INK_MIN_SAMPLE_PX * INK_MIN_SAMPLE_PX) return false;
+    inkDraft.push({ x: x, y: y });
+    return true;
+  }
+
+  function commitInkDraft() {
+    if (!inkDraft || inkDraft.length < 2) {
+      cancelInkDraft();
+      return false;
+    }
+    var beautified = beautifyInkStroke(inkDraft);
+    cancelInkDraft();
+    if (!beautified || beautified.length < 2) return false;
+    lines.push({
+      points: beautified,
+      closed: false
+    });
+    actionHistory.push({ type: 'line' });
+    return true;
+  }
+
+  // --- ODD PANEL TRIAL begin ---
+  var oddStartHit = null;
+
+  function cancelOddDraft() {
+    oddDraft = null;
+    oddDragging = false;
+    oddStartHit = null;
+  }
+
+  function appendOddPoint(x, y) {
+    if (!oddDraft || !oddDraft.length) {
+      oddDraft = [{ x: x, y: y }];
+      return true;
+    }
+    var last = oddDraft[oddDraft.length - 1];
+    var dx = x - last.x;
+    var dy = y - last.y;
+    if ((dx * dx + dy * dy) < INK_MIN_SAMPLE_PX * INK_MIN_SAMPLE_PX) return false;
+    oddDraft.push({ x: x, y: y });
+    return true;
+  }
+
+  function collectBorderPaths() {
+    var paths = [];
+    var i;
+    for (i = 0; i < lines.length; i++) {
+      if (!lines[i].points || lines[i].points.length < 2) continue;
+      paths.push({
+        id: 'line:' + i,
+        points: lines[i].points,
+        closed: !!lines[i].closed
+      });
+    }
+    for (i = 0; i < completedShapes.length; i++) {
+      var shape = completedShapes[i];
+      if (!shape.points || shape.points.length < 2) continue;
+      paths.push({
+        id: 'shape:' + i,
+        points: shape.points,
+        closed: true
+      });
+      ensureShapeDividers(shape);
+      var di;
+      for (di = 0; di < shape.dividers.length; di++) {
+        var div = shape.dividers[di];
+        normalizeDivider(div);
+        if (div.x1 == null || div.y1 == null || div.x2 == null || div.y2 == null) continue;
+        paths.push({
+          id: 'div:' + i + ':' + di,
+          points: [
+            { x: div.x1, y: div.y1 },
+            { x: div.x2, y: div.y2 }
+          ],
+          closed: false
+        });
+      }
+    }
+    // Each derived panel ring — includes outer sides and inside divider sides.
+    var panels = getDerivedPanels();
+    for (i = 0; i < panels.length; i++) {
+      var poly = panels[i].polygon;
+      if (!poly || poly.length < 3) continue;
+      paths.push({
+        id: 'panel:' + panels[i].id,
+        points: poly.map(function(p) { return { x: p.x, y: p.y }; }),
+        closed: true
+      });
+    }
+    return paths;
+  }
+
+  function oddSnapThreshold() {
+    // Generous "tiny bit off" latch onto nearby lines / panel sides / dividers.
+    return Math.max(CLOSE_SNAP_PX * 3.5, MIN_SEGMENT_PX * 3.2, LETTER_WIDTH * 0.028);
+  }
+
+  // Walk along one border path from fromHit → toHit (shorter way if closed).
+  function walkBorderBetween(path, fromHit, toHit) {
+    if (!path || !path.points || path.points.length < 2 || !fromHit || !toHit) return null;
+    var pts = path.points;
+    var closed = !!path.closed;
+    var n = pts.length;
+    var segCount = closed ? n : n - 1;
+
+    function clone(p) { return { x: p.x, y: p.y }; }
+
+    if (fromHit.segIndex === toHit.segIndex) {
+      return [clone(fromHit), clone(toHit)];
+    }
+
+    function buildChain(forward) {
+      var chain = [clone(fromHit)];
+      var seg = fromHit.segIndex;
+      var steps = 0;
+      while (steps++ <= segCount + 1) {
+        if (forward) {
+          var endIdx = (seg + 1) % n;
+          if (!closed && seg + 1 >= n) return null;
+          var nextSeg = closed ? (seg + 1) % n : seg + 1;
+          if (nextSeg === toHit.segIndex) {
+            chain.push(clone(pts[endIdx]));
+            chain.push(clone(toHit));
+            return chain;
+          }
+          if (!closed && nextSeg >= segCount) return null;
+          chain.push(clone(pts[endIdx]));
+          seg = nextSeg;
+        } else {
+          var startIdx = seg;
+          var prevSeg = closed ? (seg - 1 + n) % n : seg - 1;
+          if (!closed && prevSeg < 0) return null;
+          if (prevSeg === toHit.segIndex) {
+            chain.push(clone(pts[startIdx]));
+            chain.push(clone(toHit));
+            return chain;
+          }
+          chain.push(clone(pts[startIdx]));
+          seg = prevSeg;
+        }
+      }
+      return null;
+    }
+
+    function chainLen(c) {
+      if (!c || c.length < 2) return Infinity;
+      var len = 0;
+      var i;
+      for (i = 1; i < c.length; i++) len += pointDist(c[i - 1], c[i]);
+      return len;
+    }
+
+    var a = buildChain(true);
+    var b = buildChain(false);
+    if (!a) return b;
+    if (!b) return a;
+    return chainLen(a) <= chainLen(b) ? a : b;
+  }
+
+  function projectPointOntoPath(path, x, y) {
+    if (!path || !path.points || path.points.length < 2) return null;
+    var pts = path.points;
+    var segCount = path.closed ? pts.length : pts.length - 1;
+    var best = null;
+    var s;
+    for (s = 0; s < segCount; s++) {
+      var a = pts[s];
+      var b = pts[(s + 1) % pts.length];
+      var proj = projectPointToSegment(x, y, a.x, a.y, b.x, b.y);
+      if (!best || proj.dist < best.dist) {
+        best = {
+          x: proj.x,
+          y: proj.y,
+          dist: proj.dist,
+          t: proj.t,
+          segIndex: s,
+          closed: !!path.closed,
+          pathId: path.id
+        };
+      }
+    }
+    return best;
+  }
+
+  function snapPointToBorder(x, y) {
+    var paths = collectBorderPaths();
+    if (!paths.length) return { x: x, y: y, snapped: false };
+    var threshold = oddSnapThreshold();
+    var best = null;
+    var bestPathIndex = -1;
+    var pi;
+    for (pi = 0; pi < paths.length; pi++) {
+      var hit = projectPointOntoPath(paths[pi], x, y);
+      if (!hit) continue;
+      if (!best || hit.dist < best.dist) {
+        best = hit;
+        bestPathIndex = pi;
+      }
+    }
+    if (!best || best.dist > threshold || bestPathIndex < 0) {
+      return { x: x, y: y, snapped: false };
+    }
+    return {
+      x: Math.round(best.x * 10) / 10,
+      y: Math.round(best.y * 10) / 10,
+      dist: best.dist,
+      t: best.t,
+      pathIndex: bestPathIndex,
+      pathId: best.pathId,
+      segIndex: best.segIndex,
+      closed: best.closed,
+      snapped: true
+    };
+  }
+
+  function borderChainLength(chain) {
+    if (!chain || chain.length < 2) return Infinity;
+    var len = 0;
+    var i;
+    for (i = 1; i < chain.length; i++) len += pointDist(chain[i - 1], chain[i]);
+    return len;
+  }
+
+  function hitFromProjection(path, proj, pathIndex) {
+    return {
+      x: Math.round(proj.x * 10) / 10,
+      y: Math.round(proj.y * 10) / 10,
+      dist: proj.dist,
+      t: proj.t,
+      pathIndex: pathIndex,
+      pathId: path.id,
+      segIndex: proj.segIndex,
+      closed: !!path.closed,
+      snapped: true
+    };
+  }
+
+  // If start/end both lie on the same panel ring, close along that ring
+  // (short corner), even when snap landed on separate divider path ids.
+  function walkSharedPanelBorder(fromHit, toHit) {
+    var threshold = oddSnapThreshold();
+    var panels = getDerivedPanels();
+    var best = null;
+    var bestLen = Infinity;
+    var i;
+    for (i = 0; i < panels.length; i++) {
+      var poly = panels[i].polygon;
+      if (!poly || poly.length < 3) continue;
+      var path = {
+        id: 'panel:' + panels[i].id,
+        points: poly,
+        closed: true
+      };
+      var a = projectPointOntoPath(path, fromHit.x, fromHit.y);
+      var b = projectPointOntoPath(path, toHit.x, toHit.y);
+      if (!a || !b || a.dist > threshold || b.dist > threshold) continue;
+      var fromOn = hitFromProjection(path, a, -1);
+      var toOn = hitFromProjection(path, b, -1);
+      var chain = walkBorderBetween(path, fromOn, toOn);
+      var len = borderChainLength(chain);
+      if (chain && chain.length >= 2 && len < bestLen) {
+        best = chain;
+        bestLen = len;
+      }
+    }
+    return best;
+  }
+
+  // Prefer snapping start/end onto any borders; close along one path or the
+  // connected network when start and end are on different lines.
+  function resolveOddAttachment(startX, startY, endX, endY) {
+    var startHit = snapPointToBorder(startX, startY);
+    var endHit = snapPointToBorder(endX, endY);
+    if (!startHit.snapped || !endHit.snapped) return null;
+
+    var paths = collectBorderPaths();
+    var path = null;
+    var pi;
+    for (pi = 0; pi < paths.length; pi++) {
+      if (paths[pi].id === startHit.pathId) {
+        path = paths[pi];
+        startHit.pathIndex = pi;
+        break;
+      }
+    }
+
+    var candidates = [];
+    if (startHit.pathId === endHit.pathId && path) {
+      // Re-project end onto the same path for consistent seg indices.
+      var eOnPath = projectPointOntoPath(path, endX, endY);
+      if (eOnPath && eOnPath.dist <= oddSnapThreshold()) {
+        endHit = hitFromProjection(path, eOnPath, startHit.pathIndex);
+        var same = walkBorderBetween(path, endHit, startHit);
+        if (same && same.length >= 2) candidates.push(same);
+      }
+    }
+
+    var shared = walkSharedPanelBorder(endHit, startHit);
+    if (shared && shared.length >= 2) candidates.push(shared);
+
+    var networked = walkBorderNetwork(endHit, startHit);
+    if (networked && networked.length >= 2) candidates.push(networked);
+
+    var border = null;
+    var bestLen = Infinity;
+    var c;
+    for (c = 0; c < candidates.length; c++) {
+      var len = borderChainLength(candidates[c]);
+      if (len < bestLen) {
+        bestLen = len;
+        border = candidates[c];
+      }
+    }
+    if (!border || border.length < 2) return null;
+
+    return {
+      startHit: startHit,
+      endHit: endHit,
+      path: path,
+      border: border
+    };
+  }
+
+  function walkBorderNetwork(fromHit, toHit) {
+    if (!fromHit || !toHit) return null;
+    var JOIN = Math.max(12, LETTER_WIDTH * 0.0045);
+    var nodeList = []; // { x, y }
+    var adj = []; // adj[i] = [{ j, w }]
+
+    function findOrAddNode(x, y) {
+      var i;
+      for (i = 0; i < nodeList.length; i++) {
+        if (pointDist(nodeList[i], { x: x, y: y }) <= JOIN) return i;
+      }
+      nodeList.push({ x: x, y: y });
+      adj.push([]);
+      return nodeList.length - 1;
+    }
+
+    function addEdge(i, j, w) {
+      if (i === j || !(w >= 0)) return;
+      adj[i].push({ j: j, w: w });
+      adj[j].push({ j: i, w: w });
+    }
+
+    function segT(ax, ay, bx, by, x, y) {
+      var abx = bx - ax;
+      var aby = by - ay;
+      var len2 = abx * abx + aby * aby;
+      if (len2 < 1e-8) return 0;
+      return ((x - ax) * abx + (y - ay) * aby) / len2;
+    }
+
+    var paths = collectBorderPaths();
+    var segs = [];
+    var p;
+    for (p = 0; p < paths.length; p++) {
+      var pts = paths[p].points;
+      if (!pts || pts.length < 2) continue;
+      var segCount = paths[p].closed ? pts.length : pts.length - 1;
+      var s;
+      for (s = 0; s < segCount; s++) {
+        var a = pts[s];
+        var b = pts[(s + 1) % pts.length];
+        segs.push({
+          ax: a.x, ay: a.y, bx: b.x, by: b.y,
+          pathId: paths[p].id,
+          segIndex: s
+        });
+      }
+    }
+
+    // Split each segment at crossings (e.g. H/V divider intersection) and hits.
+    var splits = [];
+    var si;
+    for (si = 0; si < segs.length; si++) splits.push([0, 1]);
+
+    function addSplit(segIndex, t) {
+      if (t < -0.001 || t > 1.001) return;
+      splits[segIndex].push(Math.max(0, Math.min(1, t)));
+    }
+
+    for (si = 0; si < segs.length; si++) {
+      var s1 = segs[si];
+      var sj;
+      for (sj = si + 1; sj < segs.length; sj++) {
+        var s2 = segs[sj];
+        var cross = segmentIntersection(
+          s1.ax, s1.ay, s1.bx, s1.by,
+          s2.ax, s2.ay, s2.bx, s2.by
+        );
+        if (!cross) continue;
+        addSplit(si, segT(s1.ax, s1.ay, s1.bx, s1.by, cross.x, cross.y));
+        addSplit(sj, segT(s2.ax, s2.ay, s2.bx, s2.by, cross.x, cross.y));
+      }
+    }
+
+    function addHitSplits(hit) {
+      for (si = 0; si < segs.length; si++) {
+        if (segs[si].pathId !== hit.pathId || segs[si].segIndex !== hit.segIndex) continue;
+        addSplit(si, segT(segs[si].ax, segs[si].ay, segs[si].bx, segs[si].by, hit.x, hit.y));
+      }
+    }
+    addHitSplits(fromHit);
+    addHitSplits(toHit);
+
+    for (si = 0; si < segs.length; si++) {
+      var ts = splits[si].slice().sort(function(u, v) { return u - v; });
+      var uniq = [];
+      var ti;
+      for (ti = 0; ti < ts.length; ti++) {
+        if (!uniq.length || Math.abs(ts[ti] - uniq[uniq.length - 1]) > 1e-4) {
+          uniq.push(ts[ti]);
+        }
+      }
+      var seg = segs[si];
+      for (ti = 0; ti < uniq.length - 1; ti++) {
+        var t0 = uniq[ti];
+        var t1 = uniq[ti + 1];
+        var x0 = seg.ax + (seg.bx - seg.ax) * t0;
+        var y0 = seg.ay + (seg.by - seg.ay) * t0;
+        var x1 = seg.ax + (seg.bx - seg.ax) * t1;
+        var y1 = seg.ay + (seg.by - seg.ay) * t1;
+        var ia = findOrAddNode(x0, y0);
+        var ib = findOrAddNode(x1, y1);
+        addEdge(ia, ib, Math.hypot(x1 - x0, y1 - y0));
+      }
+    }
+
+    var iFrom = findOrAddNode(fromHit.x, fromHit.y);
+    var iTo = findOrAddNode(toHit.x, toHit.y);
+    if (fromHit.pathId === toHit.pathId && fromHit.segIndex === toHit.segIndex) {
+      addEdge(iFrom, iTo, pointDist(fromHit, toHit));
+    }
+
+    // Dijkstra
+    var N = nodeList.length;
+    var dist = [];
+    var prev = [];
+    var used = [];
+    var i;
+    for (i = 0; i < N; i++) {
+      dist[i] = Infinity;
+      prev[i] = -1;
+      used[i] = false;
+    }
+    dist[iFrom] = 0;
+    for (var iter = 0; iter < N; iter++) {
+      var u = -1;
+      var best = Infinity;
+      for (i = 0; i < N; i++) {
+        if (!used[i] && dist[i] < best) {
+          best = dist[i];
+          u = i;
+        }
+      }
+      if (u < 0 || best === Infinity) break;
+      used[u] = true;
+      if (u === iTo) break;
+      var e;
+      for (e = 0; e < adj[u].length; e++) {
+        var v = adj[u][e].j;
+        var w = adj[u][e].w;
+        if (dist[u] + w < dist[v]) {
+          dist[v] = dist[u] + w;
+          prev[v] = u;
+        }
+      }
+    }
+    if (prev[iTo] < 0 && iTo !== iFrom) return null;
+
+    var chainIdx = [];
+    for (i = iTo; i >= 0; i = prev[i]) {
+      chainIdx.push(i);
+      if (i === iFrom) break;
+    }
+    chainIdx.reverse();
+    if (chainIdx[0] !== iFrom) return null;
+
+    return chainIdx.map(function(idx) {
+      return { x: nodeList[idx].x, y: nodeList[idx].y };
+    });
+  }
+
+  function buildOddPanelFromStroke(rawPts, startHit, endHit, border) {
+    if (!rawPts || rawPts.length < 2 || !startHit || !endHit || !border) return null;
+    if (!startHit.snapped || !endHit.snapped) return null;
+    if (border.length < 2) return null;
+
+    var freehand = beautifyInkStroke(rawPts);
+    if (!freehand || freehand.length < 2) return null;
+    freehand[0] = { x: startHit.x, y: startHit.y };
+    freehand[freehand.length - 1] = { x: endHit.x, y: endHit.y };
+
+    // Close along border chain: end → … → start (border already oriented that way).
+    var poly = freehand.slice();
+    var b;
+    for (b = 1; b < border.length - 1; b++) {
+      poly.push({ x: border[b].x, y: border[b].y });
+    }
+    if (poly.length < MIN_POLYGON_POINTS) return null;
+    if (Math.abs(polygonArea(poly)) < MIN_SEGMENT_PX * MIN_SEGMENT_PX) return null;
+    return poly;
+  }
+
+  function commitOddPanelDraft() {
+    if (!oddDraft || oddDraft.length < 3 || !oddStartHit || !oddStartHit.snapped) {
+      cancelOddDraft();
+      return false;
+    }
+    var last = oddDraft[oddDraft.length - 1];
+    var attachment = resolveOddAttachment(
+      oddStartHit.x, oddStartHit.y,
+      last.x, last.y
+    );
+    var raw = oddDraft.map(function(p) { return { x: p.x, y: p.y }; });
+    cancelOddDraft();
+    if (!attachment) return false;
+
+    var pts = buildOddPanelFromStroke(
+      raw,
+      attachment.startHit,
+      attachment.endHit,
+      attachment.border
+    );
+    if (!pts) return false;
+
+    completedShapes.push({
+      points: pts,
+      closed: true,
+      dividers: []
+    });
+    actionHistory.push({ type: 'shape' });
+    return true;
+  }
+
+  function drawOddDraft() {
+    if (!oddDraft || !oddDraft.length) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(oddDraft[0].x, oddDraft[0].y);
+    for (var i = 1; i < oddDraft.length; i++) {
+      ctx.lineTo(oddDraft[i].x, oddDraft[i].y);
+    }
+    ctx.strokeStyle = COLORS.stroke;
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.stroke();
+
+    if (oddStartHit && oddStartHit.snapped && oddDraft.length >= 2) {
+      var tip = oddDraft[oddDraft.length - 1];
+      var attachment = resolveOddAttachment(
+        oddStartHit.x, oddStartHit.y,
+        tip.x, tip.y
+      );
+      if (attachment && attachment.border && attachment.border.length >= 2) {
+        var border = attachment.border;
+        ctx.globalAlpha = 0.85;
+        ctx.setLineDash([16, 12]);
+        ctx.strokeStyle = 'rgba(114, 165, 183, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(border[0].x, border[0].y);
+        for (var b = 1; b < border.length; b++) {
+          ctx.lineTo(border[b].x, border[b].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath();
+        ctx.moveTo(oddDraft[0].x, oddDraft[0].y);
+        for (var j = 1; j < oddDraft.length; j++) {
+          ctx.lineTo(oddDraft[j].x, oddDraft[j].y);
+        }
+        for (var k = 1; k < border.length; k++) {
+          ctx.lineTo(border[k].x, border[k].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = COLORS.fill;
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(attachment.endHit.x, attachment.endHit.y, VERTEX_RADIUS + 2, 0, Math.PI * 2);
+        ctx.fillStyle = COLORS.vertex;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = COLORS.vertexBorder;
+        ctx.stroke();
+      }
+    }
+
+    if (oddStartHit && oddStartHit.snapped) {
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(oddStartHit.x, oddStartHit.y, VERTEX_RADIUS + 2, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS.vertex;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = COLORS.vertexBorder;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // --- ODD PANEL TRIAL end ---
+
   function drawCrackPath(points, previewEnd) {
     if (!points || !points.length) return;
     ctx.beginPath();
@@ -1893,6 +2914,7 @@
   function cancelCrackDraft() {
     crackDraft = null;
     crackCursor = null;
+    crackDragging = false;
   }
 
   function commitCrackDraft() {
@@ -1983,12 +3005,14 @@
     var abx = bx - ax;
     var aby = by - ay;
     var len2 = abx * abx + aby * aby;
-    if (len2 < 0.0001) return { x: ax, y: ay, dist: Math.hypot(px - ax, py - ay) };
+    if (len2 < 0.0001) {
+      return { x: ax, y: ay, dist: Math.hypot(px - ax, py - ay), t: 0 };
+    }
     var t = ((px - ax) * abx + (py - ay) * aby) / len2;
     t = Math.max(0, Math.min(1, t));
     var x = ax + t * abx;
     var y = ay + t * aby;
-    return { x: x, y: y, dist: Math.hypot(px - x, py - y) };
+    return { x: x, y: y, dist: Math.hypot(px - x, py - y), t: t };
   }
 
   function snapPointToLines(x, y) {
@@ -2523,7 +3547,9 @@
 
   function syncToolButtons() {
     if (btnDraw) btnDraw.classList.toggle('rb-btn-active', toolMode === 'draw');
+    if (btnOdd) btnOdd.classList.toggle('rb-btn-active', toolMode === 'odd');
     if (btnLine) btnLine.classList.toggle('rb-btn-active', toolMode === 'line');
+    if (btnInk) btnInk.classList.toggle('rb-btn-active', toolMode === 'ink');
     if (btnMove) btnMove.classList.toggle('rb-btn-active', toolMode === 'move');
     if (btnMeasure) btnMeasure.classList.toggle('rb-btn-active', toolMode === 'measure');
     if (btnXmark) btnXmark.classList.toggle('rb-btn-active', toolMode === 'xmark');
@@ -2544,6 +3570,16 @@
       cancelMeasureDraft();
       cancelCrackDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
+    } else if (toolMode === 'odd') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
+      cancelCrackDraft();
+      cancelCircleDraft();
+      cancelInkDraft();
     } else if (toolMode === 'line') {
       selectedShapeIndex = null;
       dragState = null;
@@ -2551,18 +3587,32 @@
       cancelMeasureDraft();
       cancelCrackDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
+    } else if (toolMode === 'ink') {
+      selectedShapeIndex = null;
+      dragState = null;
+      cancelCurrentDrawing();
+      cancelMeasureDraft();
+      cancelCrackDraft();
+      cancelCircleDraft();
+      cancelOddDraft();
     } else if (toolMode === 'measure') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelCrackDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     } else if (toolMode === 'number') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     } else if (toolMode === 'xmark') {
       selectedShapeIndex = null;
       dragState = null;
@@ -2570,23 +3620,31 @@
       cancelMeasureDraft();
       cancelCrackDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     } else if (toolMode === 'circle') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCrackDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     } else if (toolMode === 'crack') {
       selectedShapeIndex = null;
       dragState = null;
       cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     } else {
       cancelCurrentDrawing();
       cancelMeasureDraft();
       cancelCrackDraft();
       cancelCircleDraft();
+      cancelInkDraft();
+      cancelOddDraft();
     }
     updateUi();
     draw();
@@ -2844,9 +3902,9 @@
       (toolMode === 'draw' && activeDrawMode === 'outline' && n >= MIN_POLYGON_POINTS) ||
       (toolMode === 'line' && n >= 2)
     );
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && lines.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && lines.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft && !inkDraft && !oddDraft;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || toolMode === 'line' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft || !!inkDraft || !!oddDraft;
     }
     if (toolMode === 'move') {
       statusEl.innerHTML = dragState
@@ -2854,6 +3912,18 @@
           ? 'Dragging circle — release to place.'
           : 'Dragging — release to place the shape.')
         : 'Drag a circle to move it, or drag a driveway to move the whole panel. Tap <strong>Move shape</strong> again to draw.';
+      return;
+    }
+    if (toolMode === 'odd') {
+      statusEl.innerHTML = oddDragging
+        ? 'Trace the odd part — end near the <strong>same</strong> panel side, divider, or line (snaps if slightly off).'
+        : 'Odd panel — start/end anywhere on panel sides, inside dividers, or lines (near-miss snaps onto the line).';
+      return;
+    }
+    if (toolMode === 'ink') {
+      statusEl.innerHTML = inkDragging
+        ? 'Drawing — release to auto-smooth the stroke.'
+        : 'Smooth pen (trial) — draw freely; straight runs and curves are corrected on release.';
       return;
     }
     if (toolMode === 'line') {
@@ -2892,8 +3962,8 @@
     }
     if (toolMode === 'crack') {
       statusEl.innerHTML = crackDraft && crackDraft.length
-        ? 'Click to continue crack. Press Enter or tap Crack tool to finish.'
-        : 'Click to start crack line.';
+        ? 'Drag in any direction for a straight segment — release to place. Enter or Crack tool to finish.'
+        : 'Press to start a crack, then drag freely (any angle) for a straight segment.';
       return;
     }
     if (n === 0) {
@@ -2939,9 +4009,10 @@
     ctx.restore();
   }
 
-  function drawShape(points, closed, previewTo, showVertices) {
+  function drawShape(points, closed, previewTo, showVertices, holePolygons) {
     if (!points.length) return;
     if (showVertices === undefined) showVertices = !closed;
+    holePolygons = holePolygons || [];
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -2952,8 +4023,17 @@
       ctx.moveTo(points[0].x, points[0].y);
       for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
       ctx.closePath();
+      var h;
+      for (h = 0; h < holePolygons.length; h++) {
+        var hole = holePolygons[h];
+        if (!hole || hole.length < 3) continue;
+        ctx.moveTo(hole[0].x, hole[0].y);
+        for (var hi = 1; hi < hole.length; hi++) ctx.lineTo(hole[hi].x, hole[hi].y);
+        ctx.closePath();
+      }
       ctx.fillStyle = COLORS.fill;
-      ctx.fill();
+      if (holePolygons.length) ctx.fill('evenodd');
+      else ctx.fill();
     }
 
     ctx.beginPath();
@@ -2992,7 +4072,7 @@
   }
 
   function drawLines() {
-    if (!lines.length) return;
+    if (!lines.length && !inkDraft) return;
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -3008,6 +4088,15 @@
       if (line.closed && line.points.length >= 2) ctx.closePath();
       ctx.stroke();
     });
+    if (inkDraft && inkDraft.length) {
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.moveTo(inkDraft[0].x, inkDraft[0].y);
+      for (var j = 1; j < inkDraft.length; j++) {
+        ctx.lineTo(inkDraft[j].x, inkDraft[j].y);
+      }
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -3024,7 +4113,7 @@
     ctx.clip();
 
     completedShapes.forEach(function(shape, idx) {
-      drawShape(shape.points, shape.closed, null, false);
+      drawShape(shape.points, shape.closed, null, false, getContainedHolePolygons(idx));
       ensureShapeDividers(shape);
       shape.dividers.forEach(function(div) {
         normalizeDivider(div);
@@ -3043,6 +4132,7 @@
     });
 
     drawPanelLabels(panelLabels);
+    drawOddDraft();
     drawLines();
     drawNumberLabels();
     drawXMarks();
@@ -3581,7 +4671,7 @@
   }
 
   function clearAll() {
-    if (!completedShapes.length && !lines.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft) return;
+    if (!completedShapes.length && !lines.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft && !inkDraft && !oddDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
     completedShapes = [];
     lines = [];
@@ -3594,6 +4684,8 @@
     closeMeasureEditor(false);
     cancelCrackDraft();
     cancelCircleDraft();
+    cancelInkDraft();
+    cancelOddDraft();
     cancelCurrentDrawing();
     toolMode = 'draw';
     selectedShapeIndex = null;
@@ -3763,6 +4855,8 @@
     closeMeasureEditor(true);
     cancelCurrentDrawing();
     cancelCircleDraft();
+    cancelInkDraft();
+    cancelOddDraft();
     toolMode = 'draw';
     dragState = null;
     selectedShapeIndex = null;
@@ -3865,8 +4959,8 @@
       showToast('Finish or cancel the current shape first');
       return;
     }
-    if (toolMode === 'move' || toolMode === 'crack' || toolMode === 'circle' || dragState || crackDraft || circleDraft) {
-      showToast('Finish crack/move/circle mode before attaching');
+    if (toolMode === 'move' || toolMode === 'crack' || toolMode === 'circle' || toolMode === 'ink' || toolMode === 'odd' || dragState || crackDraft || circleDraft || inkDraft || oddDraft) {
+      showToast('Finish drawing mode before attaching');
       return;
     }
     closeAddressEditor(true);
@@ -3930,12 +5024,15 @@
         e.preventDefault();
         return;
       }
-      if (!crackDraft) {
-        crackDraft = [{ x: Math.round(clamped.x * 10) / 10, y: Math.round(clamped.y * 10) / 10 }];
-      } else {
-        crackDraft.push({ x: Math.round(clamped.x * 10) / 10, y: Math.round(clamped.y * 10) / 10 });
+      var pt = {
+        x: Math.round(clamped.x * 10) / 10,
+        y: Math.round(clamped.y * 10) / 10
+      };
+      if (!crackDraft || !crackDraft.length) {
+        crackDraft = [pt];
       }
-      crackCursor = null;
+      crackDragging = true;
+      crackCursor = pt;
       updateUi();
       draw();
       e.preventDefault();
@@ -4021,6 +5118,42 @@
       e.preventDefault();
       return;
     }
+    if (toolMode === 'ink') {
+      if (!isInContentArea(clamped.x, clamped.y, layout)) {
+        showToast('Draw inside the page area below the header');
+        e.preventDefault();
+        return;
+      }
+      inkDragging = true;
+      inkDraft = [{
+        x: Math.round(clamped.x * 10) / 10,
+        y: Math.round(clamped.y * 10) / 10
+      }];
+      updateUi();
+      draw();
+      e.preventDefault();
+      return;
+    }
+    if (toolMode === 'odd') {
+      if (!isInContentArea(clamped.x, clamped.y, layout)) {
+        showToast('Draw inside the page area below the header');
+        e.preventDefault();
+        return;
+      }
+      var startHit = snapPointToBorder(clamped.x, clamped.y);
+      if (!startHit.snapped) {
+        showToast('Start near a panel side, divider, or line');
+        e.preventDefault();
+        return;
+      }
+      oddDragging = true;
+      oddStartHit = startHit;
+      oddDraft = [{ x: startHit.x, y: startHit.y }];
+      updateUi();
+      draw();
+      e.preventDefault();
+      return;
+    }
 
     // Allow editing existing measurement labels without leaving draw mode.
     if (!currentPoints.length && !dividerDrag) {
@@ -4074,7 +5207,31 @@
     }
     if (toolMode === 'crack') {
       if (crackDraft && crackDraft.length) {
-        crackCursor = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+        // Free angle — no H/V/45° snap. Straight preview to cursor.
+        crackCursor = {
+          x: Math.round(p.x * 10) / 10,
+          y: Math.round(p.y * 10) / 10
+        };
+        draw();
+      }
+      return;
+    }
+    if (toolMode === 'ink') {
+      if (inkDragging && inkDraft) {
+        appendInkPoint(
+          Math.round(p.x * 10) / 10,
+          Math.round(p.y * 10) / 10
+        );
+        draw();
+      }
+      return;
+    }
+    if (toolMode === 'odd') {
+      if (oddDragging && oddDraft) {
+        appendOddPoint(
+          Math.round(p.x * 10) / 10,
+          Math.round(p.y * 10) / 10
+        );
         draw();
       }
       return;
@@ -4118,6 +5275,54 @@
   canvas.addEventListener('pointerup', function(e) {
     if (toolMode === 'move') {
       handleMovePointerUp();
+    } else if (toolMode === 'crack' && crackDragging) {
+      crackDragging = false;
+      if (crackDraft && crackDraft.length && crackCursor) {
+        var last = crackDraft[crackDraft.length - 1];
+        var dx = crackCursor.x - last.x;
+        var dy = crackCursor.y - last.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist >= CRACK_MIN_SEGMENT_PX) {
+          crackDraft.push({ x: crackCursor.x, y: crackCursor.y });
+          crackCursor = null;
+          showToast('Segment placed — drag another, or Enter to finish');
+        } else if (crackDraft.length === 1) {
+          showToast('Drag farther to place the next crack point');
+        }
+      }
+      updateUi();
+      draw();
+    } else if (toolMode === 'ink' && inkDragging) {
+      inkDragging = false;
+      if (commitInkDraft()) {
+        showToast('Stroke smoothed');
+      } else {
+        showToast('Draw a longer stroke');
+      }
+      updateUi();
+      draw();
+    } else if (toolMode === 'odd' && oddDragging) {
+      oddDragging = false;
+      var tip = oddDraft && oddDraft.length ? oddDraft[oddDraft.length - 1] : null;
+      if (!oddStartHit || !oddStartHit.snapped || !tip) {
+        cancelOddDraft();
+        showToast('Start near a panel side, divider, or line');
+      } else {
+        var attachment = resolveOddAttachment(
+          oddStartHit.x, oddStartHit.y,
+          tip.x, tip.y
+        );
+        if (!attachment) {
+          cancelOddDraft();
+          showToast('End near a connected panel side, divider, or line (near-miss is OK)');
+        } else if (commitOddPanelDraft()) {
+          showToast('Odd panel added — ' + getDerivedPanels().length + ' panels');
+        } else {
+          showToast('Could not build panel from that stroke — try again');
+        }
+      }
+      updateUi();
+      draw();
     } else if (toolMode === 'circle' && circleDraft) {
       if (commitCircleDraft()) {
         showToast('Circle placed');
@@ -4206,6 +5411,16 @@
         updateUi();
         draw();
         showToast('Circle cancelled');
+      } else if (inkDraft) {
+        cancelInkDraft();
+        updateUi();
+        draw();
+        showToast('Stroke cancelled');
+      } else if (oddDraft) {
+        cancelOddDraft();
+        updateUi();
+        draw();
+        showToast('Odd panel cancelled');
       } else if (crackDraft && crackDraft.length) {
         cancelCrackDraft();
         updateUi();
@@ -4216,7 +5431,7 @@
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'line') {
+      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd') {
         var was = toolMode;
         setToolMode('draw');
         if (was === 'move') showToast('Move mode off');
@@ -4224,6 +5439,8 @@
         else if (was === 'number') showToast('Number mode off');
         else if (was === 'circle') showToast('Circle mode off');
         else if (was === 'line') showToast('Line mode off');
+        else if (was === 'ink') showToast('Smooth pen off');
+        else if (was === 'odd') showToast('Odd panel off');
         else showToast('X mode off');
       }
     }
@@ -4241,6 +5458,12 @@
       showToast('Draw mode — tap corners to outline');
     });
   }
+  if (btnOdd) {
+    btnOdd.addEventListener('click', function() {
+      setToolMode(toolMode === 'odd' ? 'draw' : 'odd');
+      if (toolMode === 'odd') showToast('Odd panel — click anywhere on a panel side, divider, or line (near-miss OK)');
+    });
+  }
   if (btnLine) {
     btnLine.addEventListener('click', function() {
       if (toolMode === 'line') {
@@ -4251,6 +5474,12 @@
         setToolMode('line');
         showToast('Line mode — draw without creating panels');
       }
+    });
+  }
+  if (btnInk) {
+    btnInk.addEventListener('click', function() {
+      setToolMode(toolMode === 'ink' ? 'draw' : 'ink');
+      if (toolMode === 'ink') showToast('Smooth pen (trial) — draw freely, auto-corrects on release');
     });
   }
   if (btnMove) {
@@ -4292,7 +5521,7 @@
         return;
       }
       setToolMode('crack');
-      showToast('Crack mode — click to add segments, Enter to finish');
+      showToast('Crack mode — straight segments, any angle');
     });
   }
   if (btnNumber) {
