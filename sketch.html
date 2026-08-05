@@ -752,7 +752,7 @@
       <div class="rb-canvas-wrap">
         <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
         <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
-          inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+          inputmode="text" autocomplete="off" spellcheck="false" aria-label="Measurement value">
         <input type="text" class="rb-address-input" id="rb-address-input" style="display:none"
           autocomplete="street-address" spellcheck="false" aria-label="Customer address"
           placeholder="customer address">
@@ -841,6 +841,8 @@
   var dividerPreview = null;
   var activeDrawMode = 'outline';
   var dividerTargetIndex = null;
+  // When non-null, standard Draw is extending an existing root outline (exterior attach).
+  var outlineAttach = null; // { shapeIndex, startHit }
   var actionHistory = [];
   var toolMode = 'draw';
   var dragState = null;
@@ -869,6 +871,8 @@
   var numberPalette = ['0', '-1', '-2', '-3', '-4', '-5', '-6', '0', '+1', '+2', '+3', '+4', '+5', '+6'];
   var selectedNumberValue = null;
   var numberDrag = null;
+  var panelLabelPositions = {}; // panelId -> { x, y } absolute; omit = live at centroid
+  var panelLabelDrag = null;
   var NUMBER_LABEL_FONT_SIZE = 59;
   var NUMBER_CORNER_OFFSET = 60;
   var NUMBER_MID_OFFSET = 46;
@@ -913,6 +917,8 @@
   var DIVIDER_MIN_GAP = 20;
   var CENTER_SNAP_RATIO = 0.07;
   var CLOSE_SNAP_PX = Math.round(LETTER_WIDTH * 0.028);
+  var PANEL_LABEL_FONT_SIZE = 56;
+  var PANEL_LABEL_CENTER_SNAP = Math.round(LETTER_WIDTH * 0.035);
   var MIN_POLYGON_POINTS = 3;
   var RECTIFY_EDGE_SKEW_RATIO = 0.2;
   var RECTIFY_MAX_DEV_RATIO = 0.14;
@@ -942,13 +948,38 @@
     };
   }
 
+  // Soft H/V/45 snap when near those angles; otherwise free — multi-sided sidewalks.
+  function snapAttachCornerFromAnchor(anchor, x, y) {
+    var dx = x - anchor.x;
+    var dy = y - anchor.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < MIN_SEGMENT_PX) return null;
+    var angle = Math.atan2(dy, dx);
+    var snappedAngle = Math.round(angle / SNAP_ANGLE) * SNAP_ANGLE;
+    var diff = Math.abs(angle - snappedAngle);
+    while (diff > Math.PI) diff = Math.abs(diff - Math.PI * 2);
+    var useAngle = diff < SNAP_ANGLE * 0.28 ? snappedAngle : angle;
+    return {
+      x: Math.round((anchor.x + dist * Math.cos(useAngle)) * 10) / 10,
+      y: Math.round((anchor.y + dist * Math.sin(useAngle)) * 10) / 10
+    };
+  }
+
+  // Only rejoin the host outline when the tap is deliberately on the edge
+  // (not the large odd-panel threshold, which stole intermediate sidewalk corners).
+  function attachEndSnapPx() {
+    return Math.max(CLOSE_SNAP_PX * 1.45, MIN_SEGMENT_PX * 1.35);
+  }
+
   function resolveDrawPoint(x, y) {
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     if (!currentPoints.length) {
       return clampToContent(Math.round(x * 10) / 10, Math.round(y * 10) / 10, layout);
     }
     var anchor = currentPoints[currentPoints.length - 1];
-    var snapped = snapPointFromAnchor(anchor, x, y);
+    var snapped = outlineAttach
+      ? snapAttachCornerFromAnchor(anchor, x, y)
+      : snapPointFromAnchor(anchor, x, y);
     var point;
     if (snapped) {
       point = snapped;
@@ -956,11 +987,18 @@
       var dx = x - anchor.x;
       var dy = y - anchor.y;
       if (!dx && !dy) return { x: anchor.x, y: anchor.y };
-      var snappedAngle = Math.round(Math.atan2(dy, dx) / SNAP_ANGLE) * SNAP_ANGLE;
-      point = {
-        x: Math.round((anchor.x + MIN_SEGMENT_PX * Math.cos(snappedAngle)) * 10) / 10,
-        y: Math.round((anchor.y + MIN_SEGMENT_PX * Math.sin(snappedAngle)) * 10) / 10
-      };
+      if (outlineAttach) {
+        point = {
+          x: Math.round((anchor.x + MIN_SEGMENT_PX * (dx / Math.sqrt(dx * dx + dy * dy) || 0)) * 10) / 10,
+          y: Math.round((anchor.y + MIN_SEGMENT_PX * (dy / Math.sqrt(dx * dx + dy * dy) || 0)) * 10) / 10
+        };
+      } else {
+        var snappedAngle = Math.round(Math.atan2(dy, dx) / SNAP_ANGLE) * SNAP_ANGLE;
+        point = {
+          x: Math.round((anchor.x + MIN_SEGMENT_PX * Math.cos(snappedAngle)) * 10) / 10,
+          y: Math.round((anchor.y + MIN_SEGMENT_PX * Math.sin(snappedAngle)) * 10) / 10
+        };
+      }
     }
     return clampToContent(point.x, point.y, layout);
   }
@@ -1538,39 +1576,42 @@
     return null;
   }
 
-  function resolveDividerAngleFromDrag(dx, dy, shape, startX, startY) {
+  // Resolve divider orientation from the user's drag only.
+  // Preserve signed direction (up vs down, left vs right) so the cut only
+  // runs the way the finger/stylus moved — not both ways across the panel.
+  function resolveDividerAngleFromDrag(dx, dy) {
     var adx = Math.abs(dx);
     var ady = Math.abs(dy);
     if (Math.max(adx, ady) < DIVIDER_DRAG_THRESHOLD) return null;
 
-    var shapeAngle = preferredDividerAngleAtPoint(shape.points, startX, startY);
-    var dragAngle = snapDividerAngle(Math.atan2(dy, dx));
-    var ratio = adx > 0.001 ? ady / adx : Infinity;
+    // Clear axis dominance → force H or V even if the finger is a bit skewed.
+    if (adx > ady * DIVIDER_AXIS_DOMINANCE) return dx >= 0 ? 0 : Math.PI;
+    if (ady > adx * DIVIDER_AXIS_DOMINANCE) return dy >= 0 ? Math.PI / 2 : -Math.PI / 2;
 
-    if (ratio > 0.55 && ratio < 1.8) {
-      return dragAngle;
+    // Otherwise snap to nearest 45° (includes pure diagonals), keeping direction.
+    return snapDividerAngle(Math.atan2(dy, dx));
+  }
+
+  // Make angle point along the drag vector (flip 180° if needed).
+  function orientAngleAlongDrag(angle, dx, dy) {
+    var dirX = Math.cos(angle);
+    var dirY = Math.sin(angle);
+    if (dx * dirX + dy * dirY < 0) {
+      return angle + Math.PI;
     }
-    if (adx > ady * DIVIDER_AXIS_DOMINANCE) {
-      var chordH = chordInPolygonAtAngle(shape.points, startX, startY, 0);
-      if (!chordH || chordLength(chordH) < MIN_SEGMENT_PX * 1.5) return shapeAngle;
-      var chordShape = chordInPolygonAtAngle(shape.points, startX, startY, shapeAngle);
-      if (chordShape && chordLength(chordShape) > chordLength(chordH) * 1.12 &&
-          !anglesClose(shapeAngle, 0) && !anglesClose(shapeAngle, Math.PI)) {
-        return shapeAngle;
-      }
-      return 0;
-    }
-    if (ady > adx * DIVIDER_AXIS_DOMINANCE) {
-      var chordV = chordInPolygonAtAngle(shape.points, startX, startY, Math.PI / 2);
-      if (!chordV || chordLength(chordV) < MIN_SEGMENT_PX * 1.5) return shapeAngle;
-      var chordShapeV = chordInPolygonAtAngle(shape.points, startX, startY, shapeAngle);
-      if (chordShapeV && chordLength(chordShapeV) > chordLength(chordV) * 1.12 &&
-          !anglesClose(shapeAngle, Math.PI / 2) && !anglesClose(shapeAngle, Math.PI * 1.5)) {
-        return shapeAngle;
-      }
-      return Math.PI / 2;
-    }
-    return shapeAngle;
+    return angle;
+  }
+
+  // Keep only the half of a full panel chord that lies in the drag direction from the start.
+  function forwardEndOfChord(chord, sx, sy, angle) {
+    if (!chord) return null;
+    var dirX = Math.cos(angle);
+    var dirY = Math.sin(angle);
+    var a1 = (chord.x1 - sx) * dirX + (chord.y1 - sy) * dirY;
+    var a2 = (chord.x2 - sx) * dirX + (chord.y2 - sy) * dirY;
+    if (a1 >= a2 && a1 > 0.5) return { x: chord.x1, y: chord.y1, along: a1 };
+    if (a2 > a1 && a2 > 0.5) return { x: chord.x2, y: chord.y2, along: a2 };
+    return null;
   }
 
   function dividerAnchorPoint(chord) {
@@ -1581,14 +1622,46 @@
   }
 
   function dividerOffsetDistance(chordA, chordB) {
-    if (!anglesClose(chordA.angle, chordB.angle)) return Infinity;
-    var dirX = Math.cos(chordA.angle);
-    var dirY = Math.sin(chordA.angle);
+    var angleA = chordA.angle != null ? chordA.angle : (chordA.axis === 'v' ? Math.PI / 2 : 0);
+    var angleB = chordB.angle != null ? chordB.angle : (chordB.axis === 'v' ? Math.PI / 2 : 0);
+    if (!anglesClose(angleA, angleB)) return Infinity;
+    var dirX = Math.cos(angleA);
+    var dirY = Math.sin(angleA);
     var normX = -dirY;
     var normY = dirX;
     var anchorA = dividerAnchorPoint(chordA);
     var anchorB = dividerAnchorPoint(chordB);
     return Math.abs((anchorB.x - anchorA.x) * normX + (anchorB.y - anchorA.y) * normY);
+  }
+
+  function projectAlongAngle(x, y, angle) {
+    return x * Math.cos(angle) + y * Math.sin(angle);
+  }
+
+  function chordAlongSpan(chord) {
+    var angle = chord.angle != null ? chord.angle : (chord.axis === 'v' ? Math.PI / 2 : 0);
+    var a1 = projectAlongAngle(chord.x1, chord.y1, angle);
+    var a2 = projectAlongAngle(chord.x2, chord.y2, angle);
+    return { min: Math.min(a1, a2), max: Math.max(a1, a2), angle: angle };
+  }
+
+  function intervalOverlapLen(aMin, aMax, bMin, bMax) {
+    return Math.min(aMax, bMax) - Math.max(aMin, bMin);
+  }
+
+  // Parallel collinear segments conflict only when they also overlap along the cut.
+  function dividersConflict(a, b) {
+    if (dividerOffsetDistance(a, b) >= DIVIDER_MIN_GAP) return false;
+    var spanA = chordAlongSpan(a);
+    var spanB = chordAlongSpan(b);
+    return intervalOverlapLen(spanA.min, spanA.max, spanB.min, spanB.max) > DIVIDER_MIN_GAP * 0.5;
+  }
+
+  function closestPointOnAngleLine(px, py, angle, qx, qy) {
+    var dirX = Math.cos(angle);
+    var dirY = Math.sin(angle);
+    var t = (qx - px) * dirX + (qy - py) * dirY;
+    return { x: px + t * dirX, y: py + t * dirY };
   }
 
   function chordToStoredDivider(chord) {
@@ -1603,6 +1676,106 @@
     if (div.axis === 'h') div.y = div.y1;
     if (div.axis === 'v') div.x = div.x1;
     return div;
+  }
+
+  function mergeDividerChords(chords) {
+    if (!chords || !chords.length) return null;
+    var angle = chords[0].angle;
+    var pts = [];
+    var i;
+    for (i = 0; i < chords.length; i++) {
+      pts.push({ x: chords[i].x1, y: chords[i].y1 });
+      pts.push({ x: chords[i].x2, y: chords[i].y2 });
+    }
+    var bestMin = pts[0];
+    var bestMax = pts[0];
+    var minA = projectAlongAngle(bestMin.x, bestMin.y, angle);
+    var maxA = minA;
+    for (i = 1; i < pts.length; i++) {
+      var a = projectAlongAngle(pts[i].x, pts[i].y, angle);
+      if (a < minA) {
+        minA = a;
+        bestMin = pts[i];
+      }
+      if (a > maxA) {
+        maxA = a;
+        bestMax = pts[i];
+      }
+    }
+    return {
+      axis: chords[0].axis,
+      angle: angle,
+      x1: bestMin.x,
+      y1: bestMin.y,
+      x2: bestMax.x,
+      y2: bestMax.y,
+      snapped: chords.some(function(c) { return !!c.snapped; })
+    };
+  }
+
+  function getShapePanelPolygons(shapeIndex) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.closed || shape.points.length < MIN_POLYGON_POINTS) return [];
+    ensureShapeDividers(shape);
+    if (!shape.dividers.length) {
+      return [shape.points.map(function(p) { return { x: p.x, y: p.y }; })];
+    }
+    return subdividePolygonByDividers(shape.points, shape.dividers);
+  }
+
+  // Build a divider from the drag:
+  // - Always spans the start panel edge-to-edge (classic snap to nearest walls)
+  // - Only continues through more panels in the drag direction (not the reverse)
+  function resolveDividerChordFromDrag(shapeIndex, startX, startY, endX, endY, angle) {
+    var panels = getShapePanelPolygons(shapeIndex);
+    if (!panels.length) return null;
+
+    angle = orientAngleAlongDrag(angle, endX - startX, endY - startY);
+    var dirX = Math.cos(angle);
+    var dirY = Math.sin(angle);
+    var dragAlong = (endX - startX) * dirX + (endY - startY) * dirY;
+    if (dragAlong < DIVIDER_DRAG_THRESHOLD * 0.35) return null;
+
+    var startAlong = projectAlongAngle(startX, startY, angle);
+    var dragMax = startAlong + Math.max(dragAlong, 0);
+
+    var selected = [];
+    var i;
+    for (i = 0; i < panels.length; i++) {
+      var poly = panels[i];
+      if (poly.length < 3) continue;
+      var startsHere = pointInPolygon(startX, startY, poly) ||
+        pointInOrOnPolygon(startX, startY, poly);
+      var centroid = polygonCentroid(poly);
+      var onLine = closestPointOnAngleLine(startX, startY, angle, centroid.x, centroid.y);
+      if (!startsHere && !pointInOrOnPolygon(onLine.x, onLine.y, poly)) continue;
+
+      var pivot = startsHere ? { x: startX, y: startY } : onLine;
+      var chord = chordInPolygonAtAngle(poly, pivot.x, pivot.y, angle);
+      if (!chord || chordLength(chord) < MIN_SEGMENT_PX) continue;
+
+      // Start panel: always full edge-to-edge chord through the click (snaps both ends).
+      if (startsHere) {
+        selected.push(chord);
+        continue;
+      }
+
+      // Other panels: only if the drag reaches forward into them on this cut line.
+      var span = chordAlongSpan(chord);
+      var enter = Math.min(span.min, span.max);
+      var leave = Math.max(span.min, span.max);
+      // Panel lies ahead of the start along the cut, and drag reaches into it.
+      if (leave <= startAlong + 0.5) continue;
+      if (dragMax < enter + DIVIDER_DRAG_THRESHOLD * 0.25) continue;
+      selected.push(chord);
+    }
+
+    if (!selected.length) {
+      var shape = completedShapes[shapeIndex];
+      if (!shape) return null;
+      return chordInPolygonAtAngle(shape.points, startX, startY, angle);
+    }
+    return mergeDividerChords(selected);
   }
 
   function clipPolygonByHalfPlane(polygon, x1, y1, x2, y2, keepPositive) {
@@ -1633,26 +1806,88 @@
     return result.length >= 3 ? result : null;
   }
 
+  function pointToPolygonBoundaryDist(px, py, polygon) {
+    var best = Infinity;
+    var i;
+    for (i = 0; i < polygon.length; i++) {
+      var j = (i + 1) % polygon.length;
+      var d = distancePointToSegment(
+        px, py,
+        polygon[i].x, polygon[i].y,
+        polygon[j].x, polygon[j].y
+      );
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  // Only regions whose full cross-section is covered by the finite divider segment are split.
+  // Also accept short T-junction cuts: both ends on the region boundary and midpoint inside.
+  function finiteDividerSplitsRegion(div, poly) {
+    if (!div || poly.length < 3) return false;
+    normalizeDivider(div);
+    var angle = div.angle != null ? div.angle : (div.axis === 'v' ? Math.PI / 2 : 0);
+    var midX = (div.x1 + div.x2) / 2;
+    var midY = (div.y1 + div.y2) / 2;
+    var spanLen = chordLength(div);
+    if (spanLen < MIN_SEGMENT_PX * 0.75) return false;
+
+    var edgeEps = Math.max(10, MIN_SEGMENT_PX * 0.55);
+    var end1On = pointToPolygonBoundaryDist(div.x1, div.y1, poly) <= edgeEps;
+    var end2On = pointToPolygonBoundaryDist(div.x2, div.y2, poly) <= edgeEps;
+    var midInside = pointInPolygon(midX, midY, poly);
+    // Short T / corner cuts that land on existing edges still split this panel.
+    if (end1On && end2On && midInside) {
+      return true;
+    }
+
+    var chord = chordInPolygonAtAngle(poly, midX, midY, angle);
+    if (!chord) chord = chordInPolygonAtAngle(poly, div.x1, div.y1, angle);
+    if (!chord) chord = chordInPolygonAtAngle(poly, div.x2, div.y2, angle);
+    if (!chord) return false;
+    if (dividerOffsetDistance(div, chord) > Math.max(2, DIVIDER_MIN_GAP * 0.25)) return false;
+
+    var cSpan = chordAlongSpan(chord);
+    var dSpan = chordAlongSpan(div);
+    var cover = intervalOverlapLen(cSpan.min, cSpan.max, dSpan.min, dSpan.max);
+    var chordLen = cSpan.max - cSpan.min;
+    if (chordLen < MIN_SEGMENT_PX * 0.8) return false;
+    // Panel-local segments should cover most of the region cross-section.
+    return cover >= chordLen * 0.62 - 2;
+  }
+
   function subdividePolygonByDividers(polygon, dividers) {
-    var regions = [polygon.map(function(p) { return { x: p.x, y: p.y }; })];
-    dividers.forEach(function(div) {
-      normalizeDivider(div);
-      var next = [];
-      regions.forEach(function(poly) {
-        if (poly.length < 3) return;
+    // Recursively split whatever each finite divider currently covers.
+    // Order-independent: a local horizontal line can wait until vertical columns exist.
+    var minPanelArea = MIN_SEGMENT_PX * MIN_SEGMENT_PX;
+    function splitRegion(poly) {
+      if (!poly || poly.length < 3) return [];
+      var d;
+      for (d = 0; d < dividers.length; d++) {
+        var div = dividers[d];
+        normalizeDivider(div);
+        if (!finiteDividerSplitsRegion(div, poly)) continue;
         var left = clipPolygonByHalfPlane(poly, div.x1, div.y1, div.x2, div.y2, true);
         var right = clipPolygonByHalfPlane(poly, div.x1, div.y1, div.x2, div.y2, false);
-        if (left && polygonArea(left) > MIN_SEGMENT_PX) next.push(left);
-        if (right && polygonArea(right) > MIN_SEGMENT_PX) next.push(right);
-      });
-      if (next.length) regions = next;
-    });
-    return regions;
+        if (!left || !right) continue;
+        if (polygonArea(left) <= minPanelArea || polygonArea(right) <= minPanelArea) continue;
+        return splitRegion(left).concat(splitRegion(right));
+      }
+      return [poly.map(function(p) { return { x: p.x, y: p.y }; })];
+    }
+    return splitRegion(polygon.map(function(p) { return { x: p.x, y: p.y }; }));
   }
 
   function normalizeDivider(div) {
     if (!div.axis) div.axis = 'h';
-    if (div.x1 !== undefined && div.x2 !== undefined) return div;
+    if (div.x1 !== undefined && div.x2 !== undefined) {
+      if (div.angle == null) {
+        if (div.axis === 'v') div.angle = Math.PI / 2;
+        else if (div.axis === 'h') div.angle = 0;
+        else div.angle = Math.atan2(div.y2 - div.y1, div.x2 - div.x1);
+      }
+      return div;
+    }
     if (div.axis === 'v') {
       div.x1 = div.x;
       div.y1 = div.y1;
@@ -1680,11 +1915,16 @@
     var centerX = (xBounds.minX + xBounds.maxX) / 2;
     var width = xBounds.maxX - xBounds.minX;
     if (width > 0 && Math.abs(dividerAnchorPoint(chord).x - centerX) <= width * CENTER_SNAP_RATIO) {
-      var snapped = chordInPolygonAtAngle(shape.points, centerX, dividerAnchorPoint(chord).y, Math.PI / 2);
-      if (snapped) {
-        snapped.snapped = true;
-        return snapped;
-      }
+      // Keep the original span (panel-local); only snap the X position.
+      return {
+        axis: 'v',
+        angle: Math.PI / 2,
+        x1: centerX,
+        y1: chord.y1,
+        x2: centerX,
+        y2: chord.y2,
+        snapped: true
+      };
     }
     return chord;
   }
@@ -1702,8 +1942,16 @@
     var bbox = getShapeBBox(shape);
     var pad = DIVIDER_EDGE_PAD;
     var anchor = dividerAnchorPoint(chord);
-    if (anchor.x <= bbox.minX + pad || anchor.x >= bbox.maxX - pad ||
-        anchor.y <= bbox.minY + pad || anchor.y >= bbox.maxY - pad) {
+    var nearEdge = false;
+    if (chord.axis === 'v') {
+      nearEdge = anchor.x <= bbox.minX + pad || anchor.x >= bbox.maxX - pad;
+    } else if (chord.axis === 'h') {
+      nearEdge = anchor.y <= bbox.minY + pad || anchor.y >= bbox.maxY - pad;
+    } else {
+      nearEdge = anchor.x <= bbox.minX + pad || anchor.x >= bbox.maxX - pad ||
+        anchor.y <= bbox.minY + pad || anchor.y >= bbox.maxY - pad;
+    }
+    if (nearEdge) {
       showToast('Place the divider away from the outer edges');
       return false;
     }
@@ -1711,7 +1959,7 @@
     var di;
     for (di = 0; di < shape.dividers.length; di++) {
       normalizeDivider(shape.dividers[di]);
-      if (dividerOffsetDistance(shape.dividers[di], chord) < DIVIDER_MIN_GAP) {
+      if (dividersConflict(shape.dividers[di], chord)) {
         showToast('A divider is already near this position');
         return false;
       }
@@ -1719,15 +1967,6 @@
 
     var stored = chordToStoredDivider(chord);
     shape.dividers.push(stored);
-    shape.dividers.sort(function(a, b) {
-      normalizeDivider(a);
-      normalizeDivider(b);
-      if (a.axis !== b.axis) return a.axis === 'h' ? -1 : (b.axis === 'h' ? 1 : a.axis.localeCompare(b.axis));
-      var aa = dividerAnchorPoint(a);
-      var bb = dividerAnchorPoint(b);
-      if (Math.abs(aa.y - bb.y) > 12) return aa.y - bb.y;
-      return aa.x - bb.x;
-    });
     actionHistory.push({ type: 'divider', shapeIndex: shapeIndex, axis: stored.axis });
 
     var axisLabel = stored.axis === 'h' ? 'Horizontal' : (stored.axis === 'v' ? 'Vertical' : 'Diagonal');
@@ -1827,6 +2066,133 @@
       labels[panel.id] = idx + 1;
     });
     return labels;
+  }
+
+  function clonePanelLabelPositions() {
+    var copy = {};
+    Object.keys(panelLabelPositions).forEach(function(id) {
+      var p = panelLabelPositions[id];
+      if (!p) return;
+      copy[id] = { x: p.x, y: p.y };
+    });
+    return copy;
+  }
+
+  function getPanelLabelPosition(panel) {
+    var custom = panelLabelPositions[panel.id];
+    if (custom) {
+      return { x: custom.x, y: custom.y, free: true };
+    }
+    return { x: panel.centroid.x, y: panel.centroid.y, free: false };
+  }
+
+  function getPanelLabelHitBox(panel, num) {
+    var pos = getPanelLabelPosition(panel);
+    var text = 'Panel ' + num;
+    var approxW = Math.max(120, text.length * PANEL_LABEL_FONT_SIZE * 0.52);
+    var approxH = PANEL_LABEL_FONT_SIZE * 1.15;
+    return {
+      panelId: panel.id,
+      num: num,
+      x: pos.x,
+      y: pos.y,
+      left: pos.x - approxW / 2,
+      right: pos.x + approxW / 2,
+      top: pos.y - approxH / 2,
+      bottom: pos.y + approxH / 2
+    };
+  }
+
+  function hitTestPanelLabel(x, y) {
+    var panels = getDerivedPanels();
+    var labels = getPanelLabelMap();
+    // Prefer top-most by reverse drawing order (higher numbers first is fine).
+    var i;
+    for (i = panels.length - 1; i >= 0; i--) {
+      var panel = panels[i];
+      var num = labels[panel.id];
+      if (!num) continue;
+      var box = getPanelLabelHitBox(panel, num);
+      if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+        return box;
+      }
+    }
+    return null;
+  }
+
+  function findPanelById(panelId) {
+    var panels = getDerivedPanels();
+    for (var i = 0; i < panels.length; i++) {
+      if (panels[i].id === panelId) return panels[i];
+    }
+    return null;
+  }
+
+  // Place freely; snap-clear to center when near the owning panel centroid.
+  function placePanelLabel(panelId, x, y) {
+    var panel = findPanelById(panelId);
+    if (panel) {
+      var dx = x - panel.centroid.x;
+      var dy = y - panel.centroid.y;
+      if (dx * dx + dy * dy <= PANEL_LABEL_CENTER_SNAP * PANEL_LABEL_CENTER_SNAP) {
+        delete panelLabelPositions[panelId];
+        return { x: panel.centroid.x, y: panel.centroid.y, snapped: true };
+      }
+    }
+    panelLabelPositions[panelId] = {
+      x: Math.round(x * 10) / 10,
+      y: Math.round(y * 10) / 10
+    };
+    return { x: panelLabelPositions[panelId].x, y: panelLabelPositions[panelId].y, snapped: false };
+  }
+
+  function startPanelLabelDrag(hit, pointerX, pointerY) {
+    panelLabelDrag = {
+      panelId: hit.panelId,
+      num: hit.num,
+      grabDx: pointerX - hit.x,
+      grabDy: pointerY - hit.y,
+      startX: hit.x,
+      startY: hit.y,
+      moved: false,
+      snapshot: clonePanelLabelPositions()
+    };
+    canvas.style.cursor = 'grabbing';
+  }
+
+  function updatePanelLabelDrag(p) {
+    if (!panelLabelDrag) return;
+    var x = p.x - panelLabelDrag.grabDx;
+    var y = p.y - panelLabelDrag.grabDy;
+    var dx = x - panelLabelDrag.startX;
+    var dy = y - panelLabelDrag.startY;
+    if (!panelLabelDrag.moved && (dx * dx + dy * dy) < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+    panelLabelDrag.moved = true;
+    placePanelLabel(panelLabelDrag.panelId, x, y);
+    draw();
+  }
+
+  function cancelPanelLabelDrag() {
+    if (panelLabelDrag) canvas.style.cursor = '';
+    panelLabelDrag = null;
+  }
+
+  function commitPanelLabelDrag() {
+    if (!panelLabelDrag) return;
+    if (panelLabelDrag.moved) {
+      actionHistory.push({
+        type: 'panel-label-move',
+        panelId: panelLabelDrag.panelId,
+        snapshot: panelLabelDrag.snapshot
+      });
+      var atCenter = !panelLabelPositions[panelLabelDrag.panelId];
+      showToast(atCenter
+        ? 'Panel ' + panelLabelDrag.num + ' label centered'
+        : 'Panel ' + panelLabelDrag.num + ' label moved');
+    }
+    cancelPanelLabelDrag();
+    updateUi();
+    draw();
   }
 
   function drawDividerSegment(x1, y1, x2, y2, dashed) {
@@ -2142,18 +2508,19 @@
 
   // Find sharp corners first (squares, panels). Never use the global
   // start→end chord — that mis-labels polygon sides as one giant curve.
-  function findSharpCornerIndices(pts) {
+  function findSharpCornerIndices(pts, options) {
     if (pts.length < 5) return [0, pts.length - 1];
-    var span = Math.max(3, Math.min(10, Math.floor(pts.length / 22)));
+    var preferMany = !!(options && options.preferManyCorners);
+    var span = Math.max(3, Math.min(preferMany ? 8 : 10, Math.floor(pts.length / (preferMany ? 28 : 22))));
     var scores = [];
     var i;
     for (i = 0; i < pts.length; i++) scores[i] = 0;
     for (i = span; i < pts.length - span; i++) {
       scores[i] = strokeTurnAngle(pts[i - span], pts[i], pts[i + span]);
     }
-    // Freehand square corners are ~60–120°; ignore gentle arc bend.
-    var cornerThresh = 40 * Math.PI / 180;
-    var nmsWin = Math.max(span, Math.floor(pts.length * 0.035));
+    // Freehand square corners are ~60–120°; open multi-side sidewalks also get milder kinks.
+    var cornerThresh = (preferMany ? 28 : 40) * Math.PI / 180;
+    var nmsWin = Math.max(span, Math.floor(pts.length * (preferMany ? 0.022 : 0.035)));
     var peaks = [];
     for (i = span; i < pts.length - span; i++) {
       if (scores[i] < cornerThresh) continue;
@@ -2169,7 +2536,7 @@
       if (isMax) peaks.push(i);
     }
 
-    var minSep = Math.max(6, Math.floor(pts.length * 0.05));
+    var minSep = Math.max(preferMany ? 4 : 6, Math.floor(pts.length * (preferMany ? 0.028 : 0.05)));
     var filtered = [];
     for (i = 0; i < peaks.length; i++) {
       if (!filtered.length || peaks[i] - filtered[filtered.length - 1] >= minSep) {
@@ -2189,8 +2556,9 @@
     return corners;
   }
 
-  function beautifyInkStroke(raw) {
+  function beautifyInkStroke(raw, options) {
     if (!raw || raw.length < 2) return [];
+    var preferManyCorners = !!(options && options.preferManyCorners);
     if (raw.length === 2) {
       return snapNearAxis(
         { x: Math.round(raw[0].x * 10) / 10, y: Math.round(raw[0].y * 10) / 10 },
@@ -2203,7 +2571,7 @@
     var totalLen = pathLength(smoothed);
     if (totalLen < MIN_SEGMENT_PX * 0.5) return [];
 
-    if (isMostlyStraight(smoothed)) {
+    if (!preferManyCorners && isMostlyStraight(smoothed)) {
       return snapNearAxis(
         { x: Math.round(smoothed[0].x * 10) / 10, y: Math.round(smoothed[0].y * 10) / 10 },
         { x: Math.round(smoothed[smoothed.length - 1].x * 10) / 10, y: Math.round(smoothed[smoothed.length - 1].y * 10) / 10 }
@@ -2211,19 +2579,19 @@
     }
 
     var closed = pointDist(smoothed[0], smoothed[smoothed.length - 1]) < Math.max(CLOSE_SNAP_PX, totalLen * 0.04);
-    var corners = findSharpCornerIndices(smoothed);
+    var corners = findSharpCornerIndices(smoothed, { preferManyCorners: preferManyCorners || !closed });
 
-    // Closed shape with few detected corners: try a tighter pass.
-    if (closed && corners.length < 4) {
+    // Few corners detected: tighter pass — critical for multi-sided sidewalk freehand.
+    if (corners.length < (closed ? 4 : 5)) {
       var alt = [];
-      var span2 = Math.max(2, Math.floor(smoothed.length / 30));
+      var span2 = Math.max(2, Math.floor(smoothed.length / (preferManyCorners ? 36 : 30)));
       var scores2 = [];
       var i2;
       for (i2 = 0; i2 < smoothed.length; i2++) scores2[i2] = 0;
       for (i2 = span2; i2 < smoothed.length - span2; i2++) {
         scores2[i2] = strokeTurnAngle(smoothed[i2 - span2], smoothed[i2], smoothed[i2 + span2]);
       }
-      var thresh2 = 28 * Math.PI / 180;
+      var thresh2 = (preferManyCorners || !closed ? 22 : 28) * Math.PI / 180;
       for (i2 = span2; i2 < smoothed.length - span2; i2++) {
         if (scores2[i2] < thresh2) continue;
         var localMax = true;
@@ -2232,7 +2600,8 @@
         }
         if (localMax) alt.push(i2);
       }
-      if (alt.length >= 3) {
+      var minAlt = closed ? 3 : 2;
+      if (alt.length >= minAlt) {
         corners = [0].concat(alt).concat([smoothed.length - 1]);
       }
     }
@@ -2378,8 +2747,9 @@
     return Math.max(CLOSE_SNAP_PX * 3.5, MIN_SEGMENT_PX * 3.2, LETTER_WIDTH * 0.028);
   }
 
-  // Walk along one border path from fromHit → toHit (shorter way if closed).
-  function walkBorderBetween(path, fromHit, toHit) {
+  // Walk closed/open border from fromHit → toHit both directions.
+  // Returns { short, long } chains (each begins with from, ends with to).
+  function walkBorderChainsBoth(path, fromHit, toHit) {
     if (!path || !path.points || path.points.length < 2 || !fromHit || !toHit) return null;
     var pts = path.points;
     var closed = !!path.closed;
@@ -2389,7 +2759,42 @@
     function clone(p) { return { x: p.x, y: p.y }; }
 
     if (fromHit.segIndex === toHit.segIndex) {
-      return [clone(fromHit), clone(toHit)];
+      var direct = [clone(fromHit), clone(toHit)];
+      if (!closed) return { short: direct, long: direct };
+      // Opposite way goes the long way around the ring through every vertex.
+      var around = [clone(fromHit)];
+      var seg = fromHit.segIndex;
+      var steps = 0;
+      var nextSeg = closed ? (seg + 1) % n : seg + 1;
+      while (steps++ <= segCount + 2) {
+        var endIdx = (seg + 1) % n;
+        around.push(clone(pts[endIdx]));
+        if (nextSeg === toHit.segIndex && steps > 0) {
+          // Completed full loop except we need the long path when same segment:
+          // build full ring start→… back not including short.
+          break;
+        }
+        seg = nextSeg;
+        nextSeg = closed ? (seg + 1) % n : seg + 1;
+      }
+      // Prefer simple: short = direct; long = go around opposite vertex order.
+      var longSame = [clone(fromHit)];
+      var prev = fromHit.segIndex;
+      steps = 0;
+      while (steps++ <= segCount + 2) {
+        var prevSeg = closed ? (prev - 1 + n) % n : prev - 1;
+        if (prevSeg < 0) break;
+        longSame.push(clone(pts[prev]));
+        if (prevSeg === toHit.segIndex) {
+          longSame.push(clone(toHit));
+          break;
+        }
+        prev = prevSeg;
+      }
+      if (longSame.length >= 2 && longSame[longSame.length - 1]) {
+        return { short: direct, long: longSame.length > 2 ? longSame : direct };
+      }
+      return { short: direct, long: direct };
     }
 
     function buildChain(forward) {
@@ -2435,9 +2840,201 @@
 
     var a = buildChain(true);
     var b = buildChain(false);
-    if (!a) return b;
-    if (!b) return a;
-    return chainLen(a) <= chainLen(b) ? a : b;
+    if (!a && !b) return null;
+    if (!a) return { short: b, long: b };
+    if (!b) return { short: a, long: a };
+    var la = chainLen(a);
+    var lb = chainLen(b);
+    return la <= lb
+      ? { short: a, long: b }
+      : { short: b, long: a };
+  }
+
+  // Walk along one border path from fromHit → toHit (shorter way if closed).
+  function walkBorderBetween(path, fromHit, toHit) {
+    var both = walkBorderChainsBoth(path, fromHit, toHit);
+    return both ? both.short : null;
+  }
+
+  function rootShapeIndexFromPathId(pathId) {
+    if (!pathId) return null;
+    var m;
+    if (pathId.indexOf('shape:') === 0) {
+      return parseInt(pathId.slice(6), 10);
+    }
+    if (pathId.indexOf('panel:') === 0) {
+      // panel:{shapeIndex}:{ri...}
+      var rest = pathId.slice(6);
+      var colon = rest.indexOf(':');
+      if (colon < 0) return null;
+      return parseInt(rest.slice(0, colon), 10);
+    }
+    if (pathId.indexOf('div:') === 0) {
+      m = pathId.split(':');
+      return m.length >= 2 ? parseInt(m[1], 10) : null;
+    }
+    return null;
+  }
+
+  function hitOnRootOutline(shapeIndex, x, y, maxDist) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.points || shape.points.length < 3) return null;
+    var path = { id: 'shape:' + shapeIndex, points: shape.points, closed: true };
+    var proj = projectPointOntoPath(path, x, y);
+    if (!proj || proj.dist > maxDist) return null;
+    return hitFromProjection(path, proj, -1);
+  }
+
+  function snapToNearestRootOutline(x, y, maxDist) {
+    var best = null;
+    var bestIdx = null;
+    var i;
+    for (i = 0; i < completedShapes.length; i++) {
+      if (!isRootShape(i)) continue;
+      var hit = hitOnRootOutline(i, x, y, maxDist);
+      if (!hit) continue;
+      if (!best || hit.dist < best.dist) {
+        best = hit;
+        bestIdx = i;
+      }
+    }
+    if (!best) return null;
+    best.shapeIndex = bestIdx;
+    best.pathId = 'shape:' + bestIdx;
+    best.snapped = true;
+    return best;
+  }
+
+  // Expand root outline with an exterior stroke A→B, and return the new
+  // outline plus the attachment (neck) endpoints for a panel divider.
+  function expandRootOutlineWithStroke(shapeIndex, freehand) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.closed || !freehand || freehand.length < 2) return null;
+    var outline = shape.points;
+    if (outline.length < 3) return null;
+
+    var maxDist = oddSnapThreshold();
+    var a = freehand[0];
+    var b = freehand[freehand.length - 1];
+    var startHit = hitOnRootOutline(shapeIndex, a.x, a.y, maxDist);
+    var endHit = hitOnRootOutline(shapeIndex, b.x, b.y, maxDist);
+    if (!startHit || !endHit) return null;
+
+    if (pointDist(startHit, endHit) < MIN_SEGMENT_PX * 0.5) return null;
+
+    var free = freehand.map(function(p) { return { x: p.x, y: p.y }; });
+    free[0] = { x: startHit.x, y: startHit.y };
+    free[free.length - 1] = { x: endHit.x, y: endHit.y };
+
+    // Exterior path should mostly stay outside (multi-side sidewalks can graze the wall).
+    var outsideOrEdge = 0;
+    var samples = 0;
+    var si;
+    for (si = 1; si < free.length - 1; si++) {
+      samples++;
+      var pt = free[si];
+      if (!pointInPolygon(pt.x, pt.y, outline) ||
+          pointToPolygonBoundaryDist(pt.x, pt.y, outline) <= MIN_SEGMENT_PX * 0.85) {
+        outsideOrEdge++;
+      }
+    }
+    if (samples > 0 && outsideOrEdge < Math.max(1, Math.ceil(samples * 0.4))) {
+      return null;
+    }
+
+    var path = { id: 'shape:' + shapeIndex, points: outline, closed: true };
+    // Chains from end B → start A along outline.
+    var chains = walkBorderChainsBoth(path, endHit, startHit);
+    if (!chains || !chains.short || !chains.long) return null;
+
+    function buildExpanded(hostBA) {
+      if (!hostBA || hostBA.length < 2) return null;
+      var poly = free.slice();
+      var i;
+      for (i = 1; i < hostBA.length; i++) {
+        poly.push({ x: hostBA[i].x, y: hostBA[i].y });
+      }
+      if (poly.length >= 2 && pointDist(poly[0], poly[poly.length - 1]) < 0.75) {
+        poly.pop();
+      }
+      if (poly.length < MIN_POLYGON_POINTS) return null;
+      return poly;
+    }
+
+    var hostArea = polygonArea(outline);
+    var candLong = buildExpanded(chains.long);
+    var candShort = buildExpanded(chains.short);
+    var best = null;
+    var bestArea = hostArea;
+
+    function consider(cand) {
+      if (!cand) return;
+      var ar = polygonArea(cand);
+      if (ar > bestArea + MIN_SEGMENT_PX * MIN_SEGMENT_PX * 0.25) {
+        bestArea = ar;
+        best = cand;
+      }
+    }
+    // Prefer long host walk (replace short neck wall with freehand on exterior).
+    consider(candLong);
+    consider(candShort);
+    if (!best) return null;
+
+    return {
+      points: best.map(function(p) {
+        return { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+      }),
+      startHit: { x: startHit.x, y: startHit.y },
+      endHit: { x: endHit.x, y: endHit.y }
+    };
+  }
+
+  // Build the neck divider that turns the exterior lobe into its own labeled panel.
+  function attachmentDividerFromHits(startHit, endHit) {
+    var angle = Math.atan2(endHit.y - startHit.y, endHit.x - startHit.x);
+    var snapped = snapDividerAngle(angle);
+    return chordToStoredDivider({
+      axis: angleToDividerAxis(snapped),
+      angle: snapped,
+      x1: startHit.x,
+      y1: startHit.y,
+      x2: endHit.x,
+      y2: endHit.y
+    });
+  }
+
+  function applyOutlineExpansion(shapeIndex, freehand) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape) return false;
+    var result = expandRootOutlineWithStroke(shapeIndex, freehand);
+    if (!result || !result.points) return false;
+    var snapshot = cloneShapeGeometry(shape);
+    shape.points = result.points;
+    ensureShapeDividers(shape);
+
+    // Always place a divider on the attachment neck so the new exterior lobe is
+    // a separate labeled panel (like 8 / 10 / 11), still in the same outline.
+    var neck = attachmentDividerFromHits(result.startHit, result.endHit);
+    if (neck && chordLength(neck) >= MIN_SEGMENT_PX * 0.5) {
+      var conflict = false;
+      var di;
+      for (di = 0; di < shape.dividers.length; di++) {
+        if (dividersConflict(shape.dividers[di], neck)) {
+          conflict = true;
+          break;
+        }
+      }
+      if (!conflict) {
+        shape.dividers.push(neck);
+      }
+    }
+
+    actionHistory.push({
+      type: 'outline-expand',
+      shapeIndex: shapeIndex,
+      snapshot: snapshot
+    });
+    return true;
   }
 
   function projectPointOntoPath(path, x, y) {
@@ -2800,21 +3397,35 @@
     cancelOddDraft();
     if (!attachment) return false;
 
-    var pts = buildOddPanelFromStroke(
-      raw,
-      attachment.startHit,
-      attachment.endHit,
-      attachment.border
-    );
-    if (!pts) return false;
+    // Freehand exterior run A→B — keep multi-corner sidewalk / freeform shapes.
+    var freehand = beautifyInkStroke(raw, { preferManyCorners: true });
+    if (!freehand || freehand.length < 2) return false;
+    freehand[0] = { x: attachment.startHit.x, y: attachment.startHit.y };
+    freehand[freehand.length - 1] = { x: attachment.endHit.x, y: attachment.endHit.y };
 
-    completedShapes.push({
-      points: pts,
-      closed: true,
-      dividers: []
-    });
-    actionHistory.push({ type: 'shape' });
-    return true;
+    // Always expand into a root host + neck divider (own labeled panel, same shape).
+    // Never create a nested overlay shape for exterior attaches.
+    var hostIdx = rootShapeIndexFromPathId(attachment.startHit.pathId);
+    var hostIdx2 = rootShapeIndexFromPathId(attachment.endHit.pathId);
+
+    if (hostIdx != null && hostIdx === hostIdx2 && isRootShape(hostIdx)) {
+      if (applyOutlineExpansion(hostIdx, freehand)) return true;
+    }
+    if (hostIdx != null && isRootShape(hostIdx) && applyOutlineExpansion(hostIdx, freehand)) {
+      return true;
+    }
+    if (hostIdx2 != null && hostIdx2 !== hostIdx && isRootShape(hostIdx2) &&
+        applyOutlineExpansion(hostIdx2, freehand)) {
+      return true;
+    }
+
+    // Last resort: try every root outline near the hits.
+    var hi;
+    for (hi = 0; hi < completedShapes.length; hi++) {
+      if (!isRootShape(hi)) continue;
+      if (applyOutlineExpansion(hi, freehand)) return true;
+    }
+    return false;
   }
 
   function drawOddDraft() {
@@ -2992,6 +3603,7 @@
     activeDrawMode = 'outline';
     dividerTargetIndex = null;
     dividerDrag = null;
+    outlineAttach = null;
     measureDraft = null;
     measureCursor = null;
   }
@@ -3671,28 +4283,23 @@
       dividerPreview = null;
       return;
     }
+    // Re-evaluate from the full start→current vector every move so early noise
+    // cannot permanently lock the wrong axis.
+    dividerDrag.angle = resolveDividerAngleFromDrag(
+      p.x - dividerDrag.startX,
+      p.y - dividerDrag.startY
+    );
     if (dividerDrag.angle === null) {
-      dividerDrag.angle = resolveDividerAngleFromDrag(
-        p.x - dividerDrag.startX,
-        p.y - dividerDrag.startY,
-        shape,
-        dividerDrag.startX,
-        dividerDrag.startY
-      );
-    }
-    if (dividerDrag.angle === null) {
-      dividerPreview = chordInPolygonAtAngle(
-        shape.points,
-        dividerDrag.startX,
-        dividerDrag.startY,
-        preferredDividerAngleAtPoint(shape.points, dividerDrag.startX, dividerDrag.startY)
-      );
+      // No clear direction yet — wait for a real drag before preview.
+      dividerPreview = null;
       return;
     }
-    dividerPreview = chordInPolygonAtAngle(
-      shape.points,
+    dividerPreview = resolveDividerChordFromDrag(
+      dividerDrag.shapeIndex,
       dividerDrag.startX,
       dividerDrag.startY,
+      dividerDrag.currentX,
+      dividerDrag.currentY,
       dividerDrag.angle
     );
   }
@@ -3709,18 +4316,22 @@
       cancelDividerDrag();
       return;
     }
+    var dx = dividerDrag.currentX - dividerDrag.startX;
+    var dy = dividerDrag.currentY - dividerDrag.startY;
+    dividerDrag.angle = resolveDividerAngleFromDrag(dx, dy);
     if (dividerDrag.angle === null) {
-      var dx = dividerDrag.currentX - dividerDrag.startX;
-      var dy = dividerDrag.currentY - dividerDrag.startY;
-      dividerDrag.angle = resolveDividerAngleFromDrag(dx, dy, shape, dividerDrag.startX, dividerDrag.startY);
-      if (dividerDrag.angle === null) {
-        dividerDrag.angle = preferredDividerAngleAtPoint(shape.points, dividerDrag.startX, dividerDrag.startY);
-      }
+      cancelDividerDrag();
+      showToast('Drag to set divider direction (H, V, or diagonal)');
+      updateUi();
+      draw();
+      return;
     }
-    var chord = chordInPolygonAtAngle(
-      shape.points,
+    var chord = resolveDividerChordFromDrag(
+      dividerDrag.shapeIndex,
       dividerDrag.startX,
       dividerDrag.startY,
+      dividerDrag.currentX,
+      dividerDrag.currentY,
       dividerDrag.angle
     );
     addDividerFromChord(dividerDrag.shapeIndex, chord, false);
@@ -3874,18 +4485,21 @@
   function drawPanelLabels(labelMap) {
     var panels = getDerivedPanels();
     ctx.save();
-    ctx.font = '700 56px Montserrat, sans-serif';
+    ctx.font = '700 ' + PANEL_LABEL_FONT_SIZE + 'px Montserrat, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     panels.forEach(function(panel) {
       var num = labelMap[panel.id];
       if (!num) return;
+      var pos = getPanelLabelPosition(panel);
       var text = 'Panel ' + num;
+      var dragging = panelLabelDrag && panelLabelDrag.panelId === panel.id;
+      ctx.globalAlpha = dragging ? 0.85 : 1;
       ctx.lineWidth = 10;
       ctx.strokeStyle = '#ffffff';
-      ctx.strokeText(text, panel.centroid.x, panel.centroid.y);
+      ctx.strokeText(text, pos.x, pos.y);
       ctx.fillStyle = COLORS.stroke;
-      ctx.fillText(text, panel.centroid.x, panel.centroid.y);
+      ctx.fillText(text, pos.x, pos.y);
     });
     ctx.restore();
   }
@@ -3899,6 +4513,7 @@
         : (n === 0 || (toolMode !== 'draw' && toolMode !== 'line'));
     }
     btnFinish.disabled = !(
+      (toolMode === 'draw' && outlineAttach && n >= 2) ||
       (toolMode === 'draw' && activeDrawMode === 'outline' && n >= MIN_POLYGON_POINTS) ||
       (toolMode === 'line' && n >= 2)
     );
@@ -3916,8 +4531,8 @@
     }
     if (toolMode === 'odd') {
       statusEl.innerHTML = oddDragging
-        ? 'Trace the odd part — end near the <strong>same</strong> panel side, divider, or line (snaps if slightly off).'
-        : 'Odd panel — start/end anywhere on panel sides, inside dividers, or lines (near-miss snaps onto the line).';
+        ? 'Trace the exterior — end on the outline to add a new labeled panel on this shape.'
+        : 'Odd panel — start on an outer edge, freehand outside, end on the outline. Joins the shape as its own panel (with a neck line).';
       return;
     }
     if (toolMode === 'ink') {
@@ -3966,13 +4581,19 @@
         : 'Press to start a crack, then drag freely (any angle) for a straight segment.';
       return;
     }
+    if (outlineAttach) {
+      statusEl.innerHTML = currentPoints.length < 2
+        ? 'Extending shape — place as many exterior corners as you need (shaped sidewalks ok).'
+        : '<strong>' + currentPoints.length + '</strong> corners — add more sides, then tap the <strong>outer edge</strong> (or Finish) to place the panel.';
+      return;
+    }
     if (n === 0) {
       if (isAttachMode && completedShapes.length) {
         statusEl.innerHTML = 'Sketch ready — tap <strong>Attach to estimate</strong> to return to the estimator.';
       } else if (isAttachMode) {
         statusEl.innerHTML = 'Draw the outer outline with as many corners as you need, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
-        statusEl.innerHTML = 'Drag inside a shape to add a divider — lines snap to the shape and can run horizontally, vertically, or diagonally.';
+        statusEl.innerHTML = 'Drag inside for dividers, or start on an <strong>outer edge</strong> to expand the shape outward.';
       } else {
         statusEl.innerHTML = '';
       }
@@ -4250,6 +4871,32 @@
     if (!currentPoints.length) {
       activeDrawMode = 'outline';
       dividerTargetIndex = null;
+      // Start on an existing root outer edge → exterior attach mode.
+      var edgeStart = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
+      if (edgeStart && edgeStart.snapped && !pointInPolygon(clamped.x, clamped.y, completedShapes[edgeStart.shapeIndex].points)) {
+        outlineAttach = {
+          shapeIndex: edgeStart.shapeIndex,
+          startHit: edgeStart
+        };
+        currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
+        updateUi();
+        draw();
+        showToast('Extending shape — draw outside, then end on the outline');
+        return;
+      }
+      // Also allow start slightly outside but near the wall.
+      if (edgeStart && edgeStart.snapped && edgeStart.dist <= CLOSE_SNAP_PX * 1.2) {
+        outlineAttach = {
+          shapeIndex: edgeStart.shapeIndex,
+          startHit: edgeStart
+        };
+        currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
+        updateUi();
+        draw();
+        showToast('Extending shape — draw outside, then end on the outline');
+        return;
+      }
+      outlineAttach = null;
       currentPoints.push(clamped);
       updateUi();
       draw();
@@ -4257,6 +4904,56 @@
     }
 
     if (activeDrawMode === 'outline') {
+      // Exterior attach: multi-sided freehand corners, then rejoin host edge only.
+      if (outlineAttach) {
+        var host = completedShapes[outlineAttach.shapeIndex];
+        var endSnap = attachEndSnapPx();
+        if (host) {
+          var endEdge = hitOnRootOutline(
+            outlineAttach.shapeIndex,
+            clamped.x, clamped.y,
+            endSnap
+          );
+          // Only finish when the tap itself is on the edge (not a far free corner).
+          if (endEdge && endEdge.dist <= endSnap && currentPoints.length >= 2 &&
+              pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
+            currentPoints.push({ x: endEdge.x, y: endEdge.y });
+            finishOutlineAttachment();
+            return;
+          }
+        }
+        // Allow corners outside; ignore "inside shape" toast while attaching.
+        if (findRootContainerAt(clamped.x, clamped.y) !== null &&
+            findRootContainerAt(clamped.x, clamped.y) === outlineAttach.shapeIndex) {
+          // Interior click on host: finish only if deliberately near outer edge.
+          var nearEnd = hitOnRootOutline(
+            outlineAttach.shapeIndex,
+            clamped.x, clamped.y,
+            endSnap
+          );
+          if (nearEnd && nearEnd.dist <= endSnap && currentPoints.length >= 2 &&
+              pointDist(nearEnd, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
+            currentPoints.push({ x: nearEnd.x, y: nearEnd.y });
+            finishOutlineAttachment();
+            return;
+          }
+          showToast('Add more exterior corners, or finish on the outer edge');
+          return;
+        }
+        var anchorA = currentPoints[currentPoints.length - 1];
+        var snappedA = snapAttachCornerFromAnchor(anchorA, clamped.x, clamped.y);
+        if (!snappedA) {
+          showToast('Move farther from the last corner');
+          return;
+        }
+        // Keep intermediate sidewalk corners even if they pass near the host
+        // (end only when tap is within attachEndSnapPx of the outline).
+        currentPoints.push(clampToContent(snappedA.x, snappedA.y, layout));
+        updateUi();
+        draw();
+        return;
+      }
+
       if (currentPoints.length >= MIN_POLYGON_POINTS && tryCloseOutlineAt(clamped)) return;
       if (findRootContainerAt(clamped.x, clamped.y) !== null) {
         showToast('Drag inside the shape to add dividers — only the outer outline uses corners');
@@ -4273,6 +4970,33 @@
 
     updateUi();
     draw();
+  }
+
+  function finishOutlineAttachment() {
+    if (!outlineAttach || currentPoints.length < 2) {
+      outlineAttach = null;
+      currentPoints = [];
+      cursorPoint = null;
+      updateUi();
+      draw();
+      return;
+    }
+    var freehand = currentPoints.map(function(p) { return { x: p.x, y: p.y }; });
+    var shapeIndex = outlineAttach.shapeIndex;
+    outlineAttach = null;
+    currentPoints = [];
+    cursorPoint = null;
+    activeDrawMode = 'outline';
+    dividerTargetIndex = null;
+    if (applyOutlineExpansion(shapeIndex, freehand)) {
+      updateUi();
+      draw();
+      showToast('Exterior panel added to shape');
+      return;
+    }
+    updateUi();
+    draw();
+    showToast('Could not attach that extension — end on the outer edge outside the shape');
   }
 
   function handleMovePointerDown(e, p) {
@@ -4308,6 +5032,7 @@
     var measurementSnapshot = cloneMeasurements();
     var crackSnapshot = cloneCracks();
     var lineSnapshot = cloneLines();
+    var panelLabelSnapshot = clonePanelLabelPositions();
     var numberMoveIndices = [];
     var xMarkMoveIndices = [];
     var circleMoveIndices = [];
@@ -4376,6 +5101,7 @@
       measurementSnapshot: measurementSnapshot,
       crackSnapshot: crackSnapshot,
       lineSnapshot: lineSnapshot,
+      panelLabelSnapshot: panelLabelSnapshot,
       numberMoveIndices: numberMoveIndices,
       xMarkMoveIndices: xMarkMoveIndices,
       circleMoveIndices: circleMoveIndices,
@@ -4477,6 +5203,18 @@
         return { x: p0.x + dx, y: p0.y + dy };
       });
     });
+
+    // Free panel-label overrides for this shape move with the geometry.
+    panelLabelPositions = {};
+    Object.keys(dragState.panelLabelSnapshot || {}).forEach(function(id) {
+      var src = dragState.panelLabelSnapshot[id];
+      if (!src) return;
+      var belongs = id.indexOf(String(dragState.shapeIndex) + ':') === 0;
+      panelLabelPositions[id] = {
+        x: Math.round((src.x + (belongs ? dx : 0)) * 10) / 10,
+        y: Math.round((src.y + (belongs ? dy : 0)) * 10) / 10
+      };
+    });
     draw();
   }
 
@@ -4503,7 +5241,8 @@
           circleSnapshot: dragState.circleSnapshot,
           measurementSnapshot: dragState.measurementSnapshot,
           crackSnapshot: dragState.crackSnapshot,
-          lineSnapshot: dragState.lineSnapshot
+          lineSnapshot: dragState.lineSnapshot,
+          panelLabelSnapshot: dragState.panelLabelSnapshot
         });
         showToast('Shape moved');
       }
@@ -4535,6 +5274,7 @@
     if (!currentPoints.length) {
       activeDrawMode = 'outline';
       dividerTargetIndex = null;
+      outlineAttach = null;
     }
     updateUi();
     draw();
@@ -4543,6 +5283,24 @@
   function finishShape() {
     if (toolMode === 'line') {
       finishLine(false);
+      return;
+    }
+    if (outlineAttach) {
+      if (currentPoints.length < 2) {
+        showToast('Add more corners, then end on the shape edge');
+        return;
+      }
+      // Try snap last point onto host outline if close.
+      var last = currentPoints[currentPoints.length - 1];
+      var endSnap = hitOnRootOutline(
+        outlineAttach.shapeIndex,
+        last.x, last.y,
+        oddSnapThreshold()
+      );
+      if (endSnap) {
+        currentPoints[currentPoints.length - 1] = { x: endSnap.x, y: endSnap.y };
+      }
+      finishOutlineAttachment();
       return;
     }
     if (currentPoints.length < MIN_POLYGON_POINTS) {
@@ -4560,6 +5318,7 @@
     cursorPoint = null;
     activeDrawMode = 'outline';
     dividerTargetIndex = null;
+    outlineAttach = null;
     updateUi();
     draw();
     if (rectified.leveled) {
@@ -4575,6 +5334,34 @@
     if (action.type === 'divider') {
       var divShape = completedShapes[action.shapeIndex];
       if (divShape && divShape.dividers && divShape.dividers.length) divShape.dividers.pop();
+    } else if (action.type === 'outline-expand') {
+      var expandedShape = completedShapes[action.shapeIndex];
+      if (expandedShape && action.snapshot) {
+        expandedShape.points = action.snapshot.points.map(function(p) {
+          return { x: p.x, y: p.y };
+        });
+        expandedShape.dividers = (action.snapshot.dividers || []).map(function(d) {
+          normalizeDivider(d);
+          var copy = {
+            axis: d.axis,
+            angle: d.angle,
+            x1: d.x1,
+            y1: d.y1,
+            x2: d.x2,
+            y2: d.y2
+          };
+          if (copy.axis === 'v') {
+            copy.x = d.x;
+            copy.y1 = d.y1;
+            copy.y2 = d.y2;
+          } else if (copy.axis === 'h') {
+            copy.y = d.y;
+            copy.x1 = d.x1;
+            copy.x2 = d.x2;
+          }
+          return copy;
+        });
+      }
     } else if (action.type === 'shape') {
       completedShapes.pop();
       selectedShapeIndex = null;
@@ -4598,6 +5385,15 @@
       }
     } else if (action.type === 'crack') {
       cracks.pop();
+    } else if (action.type === 'panel-label-move') {
+      panelLabelPositions = {};
+      if (action.snapshot) {
+        Object.keys(action.snapshot).forEach(function(id) {
+          var src = action.snapshot[id];
+          if (!src) return;
+          panelLabelPositions[id] = { x: src.x, y: src.y };
+        });
+      }
     } else if (action.type === 'move') {
       var moved = completedShapes[action.shapeIndex];
       if (moved && action.snapshot) {
@@ -4665,6 +5461,14 @@
           };
         });
       }
+      if (action.panelLabelSnapshot) {
+        panelLabelPositions = {};
+        Object.keys(action.panelLabelSnapshot).forEach(function(id) {
+          var src = action.panelLabelSnapshot[id];
+          if (!src) return;
+          panelLabelPositions[id] = { x: src.x, y: src.y };
+        });
+      }
     }
     updateUi();
     draw();
@@ -4680,6 +5484,8 @@
     xMarks = [];
     circles = [];
     cracks = [];
+    panelLabelPositions = {};
+    panelLabelDrag = null;
     stopNumberDrag();
     closeMeasureEditor(false);
     cancelCrackDraft();
@@ -5156,7 +5962,7 @@
     }
 
     // Allow editing existing measurement labels without leaving draw mode.
-    if (!currentPoints.length && !dividerDrag) {
+    if (!currentPoints.length && !dividerDrag && !panelLabelDrag) {
       var editHit = hitTestMeasurementLabel(clamped.x, clamped.y);
       if (editHit !== null) {
         openMeasureEditor(editHit);
@@ -5165,9 +5971,34 @@
       }
     }
 
+    // Drag panel labels freely (before divider hits).
+    if (!currentPoints.length && !dividerDrag) {
+      var labelHit = hitTestPanelLabel(clamped.x, clamped.y);
+      if (labelHit) {
+        startPanelLabelDrag(labelHit, clamped.x, clamped.y);
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (currentPoints.length) {
       addPoint(p.x, p.y);
     } else {
+      // Prefer starting an exterior outline attach when near a root edge.
+      if (toolMode === 'draw') {
+        var edgeStart = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
+        if (edgeStart && edgeStart.snapped) {
+          var hostPoly = completedShapes[edgeStart.shapeIndex] &&
+            completedShapes[edgeStart.shapeIndex].points;
+          var deepInside = hostPoly && pointInPolygon(clamped.x, clamped.y, hostPoly) &&
+            pointToPolygonBoundaryDist(clamped.x, clamped.y, hostPoly) > CLOSE_SNAP_PX * 1.1;
+          if (!deepInside) {
+            addPoint(p.x, p.y);
+            e.preventDefault();
+            return;
+          }
+        }
+      }
       var containerIdx = findRootContainerAt(clamped.x, clamped.y);
       if (containerIdx !== null) {
         startDividerDrag(containerIdx, clamped.x, clamped.y);
@@ -5182,6 +6013,11 @@
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     var raw = getPointerPos(e);
     var p = clampToContent(raw.x, raw.y, layout);
+
+    if (panelLabelDrag) {
+      updatePanelLabelDrag(p);
+      return;
+    }
 
     if (toolMode === 'move') {
       handleMovePointerMove(p);
@@ -5256,6 +6092,7 @@
 
   canvas.addEventListener('pointerleave', function() {
     cursorPoint = null;
+    if (panelLabelDrag) return;
     if (toolMode === 'crack') {
       crackCursor = null;
       draw();
@@ -5273,7 +6110,9 @@
   });
 
   canvas.addEventListener('pointerup', function(e) {
-    if (toolMode === 'move') {
+    if (panelLabelDrag) {
+      commitPanelLabelDrag();
+    } else if (toolMode === 'move') {
       handleMovePointerUp();
     } else if (toolMode === 'crack' && crackDragging) {
       crackDragging = false;
@@ -5316,9 +6155,9 @@
           cancelOddDraft();
           showToast('End near a connected panel side, divider, or line (near-miss is OK)');
         } else if (commitOddPanelDraft()) {
-          showToast('Odd panel added — ' + getDerivedPanels().length + ' panels');
+          showToast('Exterior panel added to shape');
         } else {
-          showToast('Could not build panel from that stroke — try again');
+          showToast('Could not attach — start and end on the outer edge of the same shape');
         }
       }
       updateUi();
