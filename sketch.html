@@ -4593,7 +4593,7 @@
       } else if (isAttachMode) {
         statusEl.innerHTML = 'Draw the outer outline with as many corners as you need, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
-        statusEl.innerHTML = 'Drag inside for dividers, or start on an <strong>outer edge</strong> to expand the shape outward.';
+        statusEl.innerHTML = 'Drag inside any panel (including exterior wings) for dividers. Start <strong>outside</strong> an outer edge to expand the shape.';
       } else {
         statusEl.innerHTML = '';
       }
@@ -4871,30 +4871,25 @@
     if (!currentPoints.length) {
       activeDrawMode = 'outline';
       dividerTargetIndex = null;
-      // Start on an existing root outer edge → exterior attach mode.
+      // Exterior attach only from OUTSIDE the outline. Exterior lobes are part of
+      // the same shape — interior presses (including near outer walls of Panel 4,
+      // sidewalks, etc.) must not start attach; those use divider drag instead.
       var edgeStart = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
-      if (edgeStart && edgeStart.snapped && !pointInPolygon(clamped.x, clamped.y, completedShapes[edgeStart.shapeIndex].points)) {
-        outlineAttach = {
-          shapeIndex: edgeStart.shapeIndex,
-          startHit: edgeStart
-        };
-        currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
-        updateUi();
-        draw();
-        showToast('Extending shape — draw outside, then end on the outline');
-        return;
-      }
-      // Also allow start slightly outside but near the wall.
-      if (edgeStart && edgeStart.snapped && edgeStart.dist <= CLOSE_SNAP_PX * 1.2) {
-        outlineAttach = {
-          shapeIndex: edgeStart.shapeIndex,
-          startHit: edgeStart
-        };
-        currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
-        updateUi();
-        draw();
-        showToast('Extending shape — draw outside, then end on the outline');
-        return;
+      if (edgeStart && edgeStart.snapped) {
+        var hostPts = completedShapes[edgeStart.shapeIndex] &&
+          completedShapes[edgeStart.shapeIndex].points;
+        var insideHost = hostPts && pointInOrOnPolygon(clamped.x, clamped.y, hostPts);
+        if (!insideHost) {
+          outlineAttach = {
+            shapeIndex: edgeStart.shapeIndex,
+            startHit: edgeStart
+          };
+          currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
+          updateUi();
+          draw();
+          showToast('Extending shape — draw outside, then end on the outline');
+          return;
+        }
       }
       outlineAttach = null;
       currentPoints.push(clamped);
@@ -5982,23 +5977,24 @@
     }
 
     if (currentPoints.length) {
-      addPoint(p.x, p.y);
-    } else {
-      // Prefer starting an exterior outline attach when near a root edge.
-      if (toolMode === 'draw') {
-        var edgeStart = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
-        if (edgeStart && edgeStart.snapped) {
-          var hostPoly = completedShapes[edgeStart.shapeIndex] &&
-            completedShapes[edgeStart.shapeIndex].points;
-          var deepInside = hostPoly && pointInPolygon(clamped.x, clamped.y, hostPoly) &&
-            pointToPolygonBoundaryDist(clamped.x, clamped.y, hostPoly) > CLOSE_SNAP_PX * 1.1;
-          if (!deepInside) {
-            addPoint(p.x, p.y);
-            e.preventDefault();
-            return;
-          }
+      // Accidental attach start (one corner on edge): resume with a drag inside the
+      // same root shape should subdivide as usual, not toast "exterior corners".
+      if (toolMode === 'draw' && outlineAttach && currentPoints.length === 1) {
+        var resumeIdx = findRootContainerAt(clamped.x, clamped.y);
+        if (resumeIdx !== null && resumeIdx === outlineAttach.shapeIndex) {
+          outlineAttach = null;
+          currentPoints = [];
+          cursorPoint = null;
+          startDividerDrag(resumeIdx, clamped.x, clamped.y);
+          updateUi();
+          e.preventDefault();
+          return;
         }
       }
+      addPoint(p.x, p.y);
+    } else {
+      // Exterior lobes (sidewalks, wing panels) are inside the expanded root outline.
+      // Always prefer dividers wherever the pointer is on/in that shape.
       var containerIdx = findRootContainerAt(clamped.x, clamped.y);
       if (containerIdx !== null) {
         startDividerDrag(containerIdx, clamped.x, clamped.y);
