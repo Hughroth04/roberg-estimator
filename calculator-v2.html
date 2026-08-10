@@ -565,10 +565,48 @@
   font-family: 'Montserrat', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
 }
 #rb-estimator .rb-metric-value.rb-price { color: var(--rb-blue); }
+#rb-estimator .rb-sale-edit-row {
+  display: flex; align-items: center; gap: 2px; min-width: 0;
+}
+#rb-estimator .rb-sale-prefix {
+  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--rb-blue); flex-shrink: 0; line-height: 1;
+}
+#rb-estimator .rb-sale-input {
+  flex: 1 1 auto; min-width: 0; width: 100%;
+  background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.22);
+  border-radius: 0; padding: 0 2px 2px 0; margin: 0;
+  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--rb-blue); line-height: 1.2;
+  -webkit-appearance: none; appearance: none;
+}
+#rb-estimator .rb-sale-input:focus {
+  outline: none; border-bottom-color: var(--rb-blue);
+}
+#rb-estimator .rb-sale-input:disabled {
+  opacity: 0.45; border-bottom-color: transparent;
+}
+#rb-estimator .rb-sale-input::-webkit-outer-spin-button,
+#rb-estimator .rb-sale-input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+#rb-estimator .rb-sale-input[type=number] { -moz-appearance: textfield; }
+#rb-estimator .rb-sale-reset {
+  display: none; flex-shrink: 0; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-left: 2px; padding: 0;
+  background: rgba(255,255,255,0.1); border: none; border-radius: 4px;
+  color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-metric-sale.rb-sale-custom .rb-sale-reset { display: inline-flex; }
+#rb-estimator .rb-sale-reset:active { background: rgba(255,255,255,0.2); color: #fff; }
 #rb-estimator .rb-min-badge {
   display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6);
   border-radius: 3px; padding: 1px 4px; margin-left: 3px; vertical-align: middle;
+}
+#rb-estimator .rb-custom-badge {
+  background: rgba(74, 144, 226, 0.28); color: var(--rb-blue);
 }
 
 /* Panel footer */
@@ -716,10 +754,17 @@
 #rb-estimator.rb-client-preview .rb-metric-feet,
 #rb-estimator.rb-client-preview .rb-internal-field,
 #rb-estimator.rb-client-preview .rb-min-badge,
+#rb-estimator.rb-client-preview .rb-custom-badge,
+#rb-estimator.rb-client-preview .rb-sale-reset,
 #rb-estimator.rb-client-preview .rb-btn-add-photo,
 #rb-estimator.rb-client-preview .rb-photo-remove,
 #rb-estimator.rb-client-preview .rb-photos-count {
   display: none !important;
+}
+#rb-estimator.rb-client-preview .rb-sale-input {
+  pointer-events: none;
+  caret-color: transparent;
+  border-bottom-color: transparent;
 }
 #rb-estimator.rb-client-preview .rb-total-bar-total {
   flex: 1 1 100%;
@@ -2127,6 +2172,7 @@
     if (p.sides && p.sides !== 1) return true;
     if (p.depth && p.depth !== 1) return true;
     if (p.category && p.category !== 'Driveway') return true;
+    if (p.saleOverride != null && p.saleOverride !== '') return true;
     return false;
   }
 
@@ -2368,7 +2414,7 @@
       }];
     }
     return opt.panels.filter(isReady).map(function(p) {
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      var calc = resolvePanelCalc(p);
       return {
         name: hcpLineItemName(p), category: p.category,
         sale: calc.sale, cost: calc.cost, lbs: calc.lbs,
@@ -2385,12 +2431,35 @@
     var lbsRaw = vol * conversion, saleRaw = lbsRaw * RATE_SALE, costRaw = lbsRaw * RATE_COST;
     var min = getMinimum(category);
     var isMin = saleRaw < min;
+    var formulaSale = isMin ? min : Math.ceil(saleRaw);
     return {
       lbs: Math.ceil(lbsRaw),
-      sale: isMin ? min : Math.ceil(saleRaw),
+      sale: formulaSale,
       cost: isMin ? Math.ceil(min * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
-      isMin: isMin
+      isMin: isMin,
+      formulaSale: formulaSale,
+      isCustom: false
     };
+  }
+
+  // Use calculated sale unless the panel has an explicit custom price override.
+  function parseSaleOverride(raw) {
+    if (raw == null || raw === '') return null;
+    var n = parseFloat(raw);
+    if (isNaN(n) || n < 0) return null;
+    return Math.ceil(n);
+  }
+
+  function resolvePanelCalc(p) {
+    if (!p || !isReady(p)) return null;
+    var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+    var override = parseSaleOverride(p.saleOverride);
+    if (override != null) {
+      calc.sale = override;
+      calc.isCustom = true;
+      calc.isMin = false;
+    }
+    return calc;
   }
 
   function depthLabel(d) {
@@ -2501,6 +2570,7 @@
       length: p.length, width: p.width,
       sides: p.sides, depth: p.depth,
       category: p.category,
+      saleOverride: p.saleOverride != null ? p.saleOverride : null,
       _defaultName: p._defaultName
     };
   }
@@ -2552,7 +2622,8 @@
     }
     var total = 0;
     opt.panels.forEach(function(p) {
-      if (isReady(p)) total += calcPanel(p.length, p.width, p.sides, p.depth, p.category).sale;
+      var calc = resolvePanelCalc(p);
+      if (calc) total += calc.sale;
     });
     return total;
   }
@@ -2569,8 +2640,8 @@
     }
     var lines = [];
     opt.panels.forEach(function(p) {
-      if (!isReady(p)) return;
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      var calc = resolvePanelCalc(p);
+      if (!calc) return;
       lines.push({
         label: p.name + ' \u2014 ' + p.length + '\xd7' + p.width + ', ' + p.sides + 's ' + p.depth + '"',
         sale: calc.sale
@@ -2698,7 +2769,8 @@
       isCustomName: false,
       length: src.length, width: src.width,
       sides: src.sides, depth: src.depth,
-      category: src.category
+      category: src.category,
+      saleOverride: src.saleOverride != null ? src.saleOverride : null
     };
     opt.panels.splice(idx + 1, 0, newPanel);
     regenerateAutoNames();
@@ -2754,26 +2826,84 @@
       updateCardResults(id); renderSummary(); renderTabStrip();
       return;
     }
+    if (field === 'saleOverride') {
+      var trimmed = (value == null ? '' : String(value)).trim();
+      if (!trimmed) {
+        p.saleOverride = null;
+      } else {
+        var n = parseFloat(trimmed);
+        if (isNaN(n) || n < 0) return;
+        var rounded = Math.ceil(n);
+        var formula = isReady(p)
+          ? calcPanel(p.length, p.width, p.sides, p.depth, p.category).sale
+          : null;
+        // Matching the formula price is not treated as a permanent override.
+        p.saleOverride = (formula != null && rounded === formula) ? null : rounded;
+      }
+      updateCardResults(id); renderSummary(); renderTabStrip();
+      scheduleDraftSave();
+      return;
+    }
     p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value)||0) : value;
     updateCardResults(id); renderSummary(); renderTabStrip();
+  }
+
+  function clearPanelSaleOverride(id) {
+    var info = findPanelInfo(id);
+    if (!info) return;
+    info.panel.saleOverride = null;
+    updateCardResults(id);
+    renderSummary();
+    renderTabStrip();
+    scheduleDraftSave();
+  }
+
+  function saleLabelHtml(calc) {
+    var editBadge = '';
+    if (calc && calc.isCustom) {
+      editBadge = ' <span class="rb-min-badge rb-custom-badge">custom</span>';
+    } else if (calc && calc.isMin) {
+      editBadge = ' <span class="rb-min-badge">min</span>';
+    }
+    return '<span class="rb-metric-label-edit">Sale' + editBadge + '</span><span class="rb-metric-label-preview">Price</span>';
   }
 
   function updateCardResults(id) {
     var info = findPanelInfo(id);
     if (!info) return;
     var p = info.panel;
-    var calc = isReady(p) ? calcPanel(p.length, p.width, p.sides, p.depth, p.category) : null;
+    var calc = resolvePanelCalc(p);
     var lbsEl=document.getElementById('rb-lbs-'+id), costEl=document.getElementById('rb-cost-'+id);
     var saleEl=document.getElementById('rb-sale-'+id), lbl=document.getElementById('rb-salelbl-'+id);
     var btn=document.getElementById('rb-copybtn-'+id);
+    var metric = saleEl ? saleEl.closest('.rb-metric-sale') : null;
     if (!lbsEl) return;
     if (calc) {
-      lbsEl.textContent = calc.lbs+' lbs'; costEl.textContent = fmt(calc.cost); saleEl.textContent = fmt(calc.sale);
-      lbl.innerHTML = '<span class="rb-metric-label-edit">Sale'+(calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-label-preview">Price</span>';
+      lbsEl.textContent = calc.lbs+' lbs';
+      costEl.textContent = fmt(calc.cost);
+      if (saleEl && document.activeElement !== saleEl) {
+        saleEl.value = String(calc.sale);
+        saleEl.placeholder = String(calc.formulaSale);
+        saleEl.disabled = false;
+      } else if (saleEl) {
+        saleEl.placeholder = String(calc.formulaSale);
+        saleEl.disabled = false;
+      }
+      if (lbl) lbl.innerHTML = saleLabelHtml(calc);
+      if (metric) metric.classList.toggle('rb-sale-custom', !!calc.isCustom);
       btn.disabled = false;
     } else {
-      lbsEl.textContent = costEl.textContent = saleEl.textContent = '\u2014';
-      lbl.innerHTML = '<span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span>';
+      lbsEl.textContent = costEl.textContent = '\u2014';
+      if (saleEl && document.activeElement !== saleEl) {
+        saleEl.value = '';
+        saleEl.placeholder = '\u2014';
+        saleEl.disabled = true;
+      } else if (saleEl) {
+        saleEl.placeholder = '\u2014';
+        saleEl.disabled = true;
+      }
+      if (lbl) lbl.innerHTML = saleLabelHtml(null);
+      if (metric) metric.classList.remove('rb-sale-custom');
       btn.disabled = true;
     }
   }
@@ -2782,7 +2912,7 @@
     var info = findPanelInfo(id);
     if (!info || !isReady(info.panel)) return;
     var p = info.panel;
-    var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+    var calc = resolvePanelCalc(p);
     navigator.clipboard.writeText(buildHCPLine(p, calc)).then(function() {
       var btn = document.getElementById('rb-copybtn-'+id);
       btn.classList.add('rb-copied'); btn.innerHTML = CHECK_SVG+' Copied!';
@@ -2804,7 +2934,7 @@
         }
       } else {
         opt.panels.forEach(function(p) {
-          if (isReady(p)) lines.push(buildHCPLine(p, calcPanel(p.length, p.width, p.sides, p.depth, p.category)));
+          if (isReady(p)) lines.push(buildHCPLine(p, resolvePanelCalc(p)));
         });
       }
       totalReady += lines.length;
@@ -3457,11 +3587,13 @@
     }
 
     opt.panels.forEach(function(p) {
-      var calc = isReady(p) ? calcPanel(p.length,p.width,p.sides,p.depth,p.category) : null;
+      var calc = resolvePanelCalc(p);
       var div = document.createElement('div');
       div.className = 'rb-panel-card'; div.id = 'rb-card-'+p.id;
       var catOpts = CATEGORIES.map(function(c) { return '<option'+(c===p.category?' selected':'')+'>'+c+'</option>'; }).join('');
       var sideOpts = [1,2,3,4].map(function(n) { return '<option value="'+n+'"'+(n===p.sides?' selected':'')+'>'+n+'</option>'; }).join('');
+      var saleVal = calc ? String(calc.sale) : '';
+      var salePh = calc ? String(calc.formulaSale) : '\u2014';
       div.innerHTML =
         '<div class="rb-panel-top">'+
         '<input class="rb-panel-name" type="text" value="'+escapeAttr(p.name)+'" data-id="'+p.id+'" data-field="name" spellcheck="false" autocomplete="off" autocapitalize="words" aria-label="Panel name" placeholder="'+escapeAttr(p._defaultName || '')+'">'+
@@ -3478,7 +3610,17 @@
         '<div class="rb-results-bar">'+
         '<div class="rb-metric rb-metric-foam"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
         '<div class="rb-metric rb-metric-cost"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
-        '<div class="rb-metric rb-metric-sale"><span class="rb-metric-label" id="rb-salelbl-'+p.id+'"><span class="rb-metric-label-edit">Sale'+(calc&&calc.isMin?' <span class="rb-min-badge">min</span>':'')+'</span><span class="rb-metric-label-preview">Price</span></span><span class="rb-metric-value rb-price" id="rb-sale-'+p.id+'">'+(calc?fmt(calc.sale):'\u2014')+'</span></div>'+
+        '<div class="rb-metric rb-metric-sale'+(calc&&calc.isCustom?' rb-sale-custom':'')+'">'+
+          '<span class="rb-metric-label" id="rb-salelbl-'+p.id+'">'+saleLabelHtml(calc)+'</span>'+
+          '<div class="rb-sale-edit-row">'+
+            '<span class="rb-sale-prefix">$</span>'+
+            '<input type="number" class="rb-sale-input rb-price" id="rb-sale-'+p.id+'" min="0" step="1" '+
+              'value="'+escapeAttr(saleVal)+'" placeholder="'+escapeAttr(salePh)+'" '+
+              'data-id="'+p.id+'" data-field="saleOverride" inputmode="decimal" '+
+              'aria-label="Sale price"'+(calc?'':' disabled')+'>'+
+            '<button type="button" class="rb-sale-reset" data-id="'+p.id+'" title="Use calculated price" aria-label="Reset to calculated price">\u21A9</button>'+
+          '</div>'+
+        '</div>'+
         '</div>'+
         '<div class="rb-panel-footer"><button class="rb-btn-copy-panel" id="rb-copybtn-'+p.id+'" data-id="'+p.id+'"'+(calc?'':' disabled')+'>'+COPY_SVG+' Copy This Panel</button></div>';
       container.appendChild(div);
@@ -3803,9 +3945,10 @@
   }
 
   function panelReviewItemHTML(p, calc) {
+    var customNote = calc.isCustom ? ' · custom price' : '';
     return '<div class="rb-review-item">'+
       '<div><div class="rb-review-item-name">'+escapeHtml(p.name)+' \u2014 '+escapeHtml(p.category)+'</div>'+
-      '<div class="rb-review-item-detail">'+p.length+'\xd7'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam</div></div>'+
+      '<div class="rb-review-item-detail">'+p.length+'\xd7'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam'+customNote+'</div></div>'+
       '<div class="rb-review-item-price">'+fmt(calc.sale)+'</div>'+
     '</div>';
   }
@@ -3828,7 +3971,7 @@
     if (!ready.length) return { html: '', sub: 0 };
     var sub = 0;
     var inner = ready.map(function(p) {
-      var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
+      var calc = resolvePanelCalc(p);
       sub += calc.sale;
       return panelReviewItemHTML(p, calc);
     }).join('');
@@ -4208,6 +4351,7 @@
       }
       if (t.classList.contains('rb-btn-remove'))          { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
       if (t.classList.contains('rb-btn-duplicate-panel')) { duplicatePanel(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-sale-reset'))          { clearPanelSaleOverride(parseInt(t.getAttribute('data-id'),10)); return; }
       if (t.classList.contains('rb-btn-copy-panel'))      { copyPanel(parseInt(t.getAttribute('data-id'),10)); return; }
       if (t.classList.contains('rb-toast-undo-btn'))      { performUndo(); return; }
     });
@@ -4311,6 +4455,13 @@
           renderSummary();
         }
         lockTabNameEdit(t);
+        return;
+      }
+
+      // Sale price: empty on blur restores formula price
+      if (t.classList.contains('rb-sale-input') || t.getAttribute('data-field') === 'saleOverride') {
+        var saleId = parseInt(t.getAttribute('data-id'), 10);
+        updateField(saleId, 'saleOverride', t.value);
         return;
       }
 
