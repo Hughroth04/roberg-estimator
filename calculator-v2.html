@@ -555,7 +555,10 @@
   display: grid; grid-template-columns: 1fr 1fr 1fr;
   gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rb-border);
 }
-#rb-estimator .rb-metric { background: var(--rb-navy); border-radius: var(--rb-radius); padding: 10px 10px 8px; }
+#rb-estimator .rb-metric {
+  background: var(--rb-navy); border-radius: var(--rb-radius); padding: 10px 10px 8px;
+  display: flex; flex-direction: column; min-width: 0;
+}
 #rb-estimator .rb-metric-label {
   font-family: 'Montserrat', sans-serif; font-size: 8px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 3px; display: block;
@@ -565,41 +568,69 @@
   font-family: 'Montserrat', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
 }
 #rb-estimator .rb-metric-value.rb-price { color: var(--rb-blue); }
-#rb-estimator .rb-sale-edit-row {
-  display: flex; align-items: center; gap: 2px; min-width: 0;
+#rb-estimator .rb-metric-main { min-width: 0; }
+#rb-estimator .rb-rate-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  margin-top: 6px; padding: 3px 6px;
+  background: rgba(255,255,255,0.08); border: none; border-radius: 4px;
+  font-family: 'Montserrat', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55); cursor: pointer;
+  -webkit-tap-highlight-color: transparent; align-self: flex-start;
+  transition: background 0.12s, color 0.12s;
 }
-#rb-estimator .rb-sale-prefix {
-  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
-  color: var(--rb-blue); flex-shrink: 0; line-height: 1;
+#rb-estimator .rb-rate-toggle:active,
+#rb-estimator .rb-rate-toggle[aria-expanded="true"] {
+  background: rgba(255,255,255,0.16); color: rgba(255,255,255,0.9);
 }
-#rb-estimator .rb-sale-input {
-  flex: 1 1 auto; min-width: 0; width: 100%;
-  background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.22);
-  border-radius: 0; padding: 0 2px 2px 0; margin: 0;
-  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
-  color: var(--rb-blue); line-height: 1.2;
+#rb-estimator .rb-rate-chevron {
+  font-size: 9px; line-height: 1; transition: transform 0.15s ease;
+}
+#rb-estimator .rb-rate-toggle[aria-expanded="true"] .rb-rate-chevron {
+  transform: rotate(180deg);
+}
+#rb-estimator .rb-rate-drawer {
+  display: none;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  flex-direction: column; gap: 7px;
+}
+#rb-estimator .rb-rate-drawer.rb-open { display: flex; }
+#rb-estimator .rb-rate-field label {
+  display: block;
+  font-family: 'Montserrat', sans-serif; font-size: 7px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); margin-bottom: 3px;
+}
+#rb-estimator .rb-rate-field input {
+  width: 100%; box-sizing: border-box;
+  height: 30px; padding: 0 8px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 5px; color: #fff;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
   -webkit-appearance: none; appearance: none;
 }
-#rb-estimator .rb-sale-input:focus {
-  outline: none; border-bottom-color: var(--rb-blue);
+#rb-estimator .rb-rate-field input:focus {
+  outline: none; border-color: var(--rb-blue); background: rgba(255,255,255,0.12);
 }
-#rb-estimator .rb-sale-input:disabled {
-  opacity: 0.45; border-bottom-color: transparent;
-}
-#rb-estimator .rb-sale-input::-webkit-outer-spin-button,
-#rb-estimator .rb-sale-input::-webkit-inner-spin-button {
+#rb-estimator .rb-rate-field input::placeholder { color: rgba(255,255,255,0.35); }
+#rb-estimator .rb-rate-field input::-webkit-outer-spin-button,
+#rb-estimator .rb-rate-field input::-webkit-inner-spin-button {
   -webkit-appearance: none; margin: 0;
 }
-#rb-estimator .rb-sale-input[type=number] { -moz-appearance: textfield; }
-#rb-estimator .rb-sale-reset {
-  display: none; flex-shrink: 0; align-items: center; justify-content: center;
-  width: 22px; height: 22px; margin-left: 2px; padding: 0;
-  background: rgba(255,255,255,0.1); border: none; border-radius: 4px;
-  color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
+#rb-estimator .rb-rate-field input[type=number] { -moz-appearance: textfield; }
+#rb-estimator .rb-rate-reset {
+  margin-top: 2px; height: 26px; padding: 0 8px;
+  background: none; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px;
+  font-family: 'Montserrat', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-#rb-estimator .rb-metric-sale.rb-sale-custom .rb-sale-reset { display: inline-flex; }
-#rb-estimator .rb-sale-reset:active { background: rgba(255,255,255,0.2); color: #fff; }
+#rb-estimator .rb-rate-reset:active { border-color: rgba(255,255,255,0.4); color: #fff; }
+#rb-estimator .rb-metric.rb-rates-active {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+}
 #rb-estimator .rb-min-badge {
   display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6);
@@ -755,16 +786,12 @@
 #rb-estimator.rb-client-preview .rb-internal-field,
 #rb-estimator.rb-client-preview .rb-min-badge,
 #rb-estimator.rb-client-preview .rb-custom-badge,
-#rb-estimator.rb-client-preview .rb-sale-reset,
+#rb-estimator.rb-client-preview .rb-rate-toggle,
+#rb-estimator.rb-client-preview .rb-rate-drawer,
 #rb-estimator.rb-client-preview .rb-btn-add-photo,
 #rb-estimator.rb-client-preview .rb-photo-remove,
 #rb-estimator.rb-client-preview .rb-photos-count {
   display: none !important;
-}
-#rb-estimator.rb-client-preview .rb-sale-input {
-  pointer-events: none;
-  caret-color: transparent;
-  border-bottom-color: transparent;
 }
 #rb-estimator.rb-client-preview .rb-total-bar-total {
   flex: 1 1 100%;
@@ -2164,6 +2191,8 @@
   var draftPhotosOmitted = false;
   var draftRestoredOnLoad = false;
   var draftSaveWarnedPhotos = false;
+  // Which rates drawer is open: { kind: 'panel'|'sealant', id: number|null, metric: 'sale'|'cost' }
+  var openRateDrawer = null;
 
   function panelHasDraftableData(p) {
     if (!p) return false;
@@ -2172,7 +2201,7 @@
     if (p.sides && p.sides !== 1) return true;
     if (p.depth && p.depth !== 1) return true;
     if (p.category && p.category !== 'Driveway') return true;
-    if (p.saleOverride != null && p.saleOverride !== '') return true;
+    if (panelHasRateOverrides(p)) return true;
     return false;
   }
 
@@ -2268,7 +2297,16 @@
       if (!copy.panels) copy.panels = [];
       if (!copy.photos) copy.photos = [];
       if (isSealantOption(copy) && !copy.sealant) {
-        copy.sealant = { feet: 0, unitPrice: SEALANT_DEFAULT_UNIT_PRICE };
+        copy.sealant = {
+          feet: 0,
+          unitPrice: SEALANT_DEFAULT_UNIT_PRICE,
+          unitCost: null,
+          minSale: null
+        };
+      }
+      if (isSealantOption(copy) && copy.sealant) {
+        if (copy.sealant.unitCost === undefined) copy.sealant.unitCost = null;
+        if (copy.sealant.minSale === undefined) copy.sealant.minSale = null;
       }
       return copy;
     });
@@ -2364,17 +2402,36 @@
 
   function calcSealant(s) {
     var feet = parseFloat(s.feet) || 0;
-    var unitPrice = parseFloat(s.unitPrice);
-    if (isNaN(unitPrice) || unitPrice < 0) unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+    var unitPrice = parseOptionalRate(s.unitPrice);
+    if (unitPrice == null) unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+    var unitCost = parseOptionalRate(s.unitCost);
+    if (unitCost == null) unitCost = SEALANT_UNIT_COST;
+    var minSale = parseOptionalMoney(s.minSale);
     var sale = Math.ceil(unitPrice * feet);
-    var cost = Math.ceil(SEALANT_UNIT_COST * feet);
+    var isMin = minSale != null && sale < minSale;
+    if (isMin) sale = minSale;
+    var cost = Math.ceil(unitCost * feet);
     return {
       feet: feet,
       unitPrice: unitPrice,
+      unitCost: unitCost,
+      minSale: minSale,
       total: sale,
       cost: cost,
-      sale: sale
+      sale: sale,
+      isMin: isMin,
+      isCustom: sealantHasRateOverrides(s)
     };
+  }
+
+  function sealantHasRateOverrides(s) {
+    if (!s) return false;
+    var price = parseOptionalRate(s.unitPrice);
+    if (price != null && Math.abs(price - SEALANT_DEFAULT_UNIT_PRICE) > 0.001) return true;
+    // unitCost / minSale are only stored when the user overrides them.
+    if (parseOptionalRate(s.unitCost) != null) return true;
+    if (parseOptionalMoney(s.minSale) != null) return true;
+    return false;
   }
 
   function isSealantReady(s) {
@@ -2408,7 +2465,7 @@
         name: SEALANT_LINE_NAME,
         category: 'Joint Sealant',
         sale: sc.unitPrice,
-        cost: SEALANT_UNIT_COST,
+        cost: sc.unitCost,
         quantity: sc.feet,
         description: buildSealantDesc(opt.sealant, sc)
       }];
@@ -2425,6 +2482,44 @@
     });
   }
 
+  // Parse optional $/lb or $/ft rate (keeps decimals). Empty / invalid → null (use default).
+  function parseOptionalRate(raw) {
+    if (raw == null || raw === '') return null;
+    var n = parseFloat(raw);
+    if (isNaN(n) || n < 0) return null;
+    return Math.round(n * 100) / 100;
+  }
+
+  // Parse optional whole-dollar amounts (minimums / total overrides).
+  function parseOptionalMoney(raw) {
+    if (raw == null || raw === '') return null;
+    var n = parseFloat(raw);
+    if (isNaN(n) || n < 0) return null;
+    return Math.ceil(n);
+  }
+
+  function panelHasRateOverrides(p) {
+    if (!p) return false;
+    return parseOptionalRate(p.rateSale) != null
+      || parseOptionalRate(p.rateCost) != null
+      || parseOptionalMoney(p.minSale) != null
+      || parseOptionalMoney(p.saleOverride) != null;
+  }
+
+  function panelRateSale(p) {
+    var o = parseOptionalRate(p && p.rateSale);
+    return o != null ? o : RATE_SALE;
+  }
+  function panelRateCost(p) {
+    var o = parseOptionalRate(p && p.rateCost);
+    return o != null ? o : RATE_COST;
+  }
+  function panelMinSale(p) {
+    var o = parseOptionalMoney(p && p.minSale);
+    return o != null ? o : getMinimum(p && p.category);
+  }
+
+  // Base foam/volume calc using global rates (no panel overrides).
   function calcPanel(l, w, sides, depth, category) {
     var vol = (l * w * depth / 324) * (sides * 0.25 + 0.25);
     var conversion = getConversion(category);
@@ -2438,28 +2533,53 @@
       cost: isMin ? Math.ceil(min * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
       isMin: isMin,
       formulaSale: formulaSale,
-      isCustom: false
+      isCustom: false,
+      rateSale: RATE_SALE,
+      rateCost: RATE_COST,
+      minSale: min
     };
   }
 
-  // Use calculated sale unless the panel has an explicit custom price override.
-  function parseSaleOverride(raw) {
-    if (raw == null || raw === '') return null;
-    var n = parseFloat(raw);
-    if (isNaN(n) || n < 0) return null;
-    return Math.ceil(n);
-  }
-
+  // Apply per-panel $/lb, minimum, and optional fixed-total overrides.
   function resolvePanelCalc(p) {
     if (!p || !isReady(p)) return null;
-    var calc = calcPanel(p.length, p.width, p.sides, p.depth, p.category);
-    var override = parseSaleOverride(p.saleOverride);
-    if (override != null) {
-      calc.sale = override;
-      calc.isCustom = true;
-      calc.isMin = false;
+    var vol = (p.length * p.width * p.depth / 324) * (p.sides * 0.25 + 0.25);
+    var conversion = getConversion(p.category);
+    var lbsRaw = vol * conversion;
+    var rateSale = panelRateSale(p);
+    var rateCost = panelRateCost(p);
+    var min = panelMinSale(p);
+    var saleRaw = lbsRaw * rateSale;
+    var costRaw = lbsRaw * rateCost;
+    var isMin = saleRaw < min;
+    var formulaSale = isMin ? min : Math.ceil(saleRaw);
+    var cost;
+    if (isMin) {
+      cost = rateSale > 0
+        ? Math.ceil(min * (rateCost / rateSale))
+        : Math.ceil(costRaw);
+    } else {
+      cost = Math.ceil(costRaw);
     }
-    return calc;
+    var sale = formulaSale;
+    var forcedTotal = parseOptionalMoney(p.saleOverride);
+    var isForced = forcedTotal != null;
+    if (isForced) {
+      sale = forcedTotal;
+      isMin = false;
+    }
+    return {
+      lbs: Math.ceil(lbsRaw),
+      sale: sale,
+      cost: cost,
+      isMin: isMin,
+      formulaSale: formulaSale,
+      isCustom: panelHasRateOverrides(p),
+      rateSale: rateSale,
+      rateCost: rateCost,
+      minSale: min,
+      hasSaleOverride: isForced
+    };
   }
 
   function depthLabel(d) {
@@ -2570,6 +2690,9 @@
       length: p.length, width: p.width,
       sides: p.sides, depth: p.depth,
       category: p.category,
+      rateSale: p.rateSale != null ? p.rateSale : null,
+      rateCost: p.rateCost != null ? p.rateCost : null,
+      minSale: p.minSale != null ? p.minSale : null,
       saleOverride: p.saleOverride != null ? p.saleOverride : null,
       _defaultName: p._defaultName
     };
@@ -2588,7 +2711,14 @@
       })
     };
     if (opt.isDefaultSealant) copy.isDefaultSealant = true;
-    if (opt.sealant) copy.sealant = { feet: opt.sealant.feet, unitPrice: opt.sealant.unitPrice };
+    if (opt.sealant) {
+      copy.sealant = {
+        feet: opt.sealant.feet,
+        unitPrice: opt.sealant.unitPrice,
+        unitCost: opt.sealant.unitCost != null ? opt.sealant.unitCost : null,
+        minSale: opt.sealant.minSale != null ? opt.sealant.minSale : null
+      };
+    }
     if (opt._defaultName) copy._defaultName = opt._defaultName;
     return copy;
   }
@@ -2770,6 +2900,9 @@
       length: src.length, width: src.width,
       sides: src.sides, depth: src.depth,
       category: src.category,
+      rateSale: src.rateSale != null ? src.rateSale : null,
+      rateCost: src.rateCost != null ? src.rateCost : null,
+      minSale: src.minSale != null ? src.minSale : null,
       saleOverride: src.saleOverride != null ? src.saleOverride : null
     };
     opt.panels.splice(idx + 1, 0, newPanel);
@@ -2826,20 +2959,30 @@
       updateCardResults(id); renderSummary(); renderTabStrip();
       return;
     }
+    if (field === 'rateSale') {
+      var rs = parseOptionalRate(value);
+      p.rateSale = (rs != null && Math.abs(rs - RATE_SALE) < 0.001) ? null : rs;
+      updateCardResults(id); renderSummary(); renderTabStrip();
+      scheduleDraftSave();
+      return;
+    }
+    if (field === 'rateCost') {
+      var rc = parseOptionalRate(value);
+      p.rateCost = (rc != null && Math.abs(rc - RATE_COST) < 0.001) ? null : rc;
+      updateCardResults(id); renderSummary(); renderTabStrip();
+      scheduleDraftSave();
+      return;
+    }
+    if (field === 'minSale') {
+      var ms = parseOptionalMoney(value);
+      var defMin = getMinimum(p.category);
+      p.minSale = (ms != null && ms === defMin) ? null : ms;
+      updateCardResults(id); renderSummary(); renderTabStrip();
+      scheduleDraftSave();
+      return;
+    }
     if (field === 'saleOverride') {
-      var trimmed = (value == null ? '' : String(value)).trim();
-      if (!trimmed) {
-        p.saleOverride = null;
-      } else {
-        var n = parseFloat(trimmed);
-        if (isNaN(n) || n < 0) return;
-        var rounded = Math.ceil(n);
-        var formula = isReady(p)
-          ? calcPanel(p.length, p.width, p.sides, p.depth, p.category).sale
-          : null;
-        // Matching the formula price is not treated as a permanent override.
-        p.saleOverride = (formula != null && rounded === formula) ? null : rounded;
-      }
+      p.saleOverride = parseOptionalMoney(value);
       updateCardResults(id); renderSummary(); renderTabStrip();
       scheduleDraftSave();
       return;
@@ -2848,14 +2991,53 @@
     updateCardResults(id); renderSummary(); renderTabStrip();
   }
 
-  function clearPanelSaleOverride(id) {
+  function clearPanelRateScope(id, scope) {
     var info = findPanelInfo(id);
     if (!info) return;
-    info.panel.saleOverride = null;
+    var p = info.panel;
+    if (scope === 'sale') {
+      p.rateSale = null;
+      p.minSale = null;
+      p.saleOverride = null;
+    } else if (scope === 'cost') {
+      p.rateCost = null;
+    } else {
+      p.rateSale = null;
+      p.rateCost = null;
+      p.minSale = null;
+      p.saleOverride = null;
+    }
     updateCardResults(id);
     renderSummary();
     renderTabStrip();
     scheduleDraftSave();
+  }
+
+  function isRateDrawerOpen(kind, id, metric) {
+    return !!(openRateDrawer
+      && openRateDrawer.kind === kind
+      && openRateDrawer.id === id
+      && openRateDrawer.metric === metric);
+  }
+
+  function toggleRateDrawer(kind, id, metric) {
+    if (isRateDrawerOpen(kind, id, metric)) {
+      openRateDrawer = null;
+    } else {
+      openRateDrawer = { kind: kind, id: id, metric: metric };
+    }
+    renderActiveOptionPanels();
+  }
+
+  function rateValAttr(raw) {
+    return raw != null && raw !== '' ? escapeAttr(String(raw)) : '';
+  }
+
+  function formatRateInputValue(n, decimals) {
+    if (n == null || isNaN(n)) return '';
+    if (decimals === 0) return String(Math.round(n));
+    var s = Number(n).toFixed(decimals == null ? 2 : decimals);
+    return s.replace(/\.?0+$/, '') || '0';
   }
 
   function saleLabelHtml(calc) {
@@ -2868,44 +3050,115 @@
     return '<span class="rb-metric-label-edit">Sale' + editBadge + '</span><span class="rb-metric-label-preview">Price</span>';
   }
 
+  function panelRateToggleHtml(id, metric, open) {
+    return '<button type="button" class="rb-rate-toggle" '
+      + 'data-rate-kind="panel" data-id="' + id + '" data-rate-metric="' + metric + '" '
+      + 'aria-expanded="' + (open ? 'true' : 'false') + '">'
+      + 'Rates <span class="rb-rate-chevron" aria-hidden="true">\u25BE</span></button>';
+  }
+
+  function panelCostDrawerHtml(p, calc, open) {
+    var effCost = calc ? calc.rateCost : RATE_COST;
+    var stored = parseOptionalRate(p.rateCost);
+    return '<div class="rb-rate-drawer' + (open ? ' rb-open' : '') + '" id="rb-rate-cost-' + p.id + '" '
+      + (open ? '' : 'hidden') + '>'
+      + '<div class="rb-rate-field"><label>Cost $/lb</label>'
+      + '<input type="number" min="0" step="0.01" inputmode="decimal" '
+      + 'data-id="' + p.id + '" data-field="rateCost" '
+      + 'value="' + rateValAttr(stored != null ? formatRateInputValue(stored, 2) : formatRateInputValue(effCost, 2)) + '" '
+      + 'placeholder="' + RATE_COST + '" aria-label="Cost per pound"></div>'
+      + '<button type="button" class="rb-rate-reset" data-id="' + p.id + '" data-rate-scope="cost">Reset to default</button>'
+      + '</div>';
+  }
+
+  function panelSaleDrawerHtml(p, calc, open) {
+    var effSale = calc ? calc.rateSale : RATE_SALE;
+    var effMin = calc ? calc.minSale : getMinimum(p.category);
+    var storedSale = parseOptionalRate(p.rateSale);
+    var storedMin = parseOptionalMoney(p.minSale);
+    var storedTotal = parseOptionalMoney(p.saleOverride);
+    return '<div class="rb-rate-drawer' + (open ? ' rb-open' : '') + '" id="rb-rate-sale-' + p.id + '" '
+      + (open ? '' : 'hidden') + '>'
+      + '<div class="rb-rate-field"><label>Sale $/lb</label>'
+      + '<input type="number" min="0" step="0.01" inputmode="decimal" '
+      + 'data-id="' + p.id + '" data-field="rateSale" '
+      + 'value="' + rateValAttr(storedSale != null ? formatRateInputValue(storedSale, 2) : formatRateInputValue(effSale, 2)) + '" '
+      + 'placeholder="' + RATE_SALE + '" aria-label="Sale per pound"></div>'
+      + '<div class="rb-rate-field"><label>Minimum $</label>'
+      + '<input type="number" min="0" step="1" inputmode="decimal" '
+      + 'data-id="' + p.id + '" data-field="minSale" '
+      + 'value="' + rateValAttr(storedMin != null ? storedMin : effMin) + '" '
+      + 'placeholder="' + getMinimum(p.category) + '" aria-label="Minimum sale price"></div>'
+      + '<div class="rb-rate-field"><label>Fixed total $ <span style="opacity:.7;text-transform:none;letter-spacing:0">(optional)</span></label>'
+      + '<input type="number" min="0" step="1" inputmode="decimal" '
+      + 'data-id="' + p.id + '" data-field="saleOverride" '
+      + 'value="' + rateValAttr(storedTotal) + '" '
+      + 'placeholder="auto" aria-label="Fixed total sale override"></div>'
+      + '<button type="button" class="rb-rate-reset" data-id="' + p.id + '" data-rate-scope="sale">Reset to defaults</button>'
+      + '</div>';
+  }
+
   function updateCardResults(id) {
     var info = findPanelInfo(id);
     if (!info) return;
     var p = info.panel;
     var calc = resolvePanelCalc(p);
-    var lbsEl=document.getElementById('rb-lbs-'+id), costEl=document.getElementById('rb-cost-'+id);
-    var saleEl=document.getElementById('rb-sale-'+id), lbl=document.getElementById('rb-salelbl-'+id);
-    var btn=document.getElementById('rb-copybtn-'+id);
-    var metric = saleEl ? saleEl.closest('.rb-metric-sale') : null;
+    var lbsEl = document.getElementById('rb-lbs-' + id);
+    var costEl = document.getElementById('rb-cost-' + id);
+    var saleEl = document.getElementById('rb-sale-' + id);
+    var lbl = document.getElementById('rb-salelbl-' + id);
+    var costLbl = document.getElementById('rb-costlbl-' + id);
+    var btn = document.getElementById('rb-copybtn-' + id);
+    var costMetric = document.getElementById('rb-metric-cost-' + id);
+    var saleMetric = document.getElementById('rb-metric-sale-' + id);
     if (!lbsEl) return;
     if (calc) {
-      lbsEl.textContent = calc.lbs+' lbs';
-      costEl.textContent = fmt(calc.cost);
-      if (saleEl && document.activeElement !== saleEl) {
-        saleEl.value = String(calc.sale);
-        saleEl.placeholder = String(calc.formulaSale);
-        saleEl.disabled = false;
-      } else if (saleEl) {
-        saleEl.placeholder = String(calc.formulaSale);
-        saleEl.disabled = false;
-      }
+      lbsEl.textContent = calc.lbs + ' lbs';
+      if (costEl) costEl.textContent = fmt(calc.cost);
+      if (saleEl) saleEl.textContent = fmt(calc.sale);
       if (lbl) lbl.innerHTML = saleLabelHtml(calc);
-      if (metric) metric.classList.toggle('rb-sale-custom', !!calc.isCustom);
-      btn.disabled = false;
-    } else {
-      lbsEl.textContent = costEl.textContent = '\u2014';
-      if (saleEl && document.activeElement !== saleEl) {
-        saleEl.value = '';
-        saleEl.placeholder = '\u2014';
-        saleEl.disabled = true;
-      } else if (saleEl) {
-        saleEl.placeholder = '\u2014';
-        saleEl.disabled = true;
+      if (costLbl) {
+        costLbl.innerHTML = parseOptionalRate(p.rateCost) != null
+          ? 'Cost <span class="rb-min-badge rb-custom-badge">custom</span>'
+          : 'Cost';
       }
+      if (costMetric) costMetric.classList.toggle('rb-rates-active', isRateDrawerOpen('panel', id, 'cost'));
+      if (saleMetric) saleMetric.classList.toggle('rb-rates-active', isRateDrawerOpen('panel', id, 'sale'));
+      // Keep open drawers' placeholders in sync without clobbering focused inputs
+      syncPanelRateInputs(p, calc);
+      if (btn) btn.disabled = false;
+    } else {
+      lbsEl.textContent = '\u2014';
+      if (costEl) costEl.textContent = '\u2014';
+      if (saleEl) saleEl.textContent = '\u2014';
       if (lbl) lbl.innerHTML = saleLabelHtml(null);
-      if (metric) metric.classList.remove('rb-sale-custom');
-      btn.disabled = true;
+      if (costLbl) costLbl.textContent = 'Cost';
+      if (btn) btn.disabled = true;
     }
+  }
+
+  function syncPanelRateInputs(p, calc) {
+    if (!p || !calc) return;
+    var pairs = [
+      { field: 'rateSale', val: p.rateSale != null ? p.rateSale : calc.rateSale, ph: RATE_SALE },
+      { field: 'rateCost', val: p.rateCost != null ? p.rateCost : calc.rateCost, ph: RATE_COST },
+      { field: 'minSale', val: p.minSale != null ? p.minSale : calc.minSale, ph: getMinimum(p.category) },
+      { field: 'saleOverride', val: p.saleOverride, ph: 'auto' }
+    ];
+    pairs.forEach(function(pair) {
+      var el = document.querySelector('#rb-card-' + p.id + ' [data-field="' + pair.field + '"]');
+      if (!el || document.activeElement === el) return;
+      if (pair.field === 'saleOverride') {
+        el.value = pair.val != null ? String(pair.val) : '';
+        el.placeholder = pair.ph;
+      } else if (pair.field === 'minSale') {
+        el.value = String(pair.val);
+        el.placeholder = String(pair.ph);
+      } else {
+        el.value = formatRateInputValue(pair.val, 2);
+        el.placeholder = String(pair.ph);
+      }
+    });
   }
 
   function copyPanel(id) {
@@ -3006,7 +3259,9 @@
       _defaultName: DEFAULT_SEALANT_OPTION_NAME,
       sealant: {
         feet: 0,
-        unitPrice: SEALANT_DEFAULT_UNIT_PRICE
+        unitPrice: SEALANT_DEFAULT_UNIT_PRICE,
+        unitCost: null,
+        minSale: null
       }
     };
   }
@@ -3095,7 +3350,9 @@
       });
       newOpt.sealant = {
         feet: src.sealant.feet,
-        unitPrice: src.sealant.unitPrice
+        unitPrice: src.sealant.unitPrice,
+        unitCost: src.sealant.unitCost != null ? src.sealant.unitCost : null,
+        minSale: src.sealant.minSale != null ? src.sealant.minSale : null
       };
     } else {
       newOpt = createPanelsOption();
@@ -3107,6 +3364,10 @@
           length: p.length, width: p.width,
           sides: p.sides, depth: p.depth,
           category: p.category,
+          rateSale: p.rateSale != null ? p.rateSale : null,
+          rateCost: p.rateCost != null ? p.rateCost : null,
+          minSale: p.minSale != null ? p.minSale : null,
+          saleOverride: p.saleOverride != null ? p.saleOverride : null,
           _defaultName: p._defaultName
         };
       });
@@ -3520,12 +3781,40 @@
     var opt = getActiveOption();
     if (!opt || !isSealantOption(opt)) return;
     var s = opt.sealant;
-    if (field === 'feet' || field === 'unitPrice') {
-      s[field] = parseFloat(value) || 0;
+    if (field === 'feet') {
+      s.feet = parseFloat(value) || 0;
+    } else if (field === 'unitPrice') {
+      var up = parseOptionalRate(value);
+      if (up == null) s.unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+      else s.unitPrice = Math.abs(up - SEALANT_DEFAULT_UNIT_PRICE) < 0.001 ? SEALANT_DEFAULT_UNIT_PRICE : up;
+    } else if (field === 'unitCost') {
+      var uc = parseOptionalRate(value);
+      s.unitCost = (uc != null && Math.abs(uc - SEALANT_UNIT_COST) < 0.001) ? null : uc;
+    } else if (field === 'minSale') {
+      s.minSale = parseOptionalMoney(value);
     }
     updateSealantResults();
     renderSummary();
     renderTabStrip();
+    scheduleDraftSave();
+  }
+
+  function clearSealantRateScope(scope) {
+    var opt = getActiveOption();
+    if (!opt || !isSealantOption(opt)) return;
+    var s = opt.sealant;
+    if (scope === 'sale') {
+      s.unitPrice = SEALANT_DEFAULT_UNIT_PRICE;
+      s.minSale = null;
+    } else if (scope === 'cost') {
+      s.unitCost = null;
+    }
+    updateSealantResults();
+    // Re-render so drawer input values refresh
+    renderActiveOptionPanels();
+    renderSummary();
+    renderTabStrip();
+    scheduleDraftSave();
   }
 
   function updateSealantResults() {
@@ -3536,15 +3825,39 @@
     var totalEl = document.getElementById('rb-sealant-total');
     var costEl = document.getElementById('rb-sealant-cost');
     var saleEl = document.getElementById('rb-sealant-sale');
+    var saleLbl = document.getElementById('rb-sealant-salelbl');
+    var costLbl = document.getElementById('rb-sealant-costlbl');
     if (feetEl) feetEl.textContent = calc ? (calc.feet + ' ft') : '\u2014';
     if (totalEl) totalEl.textContent = calc ? fmt(calc.total) : '\u2014';
     if (costEl) costEl.textContent = calc ? fmt(calc.cost) : '\u2014';
     if (saleEl) saleEl.textContent = calc ? fmt(calc.sale) : '\u2014';
+    if (saleLbl) {
+      saleLbl.innerHTML = calc && calc.isCustom
+        ? '<span class="rb-metric-label-edit">Sale <span class="rb-min-badge rb-custom-badge">custom</span></span><span class="rb-metric-label-preview">Price</span>'
+        : (calc && calc.isMin
+          ? '<span class="rb-metric-label-edit">Sale <span class="rb-min-badge">min</span></span><span class="rb-metric-label-preview">Price</span>'
+          : '<span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span>');
+    }
+    if (costLbl) {
+      costLbl.innerHTML = opt.sealant && parseOptionalRate(opt.sealant.unitCost) != null
+        ? 'Cost <span class="rb-min-badge rb-custom-badge">custom</span>'
+        : 'Cost';
+    }
   }
 
   function renderActiveOptionPanels() {
     var container = document.getElementById('rb-panels');
     if (!container) return;
+    // Preserve focus on rate inputs across toggle re-renders
+    var active = document.activeElement;
+    var keepFocus = null;
+    if (active && container.contains(active) && active.getAttribute) {
+      keepFocus = {
+        field: active.getAttribute('data-field') || active.getAttribute('data-sealant-field'),
+        id: active.getAttribute('data-id'),
+        sealant: active.getAttribute('data-sealant-field')
+      };
+    }
     container.innerHTML = '';
     var opt = getActiveOption();
     if (!opt) return;
@@ -3561,6 +3874,11 @@
     if (isSealantOption(opt)) {
       var s = opt.sealant;
       var calc = isSealantReady(s) ? calcSealant(s) : null;
+      var costOpen = isRateDrawerOpen('sealant', opt.id, 'cost');
+      var saleOpen = isRateDrawerOpen('sealant', opt.id, 'sale');
+      var effPrice = calc ? calc.unitPrice : (parseOptionalRate(s.unitPrice) != null ? parseOptionalRate(s.unitPrice) : SEALANT_DEFAULT_UNIT_PRICE);
+      var effCost = calc ? calc.unitCost : (parseOptionalRate(s.unitCost) != null ? parseOptionalRate(s.unitCost) : SEALANT_UNIT_COST);
+      var effMin = parseOptionalMoney(s.minSale);
       var div = document.createElement('div');
       div.className = 'rb-panel-card rb-sealant-card';
       div.innerHTML =
@@ -3568,19 +3886,36 @@
           '<div class="rb-panel-name rb-sealant-title">' + escapeHtml(SEALANT_LINE_NAME) + '</div>' +
         '</div>' +
         '<div class="rb-fields-grid rb-sealant-grid">' +
-          '<div class="rb-field"><label>Unit amount (ft)</label>' +
+          '<div class="rb-field"><label>Linear feet</label>' +
             '<input type="number" min="0" step="0.5" value="' + (s.feet || '') + '" placeholder="0" data-sealant-field="feet" inputmode="decimal"></div>' +
-          '<div class="rb-field"><label>Unit price ($/ft)</label>' +
-            '<input type="number" min="0" step="0.01" value="' + (s.unitPrice != null ? s.unitPrice : SEALANT_DEFAULT_UNIT_PRICE) + '" placeholder="' + SEALANT_DEFAULT_UNIT_PRICE + '" data-sealant-field="unitPrice" inputmode="decimal"></div>' +
-          '<div class="rb-field rb-internal-field"><label>Unit cost ($/ft) <span class="rb-internal-hint">internal</span></label>' +
-            '<div class="rb-sealant-total">' + fmt(SEALANT_UNIT_COST) + '/ft</div></div>' +
           '<div class="rb-field"><label>Unit total ($)</label>' +
             '<div class="rb-sealant-total" id="rb-sealant-total">' + (calc ? fmt(calc.total) : '\u2014') + '</div></div>' +
         '</div>' +
         '<div class="rb-results-bar">' +
-          '<div class="rb-metric rb-metric-feet"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div>' +
-          '<div class="rb-metric rb-metric-cost"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-sealant-cost">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
-          '<div class="rb-metric rb-metric-sale"><span class="rb-metric-label"><span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span></span><span class="rb-metric-value rb-price" id="rb-sealant-sale">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
+          '<div class="rb-metric rb-metric-feet"><div class="rb-metric-main"><span class="rb-metric-label">Feet</span><span class="rb-metric-value" id="rb-sealant-feet-display">' + (calc ? (calc.feet + ' ft') : '\u2014') + '</span></div></div>' +
+          '<div class="rb-metric rb-metric-cost' + (costOpen ? ' rb-rates-active' : '') + '">' +
+            '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-sealant-costlbl">' + (parseOptionalRate(s.unitCost) != null ? 'Cost <span class="rb-min-badge rb-custom-badge">custom</span>' : 'Cost') + '</span>' +
+            '<span class="rb-metric-value" id="rb-sealant-cost">' + (calc ? fmt(calc.cost) : '\u2014') + '</span></div>' +
+            '<button type="button" class="rb-rate-toggle" data-rate-kind="sealant" data-option-id="' + opt.id + '" data-rate-metric="cost" aria-expanded="' + (costOpen ? 'true' : 'false') + '">Rates <span class="rb-rate-chevron" aria-hidden="true">\u25BE</span></button>' +
+            '<div class="rb-rate-drawer' + (costOpen ? ' rb-open' : '') + '"' + (costOpen ? '' : ' hidden') + '>' +
+              '<div class="rb-rate-field"><label>Cost $/ft</label>' +
+                '<input type="number" min="0" step="0.01" inputmode="decimal" data-sealant-field="unitCost" value="' + escapeAttr(formatRateInputValue(effCost, 2)) + '" placeholder="' + SEALANT_UNIT_COST + '" aria-label="Unit cost per foot"></div>' +
+              '<button type="button" class="rb-rate-reset" data-rate-kind="sealant" data-rate-scope="cost">Reset to default</button>' +
+            '</div></div>' +
+          '<div class="rb-metric rb-metric-sale' + (saleOpen ? ' rb-rates-active' : '') + '">' +
+            '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-sealant-salelbl">' +
+              (calc && calc.isCustom ? '<span class="rb-metric-label-edit">Sale <span class="rb-min-badge rb-custom-badge">custom</span></span><span class="rb-metric-label-preview">Price</span>'
+                : (calc && calc.isMin ? '<span class="rb-metric-label-edit">Sale <span class="rb-min-badge">min</span></span><span class="rb-metric-label-preview">Price</span>'
+                : '<span class="rb-metric-label-edit">Sale</span><span class="rb-metric-label-preview">Price</span>')) +
+            '</span><span class="rb-metric-value rb-price" id="rb-sealant-sale">' + (calc ? fmt(calc.sale) : '\u2014') + '</span></div>' +
+            '<button type="button" class="rb-rate-toggle" data-rate-kind="sealant" data-option-id="' + opt.id + '" data-rate-metric="sale" aria-expanded="' + (saleOpen ? 'true' : 'false') + '">Rates <span class="rb-rate-chevron" aria-hidden="true">\u25BE</span></button>' +
+            '<div class="rb-rate-drawer' + (saleOpen ? ' rb-open' : '') + '"' + (saleOpen ? '' : ' hidden') + '>' +
+              '<div class="rb-rate-field"><label>Sale $/ft</label>' +
+                '<input type="number" min="0" step="0.01" inputmode="decimal" data-sealant-field="unitPrice" value="' + escapeAttr(formatRateInputValue(effPrice, 2)) + '" placeholder="' + SEALANT_DEFAULT_UNIT_PRICE + '" aria-label="Unit price per foot"></div>' +
+              '<div class="rb-rate-field"><label>Minimum $</label>' +
+                '<input type="number" min="0" step="1" inputmode="decimal" data-sealant-field="minSale" value="' + (effMin != null ? escapeAttr(String(effMin)) : '') + '" placeholder="none" aria-label="Minimum sealant sale"></div>' +
+              '<button type="button" class="rb-rate-reset" data-rate-kind="sealant" data-rate-scope="sale">Reset to defaults</button>' +
+            '</div></div>' +
         '</div>';
       container.appendChild(div);
       return;
@@ -3592,8 +3927,9 @@
       div.className = 'rb-panel-card'; div.id = 'rb-card-'+p.id;
       var catOpts = CATEGORIES.map(function(c) { return '<option'+(c===p.category?' selected':'')+'>'+c+'</option>'; }).join('');
       var sideOpts = [1,2,3,4].map(function(n) { return '<option value="'+n+'"'+(n===p.sides?' selected':'')+'>'+n+'</option>'; }).join('');
-      var saleVal = calc ? String(calc.sale) : '';
-      var salePh = calc ? String(calc.formulaSale) : '\u2014';
+      var costOpen = isRateDrawerOpen('panel', p.id, 'cost');
+      var saleOpen = isRateDrawerOpen('panel', p.id, 'sale');
+      var costCustom = parseOptionalRate(p.rateCost) != null;
       div.innerHTML =
         '<div class="rb-panel-top">'+
         '<input class="rb-panel-name" type="text" value="'+escapeAttr(p.name)+'" data-id="'+p.id+'" data-field="name" spellcheck="false" autocomplete="off" autocapitalize="words" aria-label="Panel name" placeholder="'+escapeAttr(p._defaultName || '')+'">'+
@@ -3608,23 +3944,38 @@
         '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="'+(p.depth||'')+'" placeholder="0" data-id="'+p.id+'" data-field="depth" inputmode="decimal"></div>'+
         '</div>'+
         '<div class="rb-results-bar">'+
-        '<div class="rb-metric rb-metric-foam"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div>'+
-        '<div class="rb-metric rb-metric-cost"><span class="rb-metric-label">Cost</span><span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
-        '<div class="rb-metric rb-metric-sale'+(calc&&calc.isCustom?' rb-sale-custom':'')+'">'+
-          '<span class="rb-metric-label" id="rb-salelbl-'+p.id+'">'+saleLabelHtml(calc)+'</span>'+
-          '<div class="rb-sale-edit-row">'+
-            '<span class="rb-sale-prefix">$</span>'+
-            '<input type="number" class="rb-sale-input rb-price" id="rb-sale-'+p.id+'" min="0" step="1" '+
-              'value="'+escapeAttr(saleVal)+'" placeholder="'+escapeAttr(salePh)+'" '+
-              'data-id="'+p.id+'" data-field="saleOverride" inputmode="decimal" '+
-              'aria-label="Sale price"'+(calc?'':' disabled')+'>'+
-            '<button type="button" class="rb-sale-reset" data-id="'+p.id+'" title="Use calculated price" aria-label="Reset to calculated price">\u21A9</button>'+
-          '</div>'+
+        '<div class="rb-metric rb-metric-foam"><div class="rb-metric-main"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div></div>'+
+        '<div class="rb-metric rb-metric-cost'+(costOpen?' rb-rates-active':'')+'" id="rb-metric-cost-'+p.id+'">'+
+          '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-costlbl-'+p.id+'">'+(costCustom?'Cost <span class="rb-min-badge rb-custom-badge">custom</span>':'Cost')+'</span>'+
+          '<span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
+          panelRateToggleHtml(p.id, 'cost', costOpen)+
+          panelCostDrawerHtml(p, calc, costOpen)+
+        '</div>'+
+        '<div class="rb-metric rb-metric-sale'+(saleOpen?' rb-rates-active':'')+'" id="rb-metric-sale-'+p.id+'">'+
+          '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-salelbl-'+p.id+'">'+saleLabelHtml(calc)+'</span>'+
+          '<span class="rb-metric-value rb-price" id="rb-sale-'+p.id+'">'+(calc?fmt(calc.sale):'\u2014')+'</span></div>'+
+          panelRateToggleHtml(p.id, 'sale', saleOpen)+
+          panelSaleDrawerHtml(p, calc, saleOpen)+
         '</div>'+
         '</div>'+
         '<div class="rb-panel-footer"><button class="rb-btn-copy-panel" id="rb-copybtn-'+p.id+'" data-id="'+p.id+'"'+(calc?'':' disabled')+'>'+COPY_SVG+' Copy This Panel</button></div>';
       container.appendChild(div);
     });
+
+    if (keepFocus && keepFocus.field) {
+      var sel;
+      if (keepFocus.sealant) {
+        sel = container.querySelector('[data-sealant-field="' + keepFocus.field + '"]');
+      } else if (keepFocus.id) {
+        sel = container.querySelector('[data-id="' + keepFocus.id + '"][data-field="' + keepFocus.field + '"]');
+      }
+      if (sel && typeof sel.focus === 'function') {
+        sel.focus();
+        if (typeof sel.select === 'function' && sel.type === 'number') {
+          try { sel.select(); } catch (e) {}
+        }
+      }
+    }
   }
 
   // Sidebar summary: per-panel breakdown in single-option mode (today's UX);
@@ -3945,7 +4296,7 @@
   }
 
   function panelReviewItemHTML(p, calc) {
-    var customNote = calc.isCustom ? ' · custom price' : '';
+    var customNote = calc.isCustom ? ' · custom rates' : '';
     return '<div class="rb-review-item">'+
       '<div><div class="rb-review-item-name">'+escapeHtml(p.name)+' \u2014 '+escapeHtml(p.category)+'</div>'+
       '<div class="rb-review-item-detail">'+p.length+'\xd7'+p.width+' ft | '+p.sides+' side'+(p.sides>1?'s':'')+' | '+depthLabel(p.depth)+' lift | '+calc.lbs+' lbs foam'+customNote+'</div></div>'+
@@ -4351,7 +4702,24 @@
       }
       if (t.classList.contains('rb-btn-remove'))          { removePanel(parseInt(t.getAttribute('data-id'),10)); return; }
       if (t.classList.contains('rb-btn-duplicate-panel')) { duplicatePanel(parseInt(t.getAttribute('data-id'),10)); return; }
-      if (t.classList.contains('rb-sale-reset'))          { clearPanelSaleOverride(parseInt(t.getAttribute('data-id'),10)); return; }
+      if (t.classList.contains('rb-rate-toggle')) {
+        var rKind = t.getAttribute('data-rate-kind');
+        var rMetric = t.getAttribute('data-rate-metric');
+        if (rKind === 'panel') {
+          toggleRateDrawer('panel', parseInt(t.getAttribute('data-id'), 10), rMetric);
+        } else if (rKind === 'sealant') {
+          toggleRateDrawer('sealant', parseInt(t.getAttribute('data-option-id'), 10), rMetric);
+        }
+        return;
+      }
+      if (t.classList.contains('rb-rate-reset')) {
+        if (t.getAttribute('data-rate-kind') === 'sealant') {
+          clearSealantRateScope(t.getAttribute('data-rate-scope'));
+        } else {
+          clearPanelRateScope(parseInt(t.getAttribute('data-id'), 10), t.getAttribute('data-rate-scope'));
+        }
+        return;
+      }
       if (t.classList.contains('rb-btn-copy-panel'))      { copyPanel(parseInt(t.getAttribute('data-id'),10)); return; }
       if (t.classList.contains('rb-toast-undo-btn'))      { performUndo(); return; }
     });
@@ -4458,13 +4826,6 @@
         return;
       }
 
-      // Sale price: empty on blur restores formula price
-      if (t.classList.contains('rb-sale-input') || t.getAttribute('data-field') === 'saleOverride') {
-        var saleId = parseInt(t.getAttribute('data-id'), 10);
-        updateField(saleId, 'saleOverride', t.value);
-        return;
-      }
-
       // Sealant unit price: restore default if left blank
       if (t.getAttribute && t.getAttribute('data-sealant-field') === 'unitPrice') {
         var opt2 = getActiveOption();
@@ -4475,7 +4836,28 @@
           t.value = String(SEALANT_DEFAULT_UNIT_PRICE);
           updateSealantResults();
           renderSummary();
+          scheduleDraftSave();
         }
+        return;
+      }
+      if (t.getAttribute && t.getAttribute('data-sealant-field') === 'unitCost') {
+        var optC = getActiveOption();
+        if (!optC || !isSealantOption(optC)) return;
+        if (!(t.value || '').trim()) {
+          optC.sealant.unitCost = null;
+          t.value = String(SEALANT_UNIT_COST);
+          updateSealantResults();
+          renderSummary();
+          scheduleDraftSave();
+        }
+        return;
+      }
+      if (t.getAttribute && (t.getAttribute('data-field') === 'rateSale'
+          || t.getAttribute('data-field') === 'rateCost'
+          || t.getAttribute('data-field') === 'minSale'
+          || t.getAttribute('data-field') === 'saleOverride')) {
+        var rid = parseInt(t.getAttribute('data-id'), 10);
+        updateField(rid, t.getAttribute('data-field'), t.value);
         return;
       }
     });
