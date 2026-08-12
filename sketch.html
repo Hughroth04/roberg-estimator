@@ -892,10 +892,11 @@
   // Lines snap to horizontal, vertical, or 45° diagonal only.
   var SNAP_ANGLE = Math.PI / 4;
 
-  // US Letter @ 300 DPI — fixed artboard resolution (crisp JPG export)
-  var LETTER_WIDTH = 2550;
-  var LETTER_HEIGHT = 3300;
-  var LETTER_ASPECT = 8.5 / 11;
+  // Landscape artboard @ 300 DPI — 11" × 9" (letter width/height swapped,
+  // then height bumped ~0.5" so the page is a bit taller than 8.5×11 landscape).
+  var LETTER_WIDTH = 3300;
+  var LETTER_HEIGHT = 2700;
+  var LETTER_ASPECT = LETTER_WIDTH / LETTER_HEIGHT;
   var PAGE_MARGIN_RATIO = 0.028;
   var HEADER_HEIGHT_RATIO = 0.036;
   var JPEG_QUALITY = 0.97;
