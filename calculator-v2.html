@@ -639,6 +639,48 @@
 #rb-estimator .rb-custom-badge {
   background: rgba(74, 144, 226, 0.28); color: var(--rb-blue);
 }
+#rb-estimator .rb-lbs-edit-row {
+  display: flex; align-items: center; gap: 4px; min-width: 0;
+}
+#rb-estimator .rb-lbs-input {
+  flex: 1 1 auto; min-width: 0; width: 100%;
+  background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.22);
+  border-radius: 0; padding: 0 2px 2px 0; margin: 0;
+  font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+  color: #fff; line-height: 1.2;
+  -webkit-appearance: none; appearance: none;
+}
+#rb-estimator .rb-lbs-input:focus {
+  outline: none; border-bottom-color: var(--rb-blue);
+}
+#rb-estimator .rb-lbs-input:disabled {
+  opacity: 0.45; border-bottom-color: transparent;
+}
+#rb-estimator .rb-lbs-input::-webkit-outer-spin-button,
+#rb-estimator .rb-lbs-input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+#rb-estimator .rb-lbs-input[type=number] { -moz-appearance: textfield; }
+#rb-estimator .rb-lbs-suffix {
+  flex-shrink: 0;
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,0.55); text-transform: lowercase;
+}
+#rb-estimator .rb-lbs-reset {
+  display: none; flex-shrink: 0; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-left: 1px; padding: 0;
+  background: rgba(255,255,255,0.1); border: none; border-radius: 4px;
+  color: rgba(255,255,255,0.65); font-size: 13px; line-height: 1;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#rb-estimator .rb-metric-foam.rb-lbs-custom .rb-lbs-reset { display: inline-flex; }
+#rb-estimator .rb-lbs-reset:active { background: rgba(255,255,255,0.2); color: #fff; }
+#rb-estimator.rb-client-preview .rb-lbs-input {
+  pointer-events: none;
+  caret-color: transparent;
+  border-bottom-color: transparent;
+}
+#rb-estimator.rb-client-preview .rb-lbs-reset { display: none !important; }
 
 /* Panel footer */
 #rb-estimator .rb-panel-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rb-border); }
@@ -2498,12 +2540,21 @@
     return Math.ceil(n);
   }
 
+  // Parse optional whole-pound foam amounts.
+  function parseOptionalLbs(raw) {
+    if (raw == null || raw === '') return null;
+    var n = parseFloat(raw);
+    if (isNaN(n) || n < 0) return null;
+    return Math.ceil(n);
+  }
+
   function panelHasRateOverrides(p) {
     if (!p) return false;
     return parseOptionalRate(p.rateSale) != null
       || parseOptionalRate(p.rateCost) != null
       || parseOptionalMoney(p.minSale) != null
-      || parseOptionalMoney(p.saleOverride) != null;
+      || parseOptionalMoney(p.saleOverride) != null
+      || parseOptionalLbs(p.lbsOverride) != null;
   }
 
   function panelRateSale(p) {
@@ -2529,6 +2580,7 @@
     var formulaSale = isMin ? min : Math.ceil(saleRaw);
     return {
       lbs: Math.ceil(lbsRaw),
+      formulaLbs: Math.ceil(lbsRaw),
       sale: formulaSale,
       cost: isMin ? Math.ceil(min * (RATE_COST / RATE_SALE)) : Math.ceil(costRaw),
       isMin: isMin,
@@ -2536,21 +2588,25 @@
       isCustom: false,
       rateSale: RATE_SALE,
       rateCost: RATE_COST,
-      minSale: min
+      minSale: min,
+      hasLbsOverride: false
     };
   }
 
-  // Apply per-panel $/lb, minimum, and optional fixed-total overrides.
+  // Apply per-panel lbs, $/lb, minimum, and optional fixed-total overrides.
   function resolvePanelCalc(p) {
     if (!p || !isReady(p)) return null;
     var vol = (p.length * p.width * p.depth / 324) * (p.sides * 0.25 + 0.25);
     var conversion = getConversion(p.category);
-    var lbsRaw = vol * conversion;
+    var formulaLbs = Math.ceil(vol * conversion);
+    var forcedLbs = parseOptionalLbs(p.lbsOverride);
+    var hasLbsOverride = forcedLbs != null;
+    var lbs = hasLbsOverride ? forcedLbs : formulaLbs;
     var rateSale = panelRateSale(p);
     var rateCost = panelRateCost(p);
     var min = panelMinSale(p);
-    var saleRaw = lbsRaw * rateSale;
-    var costRaw = lbsRaw * rateCost;
+    var saleRaw = lbs * rateSale;
+    var costRaw = lbs * rateCost;
     var isMin = saleRaw < min;
     var formulaSale = isMin ? min : Math.ceil(saleRaw);
     var cost;
@@ -2569,7 +2625,8 @@
       isMin = false;
     }
     return {
-      lbs: Math.ceil(lbsRaw),
+      lbs: lbs,
+      formulaLbs: formulaLbs,
       sale: sale,
       cost: cost,
       isMin: isMin,
@@ -2578,7 +2635,8 @@
       rateSale: rateSale,
       rateCost: rateCost,
       minSale: min,
-      hasSaleOverride: isForced
+      hasSaleOverride: isForced,
+      hasLbsOverride: hasLbsOverride
     };
   }
 
@@ -2694,6 +2752,7 @@
       rateCost: p.rateCost != null ? p.rateCost : null,
       minSale: p.minSale != null ? p.minSale : null,
       saleOverride: p.saleOverride != null ? p.saleOverride : null,
+      lbsOverride: p.lbsOverride != null ? p.lbsOverride : null,
       _defaultName: p._defaultName
     };
   }
@@ -2903,7 +2962,8 @@
       rateSale: src.rateSale != null ? src.rateSale : null,
       rateCost: src.rateCost != null ? src.rateCost : null,
       minSale: src.minSale != null ? src.minSale : null,
-      saleOverride: src.saleOverride != null ? src.saleOverride : null
+      saleOverride: src.saleOverride != null ? src.saleOverride : null,
+      lbsOverride: src.lbsOverride != null ? src.lbsOverride : null
     };
     opt.panels.splice(idx + 1, 0, newPanel);
     regenerateAutoNames();
@@ -2987,6 +3047,17 @@
       scheduleDraftSave();
       return;
     }
+    if (field === 'lbsOverride') {
+      var lbs = parseOptionalLbs(value);
+      var formula = isReady(p)
+        ? Math.ceil((p.length * p.width * p.depth / 324) * (p.sides * 0.25 + 0.25) * getConversion(p.category))
+        : null;
+      // Matching the formula lbs is not treated as a permanent override.
+      p.lbsOverride = (lbs != null && formula != null && lbs === formula) ? null : lbs;
+      updateCardResults(id); renderSummary(); renderTabStrip();
+      scheduleDraftSave();
+      return;
+    }
     p[field] = ['sides','depth','length','width'].indexOf(field) >= 0 ? (parseFloat(value)||0) : value;
     updateCardResults(id); renderSummary(); renderTabStrip();
   }
@@ -3001,11 +3072,14 @@
       p.saleOverride = null;
     } else if (scope === 'cost') {
       p.rateCost = null;
+    } else if (scope === 'lbs') {
+      p.lbsOverride = null;
     } else {
       p.rateSale = null;
       p.rateCost = null;
       p.minSale = null;
       p.saleOverride = null;
+      p.lbsOverride = null;
     }
     updateCardResults(id);
     renderSummary();
@@ -3104,6 +3178,8 @@
     var p = info.panel;
     var calc = resolvePanelCalc(p);
     var lbsEl = document.getElementById('rb-lbs-' + id);
+    var lbsLbl = document.getElementById('rb-lbslbl-' + id);
+    var foamMetric = document.getElementById('rb-metric-foam-' + id);
     var costEl = document.getElementById('rb-cost-' + id);
     var saleEl = document.getElementById('rb-sale-' + id);
     var lbl = document.getElementById('rb-salelbl-' + id);
@@ -3113,7 +3189,20 @@
     var saleMetric = document.getElementById('rb-metric-sale-' + id);
     if (!lbsEl) return;
     if (calc) {
-      lbsEl.textContent = calc.lbs + ' lbs';
+      if (document.activeElement !== lbsEl) {
+        lbsEl.value = String(calc.lbs);
+        lbsEl.placeholder = String(calc.formulaLbs);
+        lbsEl.disabled = false;
+      } else {
+        lbsEl.placeholder = String(calc.formulaLbs);
+        lbsEl.disabled = false;
+      }
+      if (lbsLbl) {
+        lbsLbl.innerHTML = calc.hasLbsOverride
+          ? 'Foam <span class="rb-min-badge rb-custom-badge">custom</span>'
+          : 'Foam';
+      }
+      if (foamMetric) foamMetric.classList.toggle('rb-lbs-custom', !!calc.hasLbsOverride);
       if (costEl) costEl.textContent = fmt(calc.cost);
       if (saleEl) saleEl.textContent = fmt(calc.sale);
       if (lbl) lbl.innerHTML = saleLabelHtml(calc);
@@ -3128,7 +3217,16 @@
       syncPanelRateInputs(p, calc);
       if (btn) btn.disabled = false;
     } else {
-      lbsEl.textContent = '\u2014';
+      if (document.activeElement !== lbsEl) {
+        lbsEl.value = '';
+        lbsEl.placeholder = '\u2014';
+        lbsEl.disabled = true;
+      } else {
+        lbsEl.placeholder = '\u2014';
+        lbsEl.disabled = true;
+      }
+      if (lbsLbl) lbsLbl.textContent = 'Foam';
+      if (foamMetric) foamMetric.classList.remove('rb-lbs-custom');
       if (costEl) costEl.textContent = '\u2014';
       if (saleEl) saleEl.textContent = '\u2014';
       if (lbl) lbl.innerHTML = saleLabelHtml(null);
@@ -3368,6 +3466,7 @@
           rateCost: p.rateCost != null ? p.rateCost : null,
           minSale: p.minSale != null ? p.minSale : null,
           saleOverride: p.saleOverride != null ? p.saleOverride : null,
+          lbsOverride: p.lbsOverride != null ? p.lbsOverride : null,
           _defaultName: p._defaultName
         };
       });
@@ -3930,6 +4029,9 @@
       var costOpen = isRateDrawerOpen('panel', p.id, 'cost');
       var saleOpen = isRateDrawerOpen('panel', p.id, 'sale');
       var costCustom = parseOptionalRate(p.rateCost) != null;
+      var lbsCustom = parseOptionalLbs(p.lbsOverride) != null;
+      var lbsVal = calc ? String(calc.lbs) : '';
+      var lbsPh = calc ? String(calc.formulaLbs) : '\u2014';
       div.innerHTML =
         '<div class="rb-panel-top">'+
         '<input class="rb-panel-name" type="text" value="'+escapeAttr(p.name)+'" data-id="'+p.id+'" data-field="name" spellcheck="false" autocomplete="off" autocapitalize="words" aria-label="Panel name" placeholder="'+escapeAttr(p._defaultName || '')+'">'+
@@ -3944,7 +4046,16 @@
         '<div class="rb-field"><label>Depth (in)</label><input type="number" min="0" step="0.25" value="'+(p.depth||'')+'" placeholder="0" data-id="'+p.id+'" data-field="depth" inputmode="decimal"></div>'+
         '</div>'+
         '<div class="rb-results-bar">'+
-        '<div class="rb-metric rb-metric-foam"><div class="rb-metric-main"><span class="rb-metric-label">Foam</span><span class="rb-metric-value" id="rb-lbs-'+p.id+'">'+(calc?calc.lbs+' lbs':'\u2014')+'</span></div></div>'+
+        '<div class="rb-metric rb-metric-foam'+(lbsCustom?' rb-lbs-custom':'')+'" id="rb-metric-foam-'+p.id+'">'+
+          '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-lbslbl-'+p.id+'">'+(lbsCustom?'Foam <span class="rb-min-badge rb-custom-badge">custom</span>':'Foam')+'</span>'+
+          '<div class="rb-lbs-edit-row">'+
+            '<input class="rb-lbs-input" id="rb-lbs-'+p.id+'" type="number" min="0" step="1" inputmode="decimal" '+
+              'data-id="'+p.id+'" data-field="lbsOverride" value="'+escapeAttr(lbsVal)+'" placeholder="'+escapeAttr(lbsPh)+'" '+
+              (calc?'':'disabled ')+'aria-label="Foam pounds">'+
+            '<span class="rb-lbs-suffix">lbs</span>'+
+            '<button type="button" class="rb-lbs-reset" data-id="'+p.id+'" data-rate-scope="lbs" title="Reset foam to formula" aria-label="Reset foam to formula">\u21A9</button>'+
+          '</div></div>'+
+        '</div>'+
         '<div class="rb-metric rb-metric-cost'+(costOpen?' rb-rates-active':'')+'" id="rb-metric-cost-'+p.id+'">'+
           '<div class="rb-metric-main"><span class="rb-metric-label" id="rb-costlbl-'+p.id+'">'+(costCustom?'Cost <span class="rb-min-badge rb-custom-badge">custom</span>':'Cost')+'</span>'+
           '<span class="rb-metric-value" id="rb-cost-'+p.id+'">'+(calc?fmt(calc.cost):'\u2014')+'</span></div>'+
@@ -4712,7 +4823,7 @@
         }
         return;
       }
-      if (t.classList.contains('rb-rate-reset')) {
+      if (t.classList.contains('rb-rate-reset') || t.classList.contains('rb-lbs-reset')) {
         if (t.getAttribute('data-rate-kind') === 'sealant') {
           clearSealantRateScope(t.getAttribute('data-rate-scope'));
         } else {
@@ -4855,7 +4966,8 @@
       if (t.getAttribute && (t.getAttribute('data-field') === 'rateSale'
           || t.getAttribute('data-field') === 'rateCost'
           || t.getAttribute('data-field') === 'minSale'
-          || t.getAttribute('data-field') === 'saleOverride')) {
+          || t.getAttribute('data-field') === 'saleOverride'
+          || t.getAttribute('data-field') === 'lbsOverride')) {
         var rid = parseInt(t.getAttribute('data-id'), 10);
         updateField(rid, t.getAttribute('data-field'), t.value);
         return;
