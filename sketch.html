@@ -2923,6 +2923,30 @@
     };
   }
 
+  // Finish an exterior attach the way the dashed preview aims: keep the last
+  // wall and latch it where that wall meets the host. After a first lobe the
+  // host is concave, so nearest-corner snap jumps to a protrusion corner and
+  // turns the last wall into a diagonal.
+  function attachCloseHit(shapeIndex, lastPt, tap, endSnap) {
+    if (!lastPt || !tap) return null;
+    var preview = snapAttachCornerFromAnchor(lastPt, tap.x, tap.y);
+    var toward = preview || tap;
+    var along = hitOutlineAlongRay(
+      shapeIndex,
+      lastPt,
+      toward,
+      MIN_SEGMENT_PX * 0.5
+    );
+    var nearest = hitOnRootOutline(shapeIndex, tap.x, tap.y, endSnap);
+    if (along) {
+      if (pointDist(along, tap) <= endSnap) return along;
+      if (preview && pointDist(along, toward) <= endSnap) return along;
+      if (nearest) return along;
+      return null;
+    }
+    return nearest;
+  }
+
   function snapToNearestRootOutline(x, y, maxDist) {
     var best = null;
     var bestIdx = null;
@@ -2987,6 +3011,36 @@
     var startHit = hitOnRootOutline(shapeIndex, a.x, a.y, maxDist);
     var endHit = hitOnRootOutline(shapeIndex, b.x, b.y, maxDist);
     if (!startHit || !endHit) return null;
+
+    if (pointDist(startHit, endHit) < MIN_SEGMENT_PX * 0.5) return null;
+
+    // Concave hosts (a panel already hanging off another): a nook start plus a
+    // close on a different protrusion wall makes A→B cut through existing panels.
+    // Keep the neck on the wall the last stroke actually met.
+    var neckMidX = (startHit.x + endHit.x) / 2;
+    var neckMidY = (startHit.y + endHit.y) / 2;
+    if (pointInPolygon(neckMidX, neckMidY, outline) &&
+        pointToPolygonBoundaryDist(neckMidX, neckMidY, outline) > MIN_SEGMENT_PX * 0.35) {
+      var endSeg = endHit.segIndex;
+      if (endSeg >= 0 && endSeg < outline.length) {
+        var segA = outline[endSeg];
+        var segB = outline[(endSeg + 1) % outline.length];
+        var onto = projectPointToSegment(
+          startHit.x, startHit.y,
+          segA.x, segA.y, segB.x, segB.y
+        );
+        startHit = {
+          x: Math.round(onto.x * 10) / 10,
+          y: Math.round(onto.y * 10) / 10,
+          dist: onto.dist,
+          t: onto.t,
+          segIndex: endSeg,
+          pathId: endHit.pathId,
+          closed: true,
+          snapped: true
+        };
+      }
+    }
 
     if (pointDist(startHit, endHit) < MIN_SEGMENT_PX * 0.5) return null;
 
@@ -4976,22 +5030,12 @@
         var endSnap = attachEndSnapPx();
         if (host && currentPoints.length >= 2) {
           var lastPt = currentPoints[currentPoints.length - 1];
-          var endEdge = hitOnRootOutline(
+          var endEdge = attachCloseHit(
             outlineAttach.shapeIndex,
-            clamped.x, clamped.y,
+            lastPt,
+            clamped,
             endSnap
           );
-          if (!endEdge) {
-            var wallHit = hitOutlineAlongRay(
-              outlineAttach.shapeIndex,
-              lastPt,
-              clamped,
-              MIN_SEGMENT_PX * 0.5
-            );
-            if (wallHit && pointDist(wallHit, clamped) <= endSnap) {
-              endEdge = wallHit;
-            }
-          }
           if (endEdge && pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
             currentPoints.push({ x: endEdge.x, y: endEdge.y });
             finishOutlineAttachment();
@@ -5001,13 +5045,16 @@
         // Allow corners outside; ignore "inside shape" toast while attaching.
         if (findRootContainerAt(clamped.x, clamped.y) !== null &&
             findRootContainerAt(clamped.x, clamped.y) === outlineAttach.shapeIndex) {
-          // Interior click on host: finish only if deliberately near outer edge.
-          var nearEnd = hitOnRootOutline(
-            outlineAttach.shapeIndex,
-            clamped.x, clamped.y,
-            endSnap
-          );
-          if (nearEnd && nearEnd.dist <= endSnap && currentPoints.length >= 2 &&
+          // Interior click on host: finish only if the last wall meets the outer edge.
+          var nearEnd = currentPoints.length >= 2
+            ? attachCloseHit(
+                outlineAttach.shapeIndex,
+                currentPoints[currentPoints.length - 1],
+                clamped,
+                endSnap
+              )
+            : null;
+          if (nearEnd && currentPoints.length >= 2 &&
               pointDist(nearEnd, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
             currentPoints.push({ x: nearEnd.x, y: nearEnd.y });
             finishOutlineAttachment();
@@ -5381,19 +5428,19 @@
         return;
       }
       var last = currentPoints[currentPoints.length - 1];
-      var prev = currentPoints[currentPoints.length - 2];
+      var prev = currentPoints.length >= 2 ? currentPoints[currentPoints.length - 2] : null;
       var endSnap = hitOnRootOutline(
         outlineAttach.shapeIndex,
         last.x, last.y,
         oddSnapThreshold()
       );
-      if (!endSnap && prev) {
-        endSnap = hitOutlineAlongRay(
+      if (prev) {
+        endSnap = attachCloseHit(
           outlineAttach.shapeIndex,
           prev,
           last,
-          MIN_SEGMENT_PX * 0.5
-        );
+          Math.max(oddSnapThreshold(), attachEndSnapPx())
+        ) || endSnap;
       }
       if (!endSnap) {
         showToast('Tap the outer edge to finish, or draw the last wall into that edge');
