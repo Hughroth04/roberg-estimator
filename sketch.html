@@ -2943,6 +2943,36 @@
     return best;
   }
 
+  function insertPointOnClosedRing(ring, x, y) {
+    var path = { points: ring, closed: true };
+    var proj = projectPointOntoPath(path, x, y);
+    if (!proj) return { ring: ring, index: 0, inserted: false };
+    var n = ring.length;
+    var pt = { x: proj.x, y: proj.y };
+    var a = ring[proj.segIndex];
+    var b = ring[(proj.segIndex + 1) % n];
+    if (pointDist(pt, a) < 0.75) return { ring: ring, index: proj.segIndex, inserted: false };
+    if (pointDist(pt, b) < 0.75) return { ring: ring, index: (proj.segIndex + 1) % n, inserted: false };
+    var next = ring.map(function(p) { return { x: p.x, y: p.y }; });
+    next.splice(proj.segIndex + 1, 0, pt);
+    return { ring: next, index: proj.segIndex + 1, inserted: true };
+  }
+
+  function walkClosedRing(ring, fromIdx, toIdx, forward) {
+    var n = ring.length;
+    if (n < 3 || fromIdx < 0 || toIdx < 0) return null;
+    var chain = [{ x: ring[fromIdx].x, y: ring[fromIdx].y }];
+    if (fromIdx === toIdx) return chain;
+    var i = fromIdx;
+    var guard = 0;
+    while (guard++ <= n) {
+      i = forward ? (i + 1) % n : (i - 1 + n) % n;
+      chain.push({ x: ring[i].x, y: ring[i].y });
+      if (i === toIdx) return chain;
+    }
+    return null;
+  }
+
   // Expand root outline with an exterior stroke A→B, and return the new
   // outline plus the attachment (neck) endpoints for a panel divider.
   function expandRootOutlineWithStroke(shapeIndex, freehand) {
@@ -2951,7 +2981,7 @@
     var outline = shape.points;
     if (outline.length < 3) return null;
 
-    var maxDist = oddSnapThreshold();
+    var maxDist = Math.max(oddSnapThreshold(), attachEndSnapPx());
     var a = freehand[0];
     var b = freehand[freehand.length - 1];
     var startHit = hitOnRootOutline(shapeIndex, a.x, a.y, maxDist);
@@ -2980,10 +3010,14 @@
       return null;
     }
 
-    var path = { id: 'shape:' + shapeIndex, points: outline, closed: true };
-    // Chains from end B → start A along outline.
-    var chains = walkBorderChainsBoth(path, endHit, startHit);
-    if (!chains || !chains.short || !chains.long) return null;
+    var ring = outline.map(function(p) { return { x: p.x, y: p.y }; });
+    var insA = insertPointOnClosedRing(ring, startHit.x, startHit.y);
+    ring = insA.ring;
+    var idxStart = insA.index;
+    var insB = insertPointOnClosedRing(ring, endHit.x, endHit.y);
+    ring = insB.ring;
+    var idxEnd = insB.index;
+    if (insB.inserted && insB.index <= idxStart) idxStart += 1;
 
     function buildExpanded(hostBA) {
       if (!hostBA || hostBA.length < 2) return null;
@@ -3000,8 +3034,8 @@
     }
 
     var hostArea = polygonArea(outline);
-    var candLong = buildExpanded(chains.long);
-    var candShort = buildExpanded(chains.short);
+    var candLong = buildExpanded(walkClosedRing(ring, idxEnd, idxStart, true));
+    var candShort = buildExpanded(walkClosedRing(ring, idxEnd, idxStart, false));
     var best = null;
     var bestArea = hostArea;
 
@@ -3013,7 +3047,6 @@
         best = cand;
       }
     }
-    // Prefer long host walk (replace short neck wall with freehand on exterior).
     consider(candLong);
     consider(candShort);
     if (!best) return null;
@@ -4942,11 +4975,23 @@
         var host = completedShapes[outlineAttach.shapeIndex];
         var endSnap = attachEndSnapPx();
         if (host && currentPoints.length >= 2) {
+          var lastPt = currentPoints[currentPoints.length - 1];
           var endEdge = hitOnRootOutline(
             outlineAttach.shapeIndex,
             clamped.x, clamped.y,
             endSnap
           );
+          if (!endEdge) {
+            var wallHit = hitOutlineAlongRay(
+              outlineAttach.shapeIndex,
+              lastPt,
+              clamped,
+              MIN_SEGMENT_PX * 0.5
+            );
+            if (wallHit && pointDist(wallHit, clamped) <= endSnap) {
+              endEdge = wallHit;
+            }
+          }
           if (endEdge && pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
             currentPoints.push({ x: endEdge.x, y: endEdge.y });
             finishOutlineAttachment();
