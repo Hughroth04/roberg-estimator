@@ -2887,6 +2887,42 @@
     return hitFromProjection(path, proj, -1);
   }
 
+  // Extend the last drawn wall until it meets the host outline.
+  function hitOutlineAlongRay(shapeIndex, from, toward, minDist) {
+    var shape = completedShapes[shapeIndex];
+    if (!shape || !shape.points || shape.points.length < 3 || !from || !toward) return null;
+    var dx = toward.x - from.x;
+    var dy = toward.y - from.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1) return null;
+    var ux = dx / len;
+    var uy = dy / len;
+    var far = Math.max(LETTER_WIDTH, LETTER_HEIGHT) * 2;
+    var toX = from.x + ux * far;
+    var toY = from.y + uy * far;
+    var pts = shape.points;
+    var best = null;
+    var bestAlong = Infinity;
+    var i;
+    for (i = 0; i < pts.length; i++) {
+      var a = pts[i];
+      var b = pts[(i + 1) % pts.length];
+      var hit = segmentIntersection(from.x, from.y, toX, toY, a.x, a.y, b.x, b.y);
+      if (!hit) continue;
+      var along = (hit.x - from.x) * ux + (hit.y - from.y) * uy;
+      if (along < minDist) continue;
+      if (along < bestAlong) {
+        bestAlong = along;
+        best = { x: hit.x, y: hit.y };
+      }
+    }
+    if (!best) return null;
+    return {
+      x: Math.round(best.x * 10) / 10,
+      y: Math.round(best.y * 10) / 10
+    };
+  }
+
   function snapToNearestRootOutline(x, y, maxDist) {
     var best = null;
     var bestIdx = null;
@@ -4905,15 +4941,21 @@
       if (outlineAttach) {
         var host = completedShapes[outlineAttach.shapeIndex];
         var endSnap = attachEndSnapPx();
-        if (host) {
+        if (host && currentPoints.length >= 2) {
           var endEdge = hitOnRootOutline(
             outlineAttach.shapeIndex,
             clamped.x, clamped.y,
             endSnap
           );
-          // Only finish when the tap itself is on the edge (not a far free corner).
-          if (endEdge && endEdge.dist <= endSnap && currentPoints.length >= 2 &&
-              pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
+          if (!endEdge) {
+            endEdge = hitOutlineAlongRay(
+              outlineAttach.shapeIndex,
+              currentPoints[currentPoints.length - 1],
+              clamped,
+              MIN_SEGMENT_PX * 0.5
+            );
+          }
+          if (endEdge && pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
             currentPoints.push({ x: endEdge.x, y: endEdge.y });
             finishOutlineAttachment();
             return;
@@ -4953,6 +4995,21 @@
 
       if (currentPoints.length >= MIN_POLYGON_POINTS && tryCloseOutlineAt(clamped)) return;
       if (findRootContainerAt(clamped.x, clamped.y) !== null) {
+        var hostIdx = findRootContainerAt(clamped.x, clamped.y);
+        var startOnHost = hostIdx !== null && currentPoints.length >= 2
+          ? hitOnRootOutline(hostIdx, currentPoints[0].x, currentPoints[0].y, oddSnapThreshold())
+          : null;
+        var wallHit = startOnHost
+          ? (hitOnRootOutline(hostIdx, clamped.x, clamped.y, attachEndSnapPx())
+            || hitOutlineAlongRay(hostIdx, currentPoints[currentPoints.length - 1], clamped, MIN_SEGMENT_PX * 0.5))
+          : null;
+        if (startOnHost && wallHit && pointDist(wallHit, startOnHost) >= MIN_SEGMENT_PX) {
+          outlineAttach = { shapeIndex: hostIdx, startHit: startOnHost };
+          currentPoints[0] = { x: startOnHost.x, y: startOnHost.y };
+          currentPoints.push({ x: wallHit.x, y: wallHit.y });
+          finishOutlineAttachment();
+          return;
+        }
         showToast('Drag inside the shape to add dividers — only the outer outline uses corners');
         return;
       }
@@ -5287,15 +5344,23 @@
         showToast('Add at least one outer corner, then end on the shape edge');
         return;
       }
-      // Snap last point onto host outline if close enough to finish.
       var last = currentPoints[currentPoints.length - 1];
+      var prev = currentPoints[currentPoints.length - 2];
       var endSnap = hitOnRootOutline(
         outlineAttach.shapeIndex,
         last.x, last.y,
         oddSnapThreshold()
       );
+      if (!endSnap && prev) {
+        endSnap = hitOutlineAlongRay(
+          outlineAttach.shapeIndex,
+          prev,
+          last,
+          MIN_SEGMENT_PX * 0.5
+        );
+      }
       if (!endSnap) {
-        showToast('Tap the outer edge to finish (3-sided: edge → outer corner → edge)');
+        showToast('Tap the outer edge to finish, or draw the last wall into that edge');
         return;
       }
       if (pointDist(endSnap, outlineAttach.startHit) < MIN_SEGMENT_PX) {
