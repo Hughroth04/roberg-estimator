@@ -4947,14 +4947,6 @@
             clamped.x, clamped.y,
             endSnap
           );
-          if (!endEdge) {
-            endEdge = hitOutlineAlongRay(
-              outlineAttach.shapeIndex,
-              currentPoints[currentPoints.length - 1],
-              clamped,
-              MIN_SEGMENT_PX * 0.5
-            );
-          }
           if (endEdge && pointDist(endEdge, outlineAttach.startHit) >= MIN_SEGMENT_PX) {
             currentPoints.push({ x: endEdge.x, y: endEdge.y });
             finishOutlineAttachment();
@@ -5000,8 +4992,7 @@
           ? hitOnRootOutline(hostIdx, currentPoints[0].x, currentPoints[0].y, oddSnapThreshold())
           : null;
         var wallHit = startOnHost
-          ? (hitOnRootOutline(hostIdx, clamped.x, clamped.y, attachEndSnapPx())
-            || hitOutlineAlongRay(hostIdx, currentPoints[currentPoints.length - 1], clamped, MIN_SEGMENT_PX * 0.5))
+          ? hitOnRootOutline(hostIdx, clamped.x, clamped.y, attachEndSnapPx())
           : null;
         if (startOnHost && wallHit && pointDist(wallHit, startOnHost) >= MIN_SEGMENT_PX) {
           outlineAttach = { shapeIndex: hostIdx, startHit: startOnHost };
