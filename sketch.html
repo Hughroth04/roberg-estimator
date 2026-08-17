@@ -973,15 +973,6 @@
     return Math.max(CLOSE_SNAP_PX * 2.1, MIN_SEGMENT_PX * 1.9, LETTER_WIDTH * 0.016);
   }
 
-  // True when the pointer is deep inside a root outline (divider territory),
-  // not merely on/near the outer edge where exterior attach should win.
-  function isDeepInsideRootOutline(shapeIndex, x, y) {
-    var shape = completedShapes[shapeIndex];
-    if (!shape || !shape.points || shape.points.length < 3) return false;
-    if (!pointInPolygon(x, y, shape.points)) return false;
-    return pointToPolygonBoundaryDist(x, y, shape.points) > attachEndSnapPx();
-  }
-
   function resolveDrawPoint(x, y) {
     var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
     if (!currentPoints.length) {
@@ -4605,7 +4596,7 @@
       } else if (isAttachMode) {
         statusEl.innerHTML = 'Draw the outer outline with as many corners as you need, then tap inside to add panel dividers.';
       } else if (hasRootOutline()) {
-        statusEl.innerHTML = 'Drag inside for dividers. Tap an <strong>outer edge</strong> to attach a panel (3-sided pool-deck panels ok — Draw or Odd).';
+        statusEl.innerHTML = 'Drag inside any panel for dividers. Start <strong>outside</strong> an outer edge to expand the shape.';
       } else {
         statusEl.innerHTML = '';
       }
@@ -4883,20 +4874,24 @@
     if (!currentPoints.length) {
       activeDrawMode = 'outline';
       dividerTargetIndex = null;
-      // Exterior attach from ON or near the outer edge (same as Odd), or from
-      // just outside it. Deep-inside presses stay for dividers — not attach.
+      // Exterior attach only from OUTSIDE the outline. Presses on/in the shape
+      // (including the outer wall) are divider drags, not a new outline.
       var edgeStart = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
-      if (edgeStart && edgeStart.snapped &&
-          !isDeepInsideRootOutline(edgeStart.shapeIndex, clamped.x, clamped.y)) {
-        outlineAttach = {
-          shapeIndex: edgeStart.shapeIndex,
-          startHit: edgeStart
-        };
-        currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
-        updateUi();
-        draw();
-        showToast('Extending shape — place outer corners, then end on the outline');
-        return;
+      if (edgeStart && edgeStart.snapped) {
+        var hostPts = completedShapes[edgeStart.shapeIndex] &&
+          completedShapes[edgeStart.shapeIndex].points;
+        var insideHost = hostPts && pointInOrOnPolygon(clamped.x, clamped.y, hostPts);
+        if (!insideHost) {
+          outlineAttach = {
+            shapeIndex: edgeStart.shapeIndex,
+            startHit: edgeStart
+          };
+          currentPoints.push({ x: edgeStart.x, y: edgeStart.y });
+          updateUi();
+          draw();
+          showToast('Extending shape — draw outside, then end on the outline');
+          return;
+        }
       }
       outlineAttach = null;
       currentPoints.push(clamped);
@@ -6006,19 +6001,11 @@
       }
       addPoint(p.x, p.y);
     } else {
-      // Near an outer edge → exterior attach (pool-deck panels), even if the tap
-      // lands on the stroke. Deep inside the filled shape → divider drag.
-      var edgeHit = snapToNearestRootOutline(clamped.x, clamped.y, oddSnapThreshold());
-      if (edgeHit && edgeHit.snapped &&
-          !isDeepInsideRootOutline(edgeHit.shapeIndex, clamped.x, clamped.y)) {
-        addPoint(p.x, p.y);
+      var containerIdx = findRootContainerAt(clamped.x, clamped.y);
+      if (containerIdx !== null) {
+        startDividerDrag(containerIdx, clamped.x, clamped.y);
       } else {
-        var containerIdx = findRootContainerAt(clamped.x, clamped.y);
-        if (containerIdx !== null) {
-          startDividerDrag(containerIdx, clamped.x, clamped.y);
-        } else {
-          addPoint(p.x, p.y);
-        }
+        addPoint(p.x, p.y);
       }
     }
     e.preventDefault();
