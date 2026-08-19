@@ -79,6 +79,13 @@
         </div>
       </div>
 
+      <div class="rb-job-address-wrap">
+        <label class="rb-job-address-label" for="rb-job-address">Job address</label>
+        <input type="text" id="rb-job-address" class="rb-job-address-input"
+          placeholder="Filled from site sketch" autocomplete="street-address" spellcheck="false">
+        <div class="rb-job-address-hint">Used for PDF file name</div>
+      </div>
+
       <button class="rb-btn-preview" id="rb-btn-preview" type="button">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         Client Preview
@@ -277,6 +284,25 @@
       <button class="rb-action-sheet-btn" id="rb-add-panels-option" type="button">Lifting Panels</button>
       <button class="rb-action-sheet-btn" id="rb-add-sealant-option" type="button">Joint Sealant</button>
       <button class="rb-action-sheet-btn rb-action-sheet-cancel" id="rb-add-option-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- PDF file name before internal export -->
+  <div class="rb-modal-overlay" id="rb-pdf-modal" style="display:none">
+    <div class="rb-modal rb-pdf-modal">
+      <div class="rb-modal-header">
+        <div class="rb-modal-title">Name PDF file</div>
+        <button class="rb-modal-close" id="rb-pdf-modal-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="rb-modal-body">
+        <p class="rb-step-desc">Internal pre-approval PDF — edit the file name before download.</p>
+        <label class="rb-pdf-filename-label" for="rb-pdf-filename">File name</label>
+        <input type="text" id="rb-pdf-filename" class="rb-modal-input" spellcheck="false" autocomplete="off">
+        <div class="rb-pdf-modal-actions">
+          <button class="rb-btn-back" id="rb-pdf-cancel" type="button">Cancel</button>
+          <button class="rb-btn-send" id="rb-pdf-confirm" type="button">Download PDF</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -746,6 +772,69 @@
 }
 #rb-estimator .rb-empty { font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; padding: 14px 0; }
 
+#rb-estimator .rb-job-address-wrap {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--rb-radius-lg);
+  box-sizing: border-box;
+}
+#rb-estimator .rb-job-address-label {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 6px;
+}
+#rb-estimator .rb-job-address-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.95);
+  color: var(--rb-text);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+}
+#rb-estimator .rb-job-address-input:focus {
+  outline: none;
+  border-color: var(--rb-blue);
+  box-shadow: 0 0 0 3px rgba(114,165,183,0.18);
+}
+#rb-estimator .rb-job-address-hint {
+  margin-top: 5px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+}
+
+#rb-estimator .rb-pdf-filename-label {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rb-muted);
+  margin-bottom: 6px;
+}
+#rb-estimator .rb-pdf-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+#rb-estimator .rb-pdf-modal-actions .rb-btn-back,
+#rb-estimator .rb-pdf-modal-actions .rb-btn-send {
+  flex: 1;
+  margin: 0;
+}
+
 /* HCP button - primary action */
 #rb-estimator .rb-btn-hcp {
   width: 100%; height: 52px; background: var(--rb-green); color: #fff;
@@ -829,6 +918,7 @@
 #rb-estimator.rb-client-preview .rb-total-bar-send,
 #rb-estimator.rb-client-preview .rb-btn-preview,
 #rb-estimator.rb-client-preview .rb-btn-export-pdf,
+#rb-estimator.rb-client-preview .rb-job-address-wrap,
 #rb-estimator.rb-client-preview .rb-btn-hcp,
 #rb-estimator.rb-client-preview .rb-btn-copy-all,
 #rb-estimator.rb-client-preview .rb-btn-reset,
@@ -2233,6 +2323,7 @@
 
   var options = [], activeOptionId = null;
   var nextPanelId = 1, nextOptionId = 1, nextPhotoId = 1;
+  var jobAddress = '';
   var actionSheetOptionId = null;
   var selectedCustomerId = null, selectedCustomerName = null, selectedCustomerAddressId = null;
   var isProcessingPhotos = false;
@@ -2308,7 +2399,8 @@
         selectedCustomerName: selectedCustomerName,
         selectedCustomerAddressId: selectedCustomerAddressId,
         search: custSearchEl ? custSearchEl.value : '',
-        form: readNewCustomerForm()
+        form: readNewCustomerForm(),
+        jobAddress: jobAddress
       }
     };
   }
@@ -2332,6 +2424,8 @@
     setVal('rb-state', form.state);
     setVal('rb-zip', form.zip);
     setVal('rb-cust-search', customer.search);
+    if (customer.jobAddress != null) jobAddress = String(customer.jobAddress).trim();
+    syncJobAddressField();
   }
 
   function applyCustomerUiFromState() {
@@ -2454,6 +2548,7 @@
       addPanel();
     }
     renderAll();
+    syncJobAddressField();
     consumePendingSketchAttachment();
   }
 
@@ -3340,7 +3435,9 @@
     selectedCustomerId = null;
     selectedCustomerName = null;
     selectedCustomerAddressId = null;
+    jobAddress = '';
     applyCustomerDraftToDom({ form: {}, search: '' });
+    syncJobAddressField();
     seedDefaultOptions();
     addPanel();
     renderAll();
@@ -3737,6 +3834,10 @@
     try { pending = JSON.parse(raw); } catch (e4) { return; }
     if (!pending || !pending.dataUrl) return;
 
+    if (pending.customerAddress && !isPlaceholderJobAddress(pending.customerAddress)) {
+      setJobAddress(pending.customerAddress);
+    }
+
     var opt = pending.optionId != null
       ? options.find(function(o) { return o.id === pending.optionId; })
       : getActiveOption();
@@ -3768,6 +3869,7 @@
         optionId: opt.id,
         optionName: opt.name || ('Option ' + opt.defaultNumber),
         returnTo: 'calculator-v2.html',
+        jobAddress: jobAddress || '',
         updatedAt: Date.now()
       }));
     } catch (err) {
@@ -4219,6 +4321,128 @@
     return name || null;
   }
 
+  function isPlaceholderJobAddress(s) {
+    s = String(s == null ? '' : s).trim().toLowerCase();
+    return !s || s === 'customer address';
+  }
+
+  function sanitizePdfFileBase(name) {
+    var s = String(name == null ? '' : name).trim();
+    if (!s) s = 'Estimate';
+    s = s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+    s = s.replace(/[. ]+$/g, '');
+    if (!s) s = 'Estimate';
+    if (s.length > 100) s = s.slice(0, 100).replace(/\s+$/, '');
+    return s;
+  }
+
+  function addressFromSketchPhotoNames() {
+    var i, j, opt, ph, name, base;
+    for (i = 0; i < options.length; i++) {
+      opt = options[i];
+      if (!opt.photos) continue;
+      for (j = 0; j < opt.photos.length; j++) {
+        ph = opt.photos[j];
+        if (!ph || !ph.fileName) continue;
+        name = String(ph.fileName);
+        if (/ sketch\.jpe?g$/i.test(name)) {
+          base = name.replace(/ sketch\.jpe?g$/i, '').trim();
+          if (!isPlaceholderJobAddress(base)) return base;
+        }
+      }
+    }
+    return null;
+  }
+
+  function syncJobAddressFromDom() {
+    var el = document.getElementById('rb-job-address');
+    if (!el) return;
+    jobAddress = el.value.trim();
+  }
+
+  function syncJobAddressField() {
+    var el = document.getElementById('rb-job-address');
+    if (!el || document.activeElement === el) return;
+    el.value = jobAddress || '';
+  }
+
+  function setJobAddress(value) {
+    var next = String(value == null ? '' : value).trim();
+    if (isPlaceholderJobAddress(next)) return;
+    if (next === jobAddress) return;
+    jobAddress = next;
+    syncJobAddressField();
+    scheduleDraftSave();
+  }
+
+  function suggestJobAddress() {
+    if (!isPlaceholderJobAddress(jobAddress)) return jobAddress;
+    var fromForm = getEstimateAddressLine();
+    if (fromForm) return fromForm;
+    var fromPhoto = addressFromSketchPhotoNames();
+    if (fromPhoto) return fromPhoto;
+    return '';
+  }
+
+  function ensureJobAddressDefault() {
+    var suggested = suggestJobAddress();
+    if (suggested && isPlaceholderJobAddress(jobAddress)) {
+      setJobAddress(suggested);
+    }
+  }
+
+  function buildDefaultPdfFilename() {
+    var base = sanitizePdfFileBase(isPlaceholderJobAddress(jobAddress) ? suggestJobAddress() : jobAddress);
+    if (!base || base === 'Estimate') {
+      base = sanitizePdfFileBase(suggestJobAddress() || 'Estimate');
+    }
+    return base + ' pre-approval.pdf';
+  }
+
+  function normalizePdfFilename(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s) s = buildDefaultPdfFilename();
+    s = s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!/\.pdf$/i.test(s)) s += '.pdf';
+    if (s.length > 120) {
+      s = s.slice(0, 116).replace(/\s+$/, '') + '.pdf';
+    }
+    return s;
+  }
+
+  function openPdfNameModal() {
+    ensureJobAddressDefault();
+    var modal = document.getElementById('rb-pdf-modal');
+    var input = document.getElementById('rb-pdf-filename');
+    if (!modal || !input) return;
+    input.value = buildDefaultPdfFilename();
+    modal.style.display = 'flex';
+    setTimeout(function() {
+      try {
+        input.focus();
+        input.select();
+      } catch (_) {}
+    }, 30);
+  }
+
+  function closePdfNameModal() {
+    var modal = document.getElementById('rb-pdf-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function confirmPdfExport() {
+    var input = document.getElementById('rb-pdf-filename');
+    var filename = normalizePdfFilename(input ? input.value : '');
+    closePdfNameModal();
+    showToast('Building PDF…');
+    loadJsPdf().then(function(jsPDF) {
+      buildApprovalPdf(jsPDF, filename);
+      showToast('PDF downloaded');
+    }).catch(function() {
+      showToast('Could not load PDF library');
+    });
+  }
+
   function getEstimateAddressLine() {
     var form = readNewCustomerForm();
     var parts = [form.street, form.city, form.state, form.zip].filter(function(v) {
@@ -4239,7 +4463,7 @@
     return notes.join(' · ');
   }
 
-  function buildApprovalPdf(jsPDF) {
+  function buildApprovalPdf(jsPDF, filename) {
     var PAGE_W = 612;
     var PAGE_H = 792;
     var M = 54;
@@ -4299,7 +4523,7 @@
       doc.text('Customer: ' + customerLine, M, y);
       y += 16;
     }
-    var addressLine = getEstimateAddressLine();
+    var addressLine = !isPlaceholderJobAddress(jobAddress) ? jobAddress : suggestJobAddress();
     if (addressLine) {
       drawWrapped('Address: ' + addressLine, M, CONTENT_W, 14);
       y += 4;
@@ -4473,12 +4697,7 @@
       });
     });
 
-    var filename = 'Ro-Berg-Estimate';
-    if (customerLine) {
-      filename += '-' + customerLine.replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    }
-    filename += '-' + new Date().toISOString().slice(0, 10) + '.pdf';
-    doc.save(filename);
+    doc.save(normalizePdfFilename(filename));
   }
 
   function exportApprovalPdf() {
@@ -4487,13 +4706,7 @@
       showToast(check.reason);
       return;
     }
-    showToast('Building PDF…');
-    loadJsPdf().then(function(jsPDF) {
-      buildApprovalPdf(jsPDF);
-      showToast('PDF downloaded');
-    }).catch(function() {
-      showToast('Could not load PDF library');
-    });
+    openPdfNameModal();
   }
 
   // ── HCP Modal ──
@@ -5129,6 +5342,9 @@
       var tid = t.id;
       if (tid === 'rb-btn-preview')      { enterClientPreview(); return; }
       if (tid === 'rb-btn-export-pdf')   { exportApprovalPdf(); return; }
+      if (tid === 'rb-pdf-modal-close')  { closePdfNameModal(); return; }
+      if (tid === 'rb-pdf-cancel')       { closePdfNameModal(); return; }
+      if (tid === 'rb-pdf-confirm')      { confirmPdfExport(); return; }
       if (tid === 'rb-btn-add')           { addPanel(); return; }
       if (tid === 'rb-copy-all-btn')      { copyAll();  return; }
       if (tid === 'rb-btn-reset')         { resetAll(); return; }
@@ -5208,6 +5424,24 @@
     var custSearchEl = document.getElementById('rb-cust-search');
     if (custSearchEl) {
       custSearchEl.addEventListener('input', scheduleDraftSave);
+    }
+
+    var jobAddressEl = document.getElementById('rb-job-address');
+    if (jobAddressEl) {
+      jobAddressEl.addEventListener('input', function() {
+        syncJobAddressFromDom();
+        scheduleDraftSave();
+      });
+    }
+
+    var pdfFilenameEl = document.getElementById('rb-pdf-filename');
+    if (pdfFilenameEl) {
+      pdfFilenameEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmPdfExport();
+        }
+      });
     }
 
     window.addEventListener('pagehide', saveDraftNow);
@@ -5326,6 +5560,10 @@
     var overlay = document.getElementById('rb-modal');
     if (overlay) {
       overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    }
+    var pdfOverlay = document.getElementById('rb-pdf-modal');
+    if (pdfOverlay) {
+      pdfOverlay.addEventListener('click', function(e) { if (e.target === pdfOverlay) closePdfNameModal(); });
     }
 
     // Photo file input: native picker fires `change` after the user picks.

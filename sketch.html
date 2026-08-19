@@ -1207,6 +1207,12 @@
   function initAttachMode() {
     attachCtx = readAttachContext();
     isAttachMode = !!(attachCtx && attachCtx.optionId != null);
+    if (attachCtx && attachCtx.jobAddress) {
+      var fromEstimate = String(attachCtx.jobAddress).trim();
+      if (fromEstimate && fromEstimate.toLowerCase() !== 'customer address') {
+        customerAddress = fromEstimate;
+      }
+    }
     if (!isAttachMode || !btnAttach) return;
     btnAttach.style.display = '';
     try {
@@ -5936,12 +5942,15 @@
 
     downscaleDataUrlForAttach(exportImage.dataUrl).then(function(dataUrl) {
       var fileName = buildSketchFilename();
+      var addr = getCustomerAddressDisplay();
+      var addressForEstimate = (addr && addr.toLowerCase() !== 'customer address') ? addr : '';
       try {
         sessionStorage.setItem(PENDING_ATTACH_KEY, JSON.stringify({
           optionId: attachCtx.optionId,
           optionName: attachCtx.optionName,
           dataUrl: dataUrl,
           fileName: fileName,
+          customerAddress: addressForEstimate,
           sizeBytes: approxDataUrlBytes(dataUrl)
         }));
       } catch (e) {
