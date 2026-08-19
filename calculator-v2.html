@@ -4171,21 +4171,43 @@
   // ── Internal approval PDF ──
   var pdfLibPromise = null;
 
-  function loadJsPdf() {
-    if (window.jspdf && window.jspdf.jsPDF) {
-      return Promise.resolve(window.jspdf.jsPDF);
-    }
-    if (pdfLibPromise) return pdfLibPromise;
-    pdfLibPromise = new Promise(function(resolve, reject) {
+  function resolveJsPdfClass() {
+    if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+    if (window.jsPDF) return window.jsPDF;
+    return null;
+  }
+
+  function loadJsPdfScript(src) {
+    return new Promise(function(resolve, reject) {
       var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+      s.src = src;
       s.async = true;
       s.onload = function() {
-        if (window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
-        else reject(new Error('PDF library unavailable'));
+        var JsPDF = resolveJsPdfClass();
+        if (JsPDF) resolve(JsPDF);
+        else reject(new Error('PDF library loaded but constructor missing'));
       };
-      s.onerror = function() { reject(new Error('PDF library failed to load')); };
+      s.onerror = function() { reject(new Error('Failed to load ' + src)); };
       document.head.appendChild(s);
+    });
+  }
+
+  function loadJsPdf() {
+    var existing = resolveJsPdfClass();
+    if (existing) return Promise.resolve(existing);
+    if (pdfLibPromise) return pdfLibPromise;
+    // Bundled locally — cdnjs 2.5.2 URL is a 404; keep a CDN fallback.
+    var sources = [
+      'vendor/jspdf.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+    ];
+    pdfLibPromise = sources.reduce(function(chain, src) {
+      return chain.catch(function() { return loadJsPdfScript(src); });
+    }, Promise.reject());
+    pdfLibPromise = pdfLibPromise.catch(function(err) {
+      pdfLibPromise = null;
+      throw err;
     });
     return pdfLibPromise;
   }
