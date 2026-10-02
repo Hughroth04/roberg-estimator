@@ -400,6 +400,9 @@
       -webkit-appearance: none;
       appearance: none;
     }
+    #rb-sketch .rb-text-input {
+      width: 240px;
+    }
     #rb-sketch .rb-measure-input:focus {
       outline: none;
       box-shadow: 0 0 0 3px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.18);
@@ -687,7 +690,7 @@
         <div class="rb-tool-sep" role="separator"></div>
 
         <button type="button" class="rb-tool" id="rb-btn-move"
-          data-tip="Move shape" title="Move shape" aria-label="Move shape">
+          data-tip="Move / pick up" title="Move — tap or drag any item" aria-label="Move or pick up">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="5 9 2 12 5 15"/>
             <polyline points="9 5 12 2 15 5"/>
@@ -751,8 +754,21 @@
             <circle cx="12" cy="12" r="8"/>
           </svg>
         </button>
+        <button type="button" class="rb-tool rb-tool-number" id="rb-btn-text"
+          data-tip="Text" title="Text — tap anywhere to type" aria-label="Text">T</button>
 
         <div class="rb-tool-sep" role="separator"></div>
+
+        <button type="button" class="rb-tool rb-tool-danger" id="rb-btn-delete"
+          data-tip="Delete selected" title="Delete selected — pick an item with Move first" aria-label="Delete selected">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/>
+            <path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
 
         <button type="button" class="rb-tool" id="rb-btn-undo-shape" disabled
           data-tip="Undo last action" title="Undo last action" aria-label="Undo last action">
@@ -764,11 +780,9 @@
         <button type="button" class="rb-tool rb-tool-danger" id="rb-btn-clear"
           data-tip="Clear all" title="Clear all" aria-label="Clear all">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/>
-            <path d="M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="8" y1="8" x2="16" y2="16"/>
+            <line x1="16" y1="8" x2="8" y2="16"/>
           </svg>
         </button>
       </aside>
@@ -777,6 +791,9 @@
         <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
         <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
           inputmode="text" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+        <input type="text" class="rb-measure-input rb-text-input" id="rb-text-input" style="display:none"
+          autocomplete="off" spellcheck="true" maxlength="120" aria-label="Sketch text"
+          placeholder="Type text">
         <input type="text" class="rb-panel-label-input" id="rb-panel-label-input" style="display:none"
           inputmode="text" autocomplete="off" spellcheck="false" aria-label="Panel label"
           placeholder="Panel label">
@@ -838,7 +855,10 @@
   var btnCircle = document.getElementById('rb-btn-circle');
   var btnCrack = document.getElementById('rb-btn-crack');
   var btnNumber = document.getElementById('rb-btn-number');
+  var btnText = document.getElementById('rb-btn-text');
+  var btnDelete = document.getElementById('rb-btn-delete');
   var measureInput = document.getElementById('rb-measure-input');
+  var textInput = document.getElementById('rb-text-input');
   var panelLabelInput = document.getElementById('rb-panel-label-input');
   var addressInput = document.getElementById('rb-address-input');
   var numberLibraryEl = document.getElementById('rb-number-library');
@@ -909,6 +929,13 @@
   var NUMBER_CRACK_OFFSET = 42;
   var X_MARK_SIZE = 44;
   var CRACK_STROKE_WIDTH = 5;
+  var texts = []; // { id, text, x, y } — free text, centered at x,y
+  var nextTextId = 1;
+  var editingText = null; // { index (null = new), x, y }
+  var lastTextCloseAt = 0;
+  var selectedItem = null; // Move tool pick: { kind, index }
+  var TEXT_FONT_SIZE = 52;
+  var ITEM_HIT_PAD = 36;
 
   var COLORS = {
     stroke: '#27235d',
@@ -3822,6 +3849,344 @@
     return true;
   }
 
+  function deepCopy(v) {
+    return JSON.parse(JSON.stringify(v));
+  }
+
+  function cloneTexts() {
+    return texts.map(function(t) {
+      return { id: t.id, text: t.text, x: t.x, y: t.y };
+    });
+  }
+
+  function snapshotScene() {
+    return deepCopy({
+      shapes: completedShapes,
+      lines: lines,
+      measurements: measurements,
+      numberLabels: numberLabels,
+      xMarks: xMarks,
+      circles: circles,
+      cracks: cracks,
+      texts: texts,
+      panelLabelPositions: panelLabelPositions,
+      panelLabelTexts: panelLabelTexts
+    });
+  }
+
+  function restoreScene(s) {
+    if (!s) return;
+    var copy = deepCopy(s);
+    completedShapes = copy.shapes || [];
+    lines = copy.lines || [];
+    measurements = copy.measurements || [];
+    numberLabels = copy.numberLabels || [];
+    xMarks = copy.xMarks || [];
+    circles = copy.circles || [];
+    cracks = copy.cracks || [];
+    texts = copy.texts || [];
+    panelLabelPositions = copy.panelLabelPositions || {};
+    panelLabelTexts = copy.panelLabelTexts || {};
+    selectedItem = null;
+    selectedShapeIndex = null;
+  }
+
+  var ITEM_LABELS = {
+    text: 'Text',
+    number: 'Number',
+    xmark: 'X mark',
+    measure: 'Measurement',
+    crack: 'Crack',
+    circle: 'Circle',
+    line: 'Line',
+    shape: 'Shape'
+  };
+
+  function getItemArray(kind) {
+    if (kind === 'text') return texts;
+    if (kind === 'number') return numberLabels;
+    if (kind === 'xmark') return xMarks;
+    if (kind === 'measure') return measurements;
+    if (kind === 'crack') return cracks;
+    if (kind === 'circle') return circles;
+    if (kind === 'line') return lines;
+    if (kind === 'shape') return completedShapes;
+    return null;
+  }
+
+  function getItemRef(item) {
+    if (!item) return null;
+    var arr = getItemArray(item.kind);
+    return arr ? (arr[item.index] || null) : null;
+  }
+
+  function measureTextBox(str, fontSize, x, y) {
+    ctx.save();
+    ctx.font = '700 ' + fontSize + 'px Montserrat, sans-serif';
+    var w = ctx.measureText(String(str || '')).width;
+    ctx.restore();
+    w = Math.max(w, fontSize * 0.6);
+    return {
+      minX: x - w / 2,
+      maxX: x + w / 2,
+      minY: y - fontSize * 0.6,
+      maxY: y + fontSize * 0.6
+    };
+  }
+
+  function pointsBBox(pts) {
+    var b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    (pts || []).forEach(function(p) {
+      b.minX = Math.min(b.minX, p.x);
+      b.minY = Math.min(b.minY, p.y);
+      b.maxX = Math.max(b.maxX, p.x);
+      b.maxY = Math.max(b.maxY, p.y);
+    });
+    return isFinite(b.minX) ? b : null;
+  }
+
+  function getItemBounds(item) {
+    var ref = getItemRef(item);
+    if (!ref) return null;
+    if (item.kind === 'text') return measureTextBox(ref.text, TEXT_FONT_SIZE, ref.x, ref.y);
+    if (item.kind === 'number') return measureTextBox(ref.value, NUMBER_LABEL_FONT_SIZE, ref.x, ref.y);
+    if (item.kind === 'xmark') {
+      var hs = X_MARK_SIZE / 2;
+      return { minX: ref.x - hs, maxX: ref.x + hs, minY: ref.y - hs, maxY: ref.y + hs };
+    }
+    if (item.kind === 'circle') {
+      return { minX: ref.cx - ref.r, maxX: ref.cx + ref.r, minY: ref.cy - ref.r, maxY: ref.cy + ref.r };
+    }
+    if (item.kind === 'measure') {
+      var g = getMeasurementGeometry(ref);
+      var mb = pointsBBox([{ x: g.x1, y: g.y1 }, { x: g.x2, y: g.y2 }]);
+      var lhw = g.gapW / 2;
+      var lhh = g.gapH / 2;
+      return {
+        minX: Math.min(mb.minX, g.mx - lhw),
+        maxX: Math.max(mb.maxX, g.mx + lhw),
+        minY: Math.min(mb.minY, g.my - lhh),
+        maxY: Math.max(mb.maxY, g.my + lhh)
+      };
+    }
+    if (item.kind === 'crack' || item.kind === 'line' || item.kind === 'shape') return pointsBBox(ref.points);
+    return null;
+  }
+
+  function pointInBox(x, y, b, pad) {
+    return !!b && x >= b.minX - pad && x <= b.maxX + pad && y >= b.minY - pad && y <= b.maxY + pad;
+  }
+
+  function distanceToPolyline(x, y, pts, closed) {
+    var best = Infinity;
+    if (!pts || !pts.length) return best;
+    if (pts.length === 1) return Math.hypot(x - pts[0].x, y - pts[0].y);
+    var n = closed ? pts.length : pts.length - 1;
+    for (var i = 0; i < n; i++) {
+      var a = pts[i];
+      var b = pts[(i + 1) % pts.length];
+      best = Math.min(best, distancePointToSegment(x, y, a.x, a.y, b.x, b.y));
+    }
+    return best;
+  }
+
+  function hitTestText(x, y) {
+    for (var i = texts.length - 1; i >= 0; i--) {
+      if (editingText && editingText.index === i) continue;
+      if (pointInBox(x, y, getItemBounds({ kind: 'text', index: i }), ITEM_HIT_PAD * 0.5)) return i;
+    }
+    return null;
+  }
+
+  // Topmost / smallest marks first so a number sitting on a crack or inside a shape is picked before them.
+  function hitTestItemAt(x, y) {
+    var i;
+    var pad = ITEM_HIT_PAD;
+    var t = hitTestText(x, y);
+    if (t !== null) return { kind: 'text', index: t };
+    for (i = numberLabels.length - 1; i >= 0; i--) {
+      if (pointInBox(x, y, getItemBounds({ kind: 'number', index: i }), pad * 0.5)) return { kind: 'number', index: i };
+    }
+    for (i = xMarks.length - 1; i >= 0; i--) {
+      if (pointInBox(x, y, getItemBounds({ kind: 'xmark', index: i }), pad * 0.5)) return { kind: 'xmark', index: i };
+    }
+    var mLabel = hitTestMeasurementLabel(x, y);
+    if (mLabel !== null) return { kind: 'measure', index: mLabel };
+    for (i = measurements.length - 1; i >= 0; i--) {
+      var m = measurements[i];
+      if (distancePointToSegment(x, y, m.x1, m.y1, m.x2, m.y2) <= pad) return { kind: 'measure', index: i };
+    }
+    for (i = cracks.length - 1; i >= 0; i--) {
+      if (distanceToPolyline(x, y, cracks[i].points, false) <= pad) return { kind: 'crack', index: i };
+    }
+    var c = hitTestCircle(x, y);
+    if (c !== null) return { kind: 'circle', index: c };
+    for (i = lines.length - 1; i >= 0; i--) {
+      if (distanceToPolyline(x, y, lines[i].points, !!lines[i].closed) <= pad) return { kind: 'line', index: i };
+    }
+    var s = findRootContainerAt(x, y);
+    if (s !== null) return { kind: 'shape', index: s };
+    return null;
+  }
+
+  function translateItemFrom(item, orig, dx, dy) {
+    var ref = getItemRef(item);
+    if (!ref || !orig) return;
+    var round = function(v) { return Math.round(v * 10) / 10; };
+    var shiftPts = function(pts) {
+      return pts.map(function(p) { return { x: round(p.x + dx), y: round(p.y + dy) }; });
+    };
+    if (item.kind === 'text' || item.kind === 'number' || item.kind === 'xmark') {
+      var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+      var next = clampToContent(orig.x + dx, orig.y + dy, layout);
+      ref.x = round(next.x);
+      ref.y = round(next.y);
+    } else if (item.kind === 'circle') {
+      var clayout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
+      var cnext = clampToContent(orig.cx + dx, orig.cy + dy, clayout);
+      ref.cx = round(cnext.x);
+      ref.cy = round(cnext.y);
+    } else if (item.kind === 'measure') {
+      ref.x1 = round(orig.x1 + dx);
+      ref.y1 = round(orig.y1 + dy);
+      ref.x2 = round(orig.x2 + dx);
+      ref.y2 = round(orig.y2 + dy);
+    } else if (item.kind === 'crack' || item.kind === 'line') {
+      ref.points = shiftPts(orig.points);
+    }
+  }
+
+  // Panel ids are "shapeIndex:..." — drop the removed shape's keys and shift higher indices down.
+  function remapPanelKeysAfterShapeRemoval(map, removed) {
+    var next = {};
+    Object.keys(map).forEach(function(id) {
+      var colon = id.indexOf(':');
+      var si = parseInt(colon >= 0 ? id.slice(0, colon) : id, 10);
+      if (!isFinite(si)) {
+        next[id] = map[id];
+        return;
+      }
+      if (si === removed) return;
+      var key = si > removed ? String(si - 1) + (colon >= 0 ? id.slice(colon) : '') : id;
+      next[key] = map[id];
+    });
+    return next;
+  }
+
+  function deleteSelectedItem() {
+    if (toolMode !== 'move') {
+      setToolMode('move');
+      showToast('Tap an item to pick it up, then tap Delete');
+      return;
+    }
+    if (!selectedItem || !getItemRef(selectedItem)) {
+      selectedItem = null;
+      showToast('Tap an item to pick it up, then tap Delete');
+      return;
+    }
+    closeMeasureEditor(true);
+    closePanelLabelEditor(true);
+    var item = selectedItem;
+    var before = snapshotScene();
+    if (item.kind === 'shape') {
+      completedShapes.splice(item.index, 1);
+      panelLabelPositions = remapPanelKeysAfterShapeRemoval(panelLabelPositions, item.index);
+      panelLabelTexts = remapPanelKeysAfterShapeRemoval(panelLabelTexts, item.index);
+    } else {
+      getItemArray(item.kind).splice(item.index, 1);
+    }
+    actionHistory.push({ type: 'scene', snapshot: before });
+    selectedItem = null;
+    selectedShapeIndex = null;
+    dragState = null;
+    updateUi();
+    draw();
+    showToast(ITEM_LABELS[item.kind] + ' deleted — Undo to bring it back');
+  }
+
+  function drawTexts() {
+    if (!texts.length) return;
+    ctx.save();
+    ctx.font = '700 ' + TEXT_FONT_SIZE + 'px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    texts.forEach(function(t, idx) {
+      if (editingText && editingText.index === idx) return;
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeText(t.text, t.x, t.y);
+      ctx.fillStyle = '#000000';
+      ctx.fillText(t.text, t.x, t.y);
+    });
+    ctx.restore();
+  }
+
+  function drawSelectionHighlight() {
+    if (toolMode !== 'move' || !selectedItem || selectedItem.kind === 'shape') return;
+    var b = getItemBounds(selectedItem);
+    if (!b) return;
+    var pad = 14;
+    ctx.save();
+    ctx.setLineDash([12, 8]);
+    ctx.strokeStyle = COLORS.vertex;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(b.minX - pad, b.minY - pad, (b.maxX - b.minX) + pad * 2, (b.maxY - b.minY) + pad * 2);
+    ctx.restore();
+  }
+
+  function openTextEditor(index, x, y) {
+    if (!textInput) return;
+    closeTextEditor(true);
+    closeMeasureEditor(true);
+    closeAddressEditor(true);
+    var t = index != null ? texts[index] : null;
+    if (index != null && !t) return;
+    editingText = { index: index, x: t ? t.x : x, y: t ? t.y : y };
+    var canvasRect = canvas.getBoundingClientRect();
+    var wrapRect = canvas.parentElement.getBoundingClientRect();
+    var cssX = (editingText.x / LETTER_WIDTH) * displayCssW;
+    var cssY = (editingText.y / LETTER_HEIGHT) * displayCssH;
+    textInput.style.display = 'block';
+    textInput.style.left = ((canvasRect.left - wrapRect.left) + cssX) + 'px';
+    textInput.style.top = ((canvasRect.top - wrapRect.top) + cssY) + 'px';
+    textInput.value = t ? t.text : '';
+    draw();
+    try { textInput.focus(); } catch (_) {}
+    setTimeout(function() {
+      try {
+        textInput.focus();
+        if (t) textInput.select();
+      } catch (_) {}
+    }, 30);
+  }
+
+  function closeTextEditor(commit) {
+    if (!editingText) return;
+    var ed = editingText;
+    editingText = null;
+    lastTextCloseAt = Date.now();
+    var value = textInput ? String(textInput.value || '').trim() : '';
+    if (textInput) {
+      textInput.style.display = 'none';
+      try { textInput.blur(); } catch (_) {}
+    }
+    if (commit) {
+      if (ed.index == null) {
+        if (value) {
+          texts.push({ id: nextTextId++, text: value, x: ed.x, y: ed.y });
+          actionHistory.push({ type: 'text' });
+        }
+      } else if (texts[ed.index] && value !== texts[ed.index].text) {
+        actionHistory.push({ type: 'scene', snapshot: snapshotScene() });
+        if (value) texts[ed.index].text = value;
+        else texts.splice(ed.index, 1);
+      }
+    }
+    updateUi();
+    draw();
+  }
+
   function translateShape(shape, dx, dy) {
     shape.points.forEach(function(p) {
       p.x += dx;
@@ -4449,12 +4814,15 @@
     if (btnCircle) btnCircle.classList.toggle('rb-btn-active', toolMode === 'circle');
     if (btnCrack) btnCrack.classList.toggle('rb-btn-active', toolMode === 'crack');
     if (btnNumber) btnNumber.classList.toggle('rb-btn-active', toolMode === 'number');
+    if (btnText) btnText.classList.toggle('rb-btn-active', toolMode === 'text');
     setNumberLibraryVisible(toolMode === 'number');
-    canvas.style.cursor = toolMode === 'move' ? 'grab' : 'crosshair';
+    canvas.style.cursor = toolMode === 'move' ? 'grab' : (toolMode === 'text' ? 'text' : 'crosshair');
   }
 
   function setToolMode(mode) {
     closeMeasureEditor(true);
+    closeTextEditor(true);
+    selectedItem = null;
     toolMode = mode;
     syncToolButtons();
     if (toolMode === 'draw') {
@@ -4801,16 +5169,26 @@
       (toolMode === 'draw' && activeDrawMode === 'outline' && n >= MIN_POLYGON_POINTS) ||
       (toolMode === 'line' && n >= 2)
     );
-    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && lines.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && !crackDraft && !circleDraft && !inkDraft && !oddDraft;
+    btnUndoShape.disabled = actionHistory.length === 0 && completedShapes.length === 0 && lines.length === 0 && measurements.length === 0 && numberLabels.length === 0 && xMarks.length === 0 && circles.length === 0 && cracks.length === 0 && texts.length === 0 && !crackDraft && !circleDraft && !inkDraft && !oddDraft;
     if (btnAttach) {
-      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd' || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft || !!inkDraft || !!oddDraft;
+      btnAttach.disabled = !isAttachMode || completedShapes.length === 0 || n > 0 || toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'crack' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd' || toolMode === 'text' || !!editingText || !!measureDraft || !!numberDrag || !!crackDraft || !!circleDraft || !!inkDraft || !!oddDraft;
     }
     if (toolMode === 'move') {
-      statusEl.innerHTML = dragState
-        ? (dragState.kind === 'circle'
-          ? 'Dragging circle — release to place.'
-          : 'Dragging — release to place the shape.')
-        : 'Drag a circle to move it, or drag a driveway to move the whole panel. Tap <strong>Move shape</strong> again to draw.';
+      if (dragState && dragState.moved) {
+        statusEl.innerHTML = dragState.kind === 'item'
+          ? 'Dragging ' + ITEM_LABELS[dragState.item.kind].toLowerCase() + ' — release to place.'
+          : 'Dragging — release to place the shape.';
+      } else if (selectedItem && getItemRef(selectedItem)) {
+        statusEl.innerHTML = '<strong>' + ITEM_LABELS[selectedItem.kind] + '</strong> selected — drag to move it, or tap the <strong>trash</strong> to delete it.';
+      } else {
+        statusEl.innerHTML = 'Tap any number, text, X, crack, line, circle, measurement, or shape to pick it up. Drag to move; trash deletes the selected item.';
+      }
+      return;
+    }
+    if (toolMode === 'text') {
+      statusEl.innerHTML = editingText
+        ? 'Type your text — <strong>Enter</strong> to place, <strong>Esc</strong> to cancel.'
+        : 'Tap anywhere to add text, or tap existing text to edit it. Clear the text to remove it.';
       return;
     }
     if (toolMode === 'odd') {
@@ -5048,6 +5426,8 @@
       if (editingMeasureIndex === idx) return;
       drawMeasurementArrow(m, false);
     });
+    drawTexts();
+    drawSelectionHighlight();
 
     if (measureDraft && measureCursor) {
       drawMeasurementArrow({
@@ -5295,29 +5675,32 @@
   }
 
   function handleMovePointerDown(e, p) {
-    var circleHit = hitTestCircle(p.x, p.y);
-    if (circleHit !== null) {
+    var picked = hitTestItemAt(p.x, p.y);
+    selectedItem = picked;
+    if (!picked) {
       selectedShapeIndex = null;
-      var circ = circles[circleHit];
+      updateUi();
+      draw();
+      return;
+    }
+    if (picked.kind !== 'shape') {
+      selectedShapeIndex = null;
       dragState = {
-        kind: 'circle',
-        circleIndex: circleHit,
+        kind: 'item',
+        item: picked,
         startX: p.x,
         startY: p.y,
         moved: false,
-        snapshot: { cx: circ.cx, cy: circ.cy, r: circ.r }
+        before: snapshotScene(),
+        orig: deepCopy(getItemRef(picked))
       };
       canvas.style.cursor = 'grabbing';
+      updateUi();
       draw();
       return;
     }
 
-    var hit = findRootContainerAt(p.x, p.y);
-    if (hit === null) {
-      selectedShapeIndex = null;
-      draw();
-      return;
-    }
+    var hit = picked.index;
     selectedShapeIndex = hit;
     var shape = completedShapes[hit];
     var shapeSnapshot = cloneShapeGeometry(shape);
@@ -5327,7 +5710,9 @@
     var measurementSnapshot = cloneMeasurements();
     var crackSnapshot = cloneCracks();
     var lineSnapshot = cloneLines();
+    var textSnapshot = cloneTexts();
     var panelLabelSnapshot = clonePanelLabelPositions();
+    var textMoveIndices = [];
     var numberMoveIndices = [];
     var xMarkMoveIndices = [];
     var circleMoveIndices = [];
@@ -5383,6 +5768,11 @@
         lineMoveIndices.push(i);
       }
     }
+    for (i = 0; i < textSnapshot.length; i++) {
+      if (pointInOrOnPolygon(textSnapshot[i].x, textSnapshot[i].y, shapeSnapshot.points)) {
+        textMoveIndices.push(i);
+      }
+    }
     dragState = {
       kind: 'shape',
       shapeIndex: hit,
@@ -5396,7 +5786,9 @@
       measurementSnapshot: measurementSnapshot,
       crackSnapshot: crackSnapshot,
       lineSnapshot: lineSnapshot,
+      textSnapshot: textSnapshot,
       panelLabelSnapshot: panelLabelSnapshot,
+      textMoveIndices: textMoveIndices,
       numberMoveIndices: numberMoveIndices,
       xMarkMoveIndices: xMarkMoveIndices,
       circleMoveIndices: circleMoveIndices,
@@ -5413,19 +5805,13 @@
     var dx = p.x - dragState.startX;
     var dy = p.y - dragState.startY;
     if (!dragState.moved && (dx * dx + dy * dy) < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
-    dragState.moved = true;
+    if (!dragState.moved) {
+      dragState.moved = true;
+      updateUi();
+    }
 
-    if (dragState.kind === 'circle') {
-      var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
-      var circ = circles[dragState.circleIndex];
-      if (!circ || !dragState.snapshot) return;
-      var next = clampToContent(
-        dragState.snapshot.cx + dx,
-        dragState.snapshot.cy + dy,
-        layout
-      );
-      circ.cx = Math.round(next.x * 10) / 10;
-      circ.cy = Math.round(next.y * 10) / 10;
+    if (dragState.kind === 'item') {
+      translateItemFrom(dragState.item, dragState.orig, dx, dy);
       draw();
       return;
     }
@@ -5498,6 +5884,12 @@
         return { x: p0.x + dx, y: p0.y + dy };
       });
     });
+    (dragState.textMoveIndices || []).forEach(function(idx) {
+      var src = dragState.textSnapshot[idx];
+      if (!src || !texts[idx]) return;
+      texts[idx].x = src.x + dx;
+      texts[idx].y = src.y + dy;
+    });
 
     // Free panel-label overrides for this shape move with the geometry.
     panelLabelPositions = {};
@@ -5516,14 +5908,12 @@
   function handleMovePointerUp() {
     if (!dragState) return;
     canvas.style.cursor = 'grab';
-    if (dragState.moved) {
-      if (dragState.kind === 'circle') {
-        actionHistory.push({
-          type: 'circle-move',
-          circleIndex: dragState.circleIndex,
-          snapshot: dragState.snapshot
-        });
-        showToast('Circle moved');
+    if (dragState.kind === 'item' && !dragState.moved) {
+      showToast(ITEM_LABELS[dragState.item.kind] + ' selected — drag to move, or tap the trash to delete');
+    } else if (dragState.moved) {
+      if (dragState.kind === 'item') {
+        actionHistory.push({ type: 'scene', snapshot: dragState.before });
+        showToast(ITEM_LABELS[dragState.item.kind] + ' moved');
       } else {
         var layout = getPageLayout(LETTER_WIDTH, LETTER_HEIGHT);
         clampShapeInContent(dragState.shapeIndex, layout);
@@ -5537,6 +5927,7 @@
           measurementSnapshot: dragState.measurementSnapshot,
           crackSnapshot: dragState.crackSnapshot,
           lineSnapshot: dragState.lineSnapshot,
+          textSnapshot: dragState.textSnapshot,
           panelLabelSnapshot: dragState.panelLabelSnapshot
         });
         showToast('Shape moved');
@@ -5694,6 +6085,13 @@
       }
     } else if (action.type === 'crack') {
       cracks.pop();
+    } else if (action.type === 'text') {
+      texts.pop();
+      selectedItem = null;
+    } else if (action.type === 'scene') {
+      closeMeasureEditor(false);
+      closePanelLabelEditor(false);
+      restoreScene(action.snapshot);
     } else if (action.type === 'panel-label-move') {
       panelLabelPositions = {};
       if (action.snapshot) {
@@ -5777,6 +6175,11 @@
           };
         });
       }
+      if (action.textSnapshot) {
+        texts = action.textSnapshot.map(function(t) {
+          return { id: t.id, text: t.text, x: t.x, y: t.y };
+        });
+      }
       if (action.panelLabelSnapshot) {
         panelLabelPositions = {};
         Object.keys(action.panelLabelSnapshot).forEach(function(id) {
@@ -5791,9 +6194,12 @@
   }
 
   function clearAll() {
-    if (!completedShapes.length && !lines.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !measureDraft && !crackDraft && !circleDraft && !inkDraft && !oddDraft) return;
+    if (!completedShapes.length && !lines.length && !currentPoints.length && !measurements.length && !numberLabels.length && !xMarks.length && !circles.length && !cracks.length && !texts.length && !measureDraft && !crackDraft && !circleDraft && !inkDraft && !oddDraft) return;
     if (!confirm('Clear the entire sketch?')) return;
+    closeTextEditor(false);
     completedShapes = [];
+    texts = [];
+    selectedItem = null;
     lines = [];
     measurements = [];
     numberLabels = [];
@@ -5977,6 +6383,7 @@
     var savedMeasureDraft = measureDraft;
     var savedMeasureCursor = measureCursor;
     var savedEditing = editingMeasureIndex;
+    closeTextEditor(true);
     closeMeasureEditor(true);
     cancelCurrentDrawing();
     cancelCircleDraft();
@@ -6140,9 +6547,32 @@
       return;
     }
     if (editingAddress) closeAddressEditor(true);
+    if (editingText) {
+      closeTextEditor(true);
+      e.preventDefault();
+      return;
+    }
 
     if (toolMode === 'move') {
       handleMovePointerDown(e, p);
+      e.preventDefault();
+      return;
+    }
+    if (toolMode === 'text') {
+      // A tap-away that already blurred (and committed) the box shouldn't immediately open a new one.
+      if (Date.now() - lastTextCloseAt < 350) {
+        e.preventDefault();
+        return;
+      }
+      var textHit = hitTestText(p.x, p.y);
+      if (textHit !== null) {
+        openTextEditor(textHit);
+      } else if (!isInContentArea(p.x, p.y, layout)) {
+        showToast('Place text inside the page area below the header');
+      } else {
+        openTextEditor(null, Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10);
+      }
+      updateUi();
       e.preventDefault();
       return;
     }
@@ -6552,6 +6982,10 @@
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
+      if (toolMode === 'move' && selectedItem) {
+        deleteSelectedItem();
+        return;
+      }
       undoPoint();
     } else if (e.key === 'Escape') {
       if (editingMeasureIndex !== null) {
@@ -6591,10 +7025,11 @@
         updateUi();
         draw();
         showToast('Cancelled');
-      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd') {
+      } else if (toolMode === 'move' || toolMode === 'measure' || toolMode === 'number' || toolMode === 'xmark' || toolMode === 'circle' || toolMode === 'line' || toolMode === 'ink' || toolMode === 'odd' || toolMode === 'text') {
         var was = toolMode;
         setToolMode('draw');
         if (was === 'move') showToast('Move mode off');
+        else if (was === 'text') showToast('Text mode off');
         else if (was === 'measure') showToast('Measure mode off');
         else if (was === 'number') showToast('Number mode off');
         else if (was === 'circle') showToast('Circle mode off');
@@ -6645,7 +7080,32 @@
   if (btnMove) {
     btnMove.addEventListener('click', function() {
       setToolMode(toolMode === 'move' ? 'draw' : 'move');
-      if (toolMode === 'move') showToast('Move mode — drag a circle or a driveway');
+      if (toolMode === 'move') showToast('Move mode — tap or drag any item; trash deletes the selected one');
+    });
+  }
+  if (btnText) {
+    btnText.addEventListener('click', function() {
+      setToolMode(toolMode === 'text' ? 'draw' : 'text');
+      if (toolMode === 'text') showToast('Text mode — tap anywhere to type');
+    });
+  }
+  if (btnDelete) {
+    btnDelete.addEventListener('click', deleteSelectedItem);
+  }
+  if (textInput) {
+    textInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTextEditor(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTextEditor(false);
+      }
+    });
+    textInput.addEventListener('blur', function() {
+      if (editingText) closeTextEditor(true);
     });
   }
   if (btnMeasure) {
