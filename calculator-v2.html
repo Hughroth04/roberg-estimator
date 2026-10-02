@@ -57,11 +57,11 @@
       <div class="rb-photos-section" id="rb-photos-section">
         <div class="rb-photos-header">
           <div class="rb-photos-label">Photos for this option</div>
-          <div class="rb-photos-count" id="rb-photos-count">0 / 10</div>
+          <div class="rb-photos-count" id="rb-photos-count">0 / 15</div>
         </div>
         <div class="rb-photos-strip" id="rb-photos-strip"></div>
       </div>
-      <input type="file" id="rb-photo-input" accept="image/*" multiple style="display:none">
+      <input type="file" id="rb-photo-input" accept="image/*,application/pdf,.pdf" multiple style="display:none">
       <div id="rb-panels"></div>
       <button class="rb-btn-add" id="rb-btn-add">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -480,8 +480,8 @@
 /* Joint sealant calculator (Option 2) */
 #rb-estimator .rb-sealant-card { border-top-color: rgba(114,165,183,0.35); }
 #rb-estimator .rb-sealant-title {
-  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
-  color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+  font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 800;
+  color: var(--rb-navy);
   line-height: 1.3; padding: 4px 0;
 }
 #rb-estimator .rb-sealant-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -502,10 +502,10 @@
   min-width: 0; max-width: 100%;
 }
 #rb-estimator .rb-panel-name {
-  /* <input> styled to look like a bold uppercase heading */
+  /* <input> styled to look like a bold heading; keeps typed case to match HCP */
   flex: 1 1 0; min-width: 0; width: auto;
-  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
-  color: var(--rb-navy); letter-spacing: 0.04em; text-transform: uppercase;
+  font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 800;
+  color: var(--rb-navy);
   line-height: 1.3;
   background: transparent;
   border: 1px solid transparent;
@@ -528,7 +528,6 @@
 #rb-estimator .rb-panel-name::placeholder {
   color: var(--rb-text-hint);
   font-weight: 700;
-  text-transform: uppercase;
 }
 #rb-estimator .rb-panel-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 #rb-estimator .rb-cat-select {
@@ -1452,8 +1451,8 @@
   padding: 0 4px;
   margin: 0;
   font-family: 'Montserrat', sans-serif;
-  font-size: 10px; font-weight: 800;
-  letter-spacing: 0.03em; text-transform: uppercase;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.01em;
   color: var(--rb-navy);
   -webkit-appearance: none; appearance: none;
   box-shadow: none; cursor: text;
@@ -1531,10 +1530,8 @@
 #rb-estimator .rb-summary-option .rb-sname {
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: rgba(255,255,255,0.75);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Multi-option grouping in review modal */
@@ -1548,8 +1545,7 @@
 }
 #rb-estimator .rb-review-option-name {
   font-family: 'Montserrat', sans-serif;
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 13px; font-weight: 800;
   color: var(--rb-navy);
 }
 #rb-estimator .rb-review-option-sub {
@@ -1606,6 +1602,21 @@
   width: 100%; height: 100%;
   object-fit: cover;
   display: block;
+}
+#rb-estimator .rb-photo-pdf {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px; padding: 6px; box-sizing: border-box;
+  background: #fff; cursor: pointer;
+}
+#rb-estimator .rb-photo-pdf-badge {
+  font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800;
+  color: #fff; background: #b03030; border-radius: 4px; padding: 2px 6px;
+}
+#rb-estimator .rb-photo-pdf-name {
+  font-size: 9px; color: var(--rb-text-muted); line-height: 1.2;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #rb-estimator .rb-photo-remove {
   position: absolute; top: 3px; right: 3px;
@@ -2312,9 +2323,11 @@
   // original UX. Capped at MAX_OPTIONS because HCP estimate proposals get
   // unwieldy beyond that; MAX_PHOTOS_PER_OPTION caps the per-option photo
   // count to keep the create-estimate payload (which carries base64 photos)
-  // under the backend's 25 MB body limit.
+  // under the backend's body limit. PDFs can't be downscaled, so each one is
+  // capped at MAX_PDF_BYTES.
   var MAX_OPTIONS = 5;
-  var MAX_PHOTOS_PER_OPTION = 10;
+  var MAX_PHOTOS_PER_OPTION = 15;
+  var MAX_PDF_BYTES = 8 * 1024 * 1024;
   // Phone cameras shoot ~12 MP today; downscale long edge to PHOTO_MAX_DIM
   // and re-encode as JPEG at PHOTO_JPEG_QUALITY before upload. Typical
   // output: 150–400 KB per photo.
@@ -3720,36 +3733,87 @@
     return clean;
   }
 
-  // Process a FileList from the photo input. Downscale each, cap at the
-  // per-option max, and append to the active option in selection order.
+  function isPdfFile(f) {
+    if (!f) return false;
+    if (f.type === 'application/pdf') return true;
+    return /\.pdf$/i.test(f.name || '');
+  }
+
+  function isPdfAttachment(ph) {
+    return !!(ph && ph.dataUrl && ph.dataUrl.indexOf('data:application/pdf') === 0);
+  }
+
+  function sanitizePdfFileName(name) {
+    var clean = String(name || 'document.pdf').replace(/[\\\/]/g, '_').trim();
+    if (!clean) clean = 'document.pdf';
+    if (!/\.pdf$/i.test(clean)) clean = clean.replace(/\.[^.]+$/, '') + '.pdf';
+    return clean;
+  }
+
+  function readPdfAsDataUrl(file) {
+    return new Promise(function(resolve, reject) {
+      if (file.size > MAX_PDF_BYTES) {
+        reject(new Error('too-large'));
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function() {
+        var result = String(reader.result || '');
+        // Some browsers report PDFs picked from "Files" as octet-stream.
+        if (result.indexOf('data:application/pdf') !== 0) {
+          var comma = result.indexOf(',');
+          result = 'data:application/pdf;base64,' + (comma >= 0 ? result.slice(comma + 1) : result);
+        }
+        resolve(result);
+      };
+      reader.onerror = function() { reject(new Error('read-failed')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Process a FileList from the photo input. Images are downscaled; PDFs are
+  // kept as-is. Cap at the per-option max and append in selection order.
   function addPhotosFromFiles(files) {
     var opt = getActiveOption();
     if (!opt || isProcessingPhotos) return;
     var available = MAX_PHOTOS_PER_OPTION - opt.photos.length;
     if (available <= 0) {
-      showToast('Already at the ' + MAX_PHOTOS_PER_OPTION + '-photo limit for this option');
+      showToast('Already at the ' + MAX_PHOTOS_PER_OPTION + '-attachment limit for this option');
       return;
     }
-    // Filter to images (the accept attr does this on most browsers, but be
+    // Filter to images/PDFs (the accept attr does this on most browsers, but be
     // defensive in case the user picked from "All files" on Android).
-    var imageFiles = [];
-    for (var i = 0; i < files.length && imageFiles.length < available; i++) {
+    var pickedFiles = [];
+    var eligibleCount = 0;
+    for (var i = 0; i < files.length; i++) {
       var f = files[i];
-      if (f && f.type && f.type.indexOf('image/') === 0) imageFiles.push(f);
+      if (!f) continue;
+      if (!isPdfFile(f) && !(f.type && f.type.indexOf('image/') === 0)) continue;
+      eligibleCount++;
+      if (pickedFiles.length < available) pickedFiles.push(f);
     }
-    var skipped = files.length - imageFiles.length;
-    if (!imageFiles.length) {
-      if (skipped > 0) showToast('No image files selected');
+    if (!pickedFiles.length) {
+      if (files.length > 0) showToast('No photos or PDFs selected');
       return;
     }
 
     isProcessingPhotos = true;
     renderPhotosStrip();
 
-    var done = 0, added = 0, failed = 0;
-    imageFiles.forEach(function(file) {
-      loadImageFromFile(file)
-        .then(function(img) {
+    var done = 0, added = 0, failed = 0, tooLarge = 0;
+    pickedFiles.forEach(function(file) {
+      var work;
+      if (isPdfFile(file)) {
+        work = readPdfAsDataUrl(file).then(function(dataUrl) {
+          opt.photos.push({
+            id: nextPhotoId++,
+            fileName: sanitizePdfFileName(file.name),
+            dataUrl: dataUrl,
+            sizeBytes: approxDataUrlBytes(dataUrl)
+          });
+        });
+      } else {
+        work = loadImageFromFile(file).then(function(img) {
           var dataUrl = downscaleToJpegDataUrl(img);
           opt.photos.push({
             id: nextPhotoId++,
@@ -3757,25 +3821,34 @@
             dataUrl: dataUrl,
             sizeBytes: approxDataUrlBytes(dataUrl)
           });
-          added++;
+        });
+      }
+      work
+        .then(function() { added++; })
+        .catch(function(e) {
+          if (e && e.message === 'too-large') tooLarge++;
+          else failed++;
         })
-        .catch(function(_e) { failed++; })
         .then(function() {
           done++;
-          if (done === imageFiles.length) {
+          if (done === pickedFiles.length) {
             isProcessingPhotos = false;
             renderPhotosStrip();
             var msg;
-            if (failed > 0 && added === 0) {
-              msg = 'Could not read ' + failed + ' image' + (failed !== 1 ? 's' : '');
-            } else if (failed > 0) {
-              msg = added + ' added \u2014 ' + failed + ' could not be read';
+            var bad = failed + tooLarge;
+            if (bad > 0 && added === 0) {
+              msg = tooLarge && !failed
+                ? 'PDF too large (max ' + Math.round(MAX_PDF_BYTES / 1048576) + ' MB)'
+                : 'Could not read ' + bad + ' file' + (bad !== 1 ? 's' : '');
+            } else if (bad > 0) {
+              msg = added + ' added \u2014 ' + bad + ' could not be added';
+              if (tooLarge) msg += ' (PDF max ' + Math.round(MAX_PDF_BYTES / 1048576) + ' MB)';
             } else if (added === 1) {
-              msg = 'Photo added';
+              msg = 'Attachment added';
             } else {
-              msg = added + ' photos added';
+              msg = added + ' attachments added';
             }
-            if (files.length > imageFiles.length + failed) {
+            if (eligibleCount > pickedFiles.length) {
               msg += ' (capped at ' + MAX_PHOTOS_PER_OPTION + ')';
             }
             showToast(msg);
@@ -3894,17 +3967,23 @@
     if (countEl) countEl.textContent = count + ' / ' + MAX_PHOTOS_PER_OPTION;
     var html = '';
     opt.photos.forEach(function(ph) {
+      var inner = isPdfAttachment(ph)
+        ? '<div class="rb-photo-pdf" title="' + escapeAttr(ph.fileName) + '">'
+          + '<span class="rb-photo-pdf-badge">PDF</span>'
+          + '<span class="rb-photo-pdf-name">' + escapeHtml(ph.fileName) + '</span>'
+          + '</div>'
+        : '<img src="' + ph.dataUrl + '" alt="' + escapeAttr(ph.fileName) + '">';
       html += '<div class="rb-photo-thumb" data-photo-id="' + ph.id + '">'
-           +    '<img src="' + ph.dataUrl + '" alt="' + escapeAttr(ph.fileName) + '">'
-           +    '<button class="rb-photo-remove" type="button" data-photo-id="' + ph.id + '" aria-label="Remove photo">\u2715</button>'
+           +    inner
+           +    '<button class="rb-photo-remove" type="button" data-photo-id="' + ph.id + '" aria-label="Remove attachment">\u2715</button>'
            +  '</div>';
     });
     if (isProcessingPhotos) {
       html += '<div class="rb-photo-empty rb-photos-processing">Processing\u2026</div>';
     } else if (count < MAX_PHOTOS_PER_OPTION) {
-      html += '<button class="rb-btn-add-photo" id="rb-btn-add-photo" type="button" aria-label="Add photo">'
+      html += '<button class="rb-btn-add-photo" id="rb-btn-add-photo" type="button" aria-label="Add photo or PDF">'
            +    '<span class="rb-add-photo-plus">+</span>'
-           +    '<span>Photo</span>'
+           +    '<span>Photo / PDF</span>'
            +  '</button>';
     }
     strip.innerHTML = html;
@@ -3917,6 +3996,28 @@
     img.src = dataUrl;
     overlay.style.display = 'flex';
   }
+  // PDFs can't render in the image preview; open them in the browser's viewer.
+  // Data URLs are blocked as top-level navigations, so go through a Blob URL.
+  function openAttachment(ph) {
+    if (!ph) return;
+    if (!isPdfAttachment(ph)) {
+      openPhotoPreview(ph.dataUrl);
+      return;
+    }
+    try {
+      var b64 = dataUrlToBase64(ph.dataUrl);
+      var bin = atob(b64);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var win = window.open(url, '_blank');
+      if (!win) showToast('Allow pop-ups to view the PDF');
+      setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+    } catch (e) {
+      showToast('Could not open PDF');
+    }
+  }
+
   function closePhotoPreview() {
     var overlay = document.getElementById('rb-photo-preview');
     var img = document.getElementById('rb-photo-preview-img');
@@ -4680,6 +4781,12 @@
         var label = photo.fileName || ('Photo ' + (photoIdx + 1));
         doc.text(label, M, y);
         y += 14;
+        if (isPdfAttachment(photo)) {
+          setFont(11, 'normal');
+          doc.setTextColor(30, 30, 35);
+          drawWrapped('PDF attachment — not embedded here. Open "' + label + '" separately to review it.', M, CONTENT_W, 14);
+          return;
+        }
         try {
           var props = doc.getImageProperties(photo.dataUrl);
           var maxW = CONTENT_W;
@@ -5073,7 +5180,11 @@
         name: (opt.name && opt.name.trim()) ? opt.name.trim() : ('Option ' + opt.defaultNumber),
         panels: getOptionLineItems(opt),
         photos: opt.photos.map(function(ph) {
-          return { fileName: ph.fileName, fileContent: dataUrlToBase64(ph.dataUrl) };
+          return {
+            fileName: ph.fileName,
+            fileContent: dataUrlToBase64(ph.dataUrl),
+            contentType: isPdfAttachment(ph) ? 'application/pdf' : 'image/jpeg'
+          };
         })
       };
     }).filter(function(o) { return o.panels.length > 0; });
@@ -5290,7 +5401,7 @@
           if (!previewOpt) return;
           var previewPid = parseInt(previewThumb.getAttribute('data-photo-id'), 10);
           var previewPhoto = previewOpt.photos.find(function(p) { return p.id === previewPid; });
-          if (previewPhoto) openPhotoPreview(previewPhoto.dataUrl);
+          if (previewPhoto) openAttachment(previewPhoto);
         }
         return;
       }
@@ -5311,7 +5422,7 @@
         if (!opt) return;
         var pid = parseInt(photoThumb.getAttribute('data-photo-id'), 10);
         var photo = opt.photos.find(function(p) { return p.id === pid; });
-        if (photo) openPhotoPreview(photo.dataUrl);
+        if (photo) openAttachment(photo);
         return;
       }
 
