@@ -404,6 +404,30 @@
       outline: none;
       box-shadow: 0 0 0 3px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.18);
     }
+    #rb-sketch .rb-panel-label-input {
+      position: absolute;
+      z-index: 6;
+      transform: translate(-50%, -50%);
+      width: min(180px, 42vw);
+      height: 40px;
+      margin: 0;
+      padding: 0 8px;
+      border: 2px solid var(--rb-navy);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--rb-navy);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    #rb-sketch .rb-panel-label-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(114, 165, 183, 0.35), 0 2px 10px rgba(0,0,0,0.18);
+    }
     #rb-sketch .rb-address-input {
       position: absolute;
       z-index: 8;
@@ -753,6 +777,9 @@
         <canvas id="rb-canvas" aria-label="Sketch drawing area"></canvas>
         <input type="text" class="rb-measure-input" id="rb-measure-input" style="display:none"
           inputmode="text" autocomplete="off" spellcheck="false" aria-label="Measurement value">
+        <input type="text" class="rb-panel-label-input" id="rb-panel-label-input" style="display:none"
+          inputmode="text" autocomplete="off" spellcheck="false" aria-label="Panel label"
+          placeholder="Panel label">
         <input type="text" class="rb-address-input" id="rb-address-input" style="display:none"
           autocomplete="street-address" spellcheck="false" aria-label="Customer address"
           placeholder="customer address">
@@ -812,6 +839,7 @@
   var btnCrack = document.getElementById('rb-btn-crack');
   var btnNumber = document.getElementById('rb-btn-number');
   var measureInput = document.getElementById('rb-measure-input');
+  var panelLabelInput = document.getElementById('rb-panel-label-input');
   var addressInput = document.getElementById('rb-address-input');
   var numberLibraryEl = document.getElementById('rb-number-library');
   var numberGridEl = document.getElementById('rb-number-grid');
@@ -872,7 +900,9 @@
   var selectedNumberValue = null;
   var numberDrag = null;
   var panelLabelPositions = {}; // panelId -> { x, y } absolute; omit = live at centroid
+  var panelLabelTexts = {}; // panelId -> string; omit = default "Panel N"; '' = hidden
   var panelLabelDrag = null;
+  var editingPanelLabelId = null;
   var NUMBER_LABEL_FONT_SIZE = 59;
   var NUMBER_CORNER_OFFSET = 60;
   var NUMBER_MID_OFFSET = 46;
@@ -2076,6 +2106,31 @@
     return labels;
   }
 
+  function getDefaultPanelLabelText(num) {
+    return 'Panel ' + num;
+  }
+
+  function hasCustomPanelLabelText(panelId) {
+    return Object.prototype.hasOwnProperty.call(panelLabelTexts, panelId);
+  }
+
+  function getPanelDisplayText(panel, num) {
+    if (hasCustomPanelLabelText(panel.id)) {
+      var custom = panelLabelTexts[panel.id];
+      if (custom === null || custom === '') return null;
+      return custom;
+    }
+    return getDefaultPanelLabelText(num);
+  }
+
+  function clonePanelLabelTexts() {
+    var copy = {};
+    Object.keys(panelLabelTexts).forEach(function(id) {
+      copy[id] = panelLabelTexts[id];
+    });
+    return copy;
+  }
+
   function clonePanelLabelPositions() {
     var copy = {};
     Object.keys(panelLabelPositions).forEach(function(id) {
@@ -2096,8 +2151,9 @@
 
   function getPanelLabelHitBox(panel, num) {
     var pos = getPanelLabelPosition(panel);
-    var text = 'Panel ' + num;
-    var approxW = Math.max(120, text.length * PANEL_LABEL_FONT_SIZE * 0.52);
+    var text = getPanelDisplayText(panel, num);
+    var hitText = text || getDefaultPanelLabelText(num);
+    var approxW = Math.max(120, hitText.length * PANEL_LABEL_FONT_SIZE * 0.52);
     var approxH = PANEL_LABEL_FONT_SIZE * 1.15;
     return {
       panelId: panel.id,
@@ -2107,17 +2163,18 @@
       left: pos.x - approxW / 2,
       right: pos.x + approxW / 2,
       top: pos.y - approxH / 2,
-      bottom: pos.y + approxH / 2
+      bottom: pos.y + approxH / 2,
+      hidden: !text
     };
   }
 
   function hitTestPanelLabel(x, y) {
     var panels = getDerivedPanels();
     var labels = getPanelLabelMap();
-    // Prefer top-most by reverse drawing order (higher numbers first is fine).
     var i;
     for (i = panels.length - 1; i >= 0; i--) {
       var panel = panels[i];
+      if (editingPanelLabelId === panel.id) continue;
       var num = labels[panel.id];
       if (!num) continue;
       var box = getPanelLabelHitBox(panel, num);
@@ -2187,7 +2244,9 @@
 
   function commitPanelLabelDrag() {
     if (!panelLabelDrag) return;
-    if (panelLabelDrag.moved) {
+    var panelId = panelLabelDrag.panelId;
+    var moved = panelLabelDrag.moved;
+    if (moved) {
       actionHistory.push({
         type: 'panel-label-move',
         panelId: panelLabelDrag.panelId,
@@ -2199,8 +2258,98 @@
         : 'Panel ' + panelLabelDrag.num + ' label moved');
     }
     cancelPanelLabelDrag();
-    updateUi();
+    if (!moved) {
+      openPanelLabelEditor(panelId);
+    } else {
+      updateUi();
+      draw();
+    }
+  }
+
+  function closePanelLabelEditor(commit) {
+    if (editingPanelLabelId === null) return;
+    var panelId = editingPanelLabelId;
+    var labels = getPanelLabelMap();
+    var num = labels[panelId];
+    var defaultText = getDefaultPanelLabelText(num);
+    var hadCustom = hasCustomPanelLabelText(panelId);
+    var previous = hadCustom ? panelLabelTexts[panelId] : undefined;
+    var changed = false;
+
+    if (commit && panelLabelInput) {
+      var next = String(panelLabelInput.value || '').trim();
+      if (next === defaultText) {
+        if (hadCustom) {
+          delete panelLabelTexts[panelId];
+          changed = true;
+        }
+      } else if (!hadCustom || next !== previous) {
+        panelLabelTexts[panelId] = next;
+        changed = true;
+      }
+    }
+
+    editingPanelLabelId = null;
+    if (panelLabelInput) {
+      panelLabelInput.style.display = 'none';
+      panelLabelInput.blur();
+    }
+
+    if (commit && changed) {
+      actionHistory.push({
+        type: 'panel-label-edit',
+        panelId: panelId,
+        hadCustom: hadCustom,
+        previous: previous
+      });
+      if (!panelLabelTexts[panelId] && hadCustom && previous === '') {
+        showToast('Panel label restored');
+      } else if (panelLabelTexts[panelId] === '') {
+        showToast('Panel label removed');
+      } else if (changed) {
+        showToast('Panel label updated');
+      }
+    }
+
     draw();
+  }
+
+  function openPanelLabelEditor(panelId) {
+    if (!panelLabelInput || !panelId) return;
+    var panel = findPanelById(panelId);
+    if (!panel) return;
+    closeAddressEditor(true);
+    closeMeasureEditor(true);
+    closePanelLabelEditor(true);
+
+    var labels = getPanelLabelMap();
+    var num = labels[panelId];
+    if (!num) return;
+
+    editingPanelLabelId = panelId;
+    var pos = getPanelLabelPosition(panel);
+    var canvasRect = canvas.getBoundingClientRect();
+    var wrap = canvas.parentElement;
+    var wrapRect = wrap.getBoundingClientRect();
+    var cssX = (pos.x / LETTER_WIDTH) * displayCssW;
+    var cssY = (pos.y / LETTER_HEIGHT) * displayCssH;
+    var left = (canvasRect.left - wrapRect.left) + cssX;
+    var top = (canvasRect.top - wrapRect.top) + cssY;
+
+    panelLabelInput.style.display = 'block';
+    panelLabelInput.style.left = left + 'px';
+    panelLabelInput.style.top = top + 'px';
+    panelLabelInput.value = hasCustomPanelLabelText(panelId)
+      ? (panelLabelTexts[panelId] || '')
+      : getDefaultPanelLabelText(num);
+    panelLabelInput.placeholder = getDefaultPanelLabelText(num);
+    draw();
+    setTimeout(function() {
+      try {
+        panelLabelInput.focus();
+        panelLabelInput.select();
+      } catch (_) {}
+    }, 30);
   }
 
   function drawDividerSegment(x1, y1, x2, y2, dashed) {
@@ -4623,9 +4772,12 @@
     panels.forEach(function(panel) {
       var num = labelMap[panel.id];
       if (!num) return;
+      var text = getPanelDisplayText(panel, num);
+      if (!text) return;
       var pos = getPanelLabelPosition(panel);
-      var text = 'Panel ' + num;
       var dragging = panelLabelDrag && panelLabelDrag.panelId === panel.id;
+      var editing = editingPanelLabelId === panel.id;
+      if (editing) return;
       ctx.globalAlpha = dragging ? 0.85 : 1;
       ctx.lineWidth = 10;
       ctx.strokeStyle = '#ffffff';
@@ -5551,6 +5703,13 @@
           panelLabelPositions[id] = { x: src.x, y: src.y };
         });
       }
+    } else if (action.type === 'panel-label-edit') {
+      if (action.hadCustom) {
+        panelLabelTexts[action.panelId] = action.previous;
+      } else {
+        delete panelLabelTexts[action.panelId];
+      }
+      closePanelLabelEditor(false);
     } else if (action.type === 'move') {
       var moved = completedShapes[action.shapeIndex];
       if (moved && action.snapshot) {
@@ -5642,9 +5801,12 @@
     circles = [];
     cracks = [];
     panelLabelPositions = {};
+    panelLabelTexts = {};
     panelLabelDrag = null;
+    editingPanelLabelId = null;
     stopNumberDrag();
     closeMeasureEditor(false);
+    closePanelLabelEditor(false);
     cancelCrackDraft();
     cancelCircleDraft();
     cancelInkDraft();
@@ -6122,7 +6284,7 @@
     }
 
     // Allow editing existing measurement labels without leaving draw mode.
-    if (!currentPoints.length && !dividerDrag && !panelLabelDrag) {
+    if (!currentPoints.length && !dividerDrag && !panelLabelDrag && editingPanelLabelId === null) {
       var editHit = hitTestMeasurementLabel(clamped.x, clamped.y);
       if (editHit !== null) {
         openMeasureEditor(editHit);
@@ -6131,8 +6293,8 @@
       }
     }
 
-    // Drag panel labels freely (before divider hits).
-    if (!currentPoints.length && !dividerDrag) {
+    // Tap to edit panel labels; drag to reposition.
+    if (!currentPoints.length && !dividerDrag && editingPanelLabelId === null) {
       var labelHit = hitTestPanelLabel(clamped.x, clamped.y);
       if (labelHit) {
         startPanelLabelDrag(labelHit, clamped.x, clamped.y);
